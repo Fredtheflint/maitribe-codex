@@ -498,7 +498,7 @@
       display: grid;
       grid-template-columns: 1fr auto auto;
       gap: 8px;
-      padding-bottom: env(safe-area-inset-bottom);
+      padding-bottom: calc(env(safe-area-inset-bottom) + 100px);
     }
 
     .chat-input-wrap button {
@@ -1893,10 +1893,11 @@ Let us start by getting to know each other.</p>
       async function ensureUserProfile(user) {
         if (!appState.supabase || !user) return;
 
-        const guessedName = (user.user_metadata && (user.user_metadata.name || user.user_metadata.full_name)) ||
+        var guessedName = (user.user_metadata && (user.user_metadata.name || user.user_metadata.full_name)) ||
           (user.email ? user.email.split("@")[0] : "");
 
-        const { error } = await appState.supabase.from("users").upsert({
+        // Insert only if user row doesn't exist yet — never overwrite existing name/display_name
+        var { error: insertError } = await appState.supabase.from("users").upsert({
           id: user.id,
           email: user.email,
           name: guessedName || null,
@@ -1904,8 +1905,14 @@ Let us start by getting to know each other.</p>
           language: detectDefaultLanguage(),
           timezone: detectTimezone(),
           last_active_at: new Date().toISOString()
-        }, { onConflict: "id" });
-        if (error) console.error("[MaiTribe] ensureUserProfile upsert error:", error);
+        }, { onConflict: "id", ignoreDuplicates: true });
+        if (insertError) console.error("[MaiTribe] ensureUserProfile insert error:", insertError);
+
+        // Always update last_active_at for returning users (without touching name)
+        var { error: updateError } = await appState.supabase.from("users")
+          .update({ last_active_at: new Date().toISOString() })
+          .eq("id", user.id);
+        if (updateError) console.error("[MaiTribe] ensureUserProfile update error:", updateError);
       }
 
       async function loadProfile() {
@@ -2467,7 +2474,7 @@ Write in ${lang}.`;
         if (isTyping) {
           bubble.innerHTML = '<span class="typing"><i></i><i></i><i></i></span>';
         } else {
-          bubble.textContent = role === "assistant" ? ("🌿 " + text) : text;
+          bubble.textContent = text;
         }
 
         area.appendChild(bubble);
@@ -2588,26 +2595,35 @@ How to apply these: Use Pillar 1 when someone is stuck in thought loops or emoti
 - Calm, grounded, warm. Like a thoughtful friend texting.
 - Short paragraphs with breathing space between thoughts.
 - NEVER bullet points. NEVER "here are 5 tips." NEVER clinical language.
-- NEVER overly enthusiastic ("You got this!!! 💪") or overly spiritual ("the universe has a plan").
+- NEVER overly enthusiastic ("You got this!!! \u{1F4AA}") or overly spiritual ("the universe has a plan").
 - NEVER start with instructions or advice before acknowledging.
 - NEVER imply failure ("you didn't", "you should have", "why didn't you").
 - Simple, real words. No therapy jargon. No self-help clichés.
+- NEVER use emojis in your responses. The only exception: you may use a single \u{1F33F} at the very beginning of the first message in a new conversation — never again after that.
 
 ## LENGTH:
-Under 80 words by default. Only longer when the moment truly needs depth.
-When in doubt: shorter is better. One sentence that lands > a paragraph that overwhelms.
+2 to 4 sentences per response. This is your default. Only go shorter (1 sentence) for simple acknowledgments. Never write walls of text.
+
+## EMOTIONAL DEPTH — CRITICAL:
+When the user shares something emotional (fear, sadness, grief, stress, anxiety, overwhelm, loneliness, anger, shame), you MUST:
+1. First genuinely acknowledge what they feel — not with generic validation ("it's natural to feel that way") but with specific reflection of THEIR situation.
+2. Then ALWAYS ask a caring follow-up question that goes deeper. Ask about the specific thing. Examples:
+   - NOT: "It's understandable that you feel anxious." (too generic, stops the conversation)
+   - YES: "That sounds heavy. What exactly about the appointment is weighing on you? Tell me more if you want."
+   - YES: "I hear you. When you say you feel stuck — is it more the not-knowing-what-to-do, or more the exhaustion of having tried? What does it feel like in your body right now?"
+3. Your question should feel like genuine curiosity from someone who cares — not like a therapist's technique. You want to understand THEM, not categorize their emotion.
 
 ## EMOTIONAL ADAPTATION:
-Read their emotional state and adapt automatically:
-- Anxious → Slow down, grounding questions, smaller steps
-- Tired → Reduce expectations, normalize rest
-- Energized → Gentle structure, soft challenge
-- Sad → Presence first, no fixing
-- Stuck → Micro-steps only
-- Overwhelmed → Simplify everything to just this moment
-- Celebrating → Genuine warmth without hype
-- Numb/disconnected → Very gentle, no pushing at all
-- In crisis → Full presence, no advice, suggest professional support if appropriate
+Read their emotional state and adapt automatically. In ALL emotional states: acknowledge specifically, then ask a genuine follow-up question.
+- Anxious \u2192 Slow down, ask what specifically triggers the anxiety, grounding questions
+- Tired \u2192 Reduce expectations, ask what drained them, normalize rest
+- Energized \u2192 Gentle structure, ask what sparked the energy, soft challenge
+- Sad \u2192 Presence first, ask what the sadness is about, no fixing
+- Stuck \u2192 Ask what "stuck" feels like for them, micro-steps only
+- Overwhelmed \u2192 Ask which part feels heaviest, simplify to just this moment
+- Celebrating \u2192 Genuine warmth, ask what this means to them, without hype
+- Numb/disconnected \u2192 Very gentle, ask when they last felt different, no pushing
+- In crisis \u2192 Full presence, ask what they need right now, suggest professional support if appropriate
 
 ## CORE PRINCIPLES:
 - Energy before productivity. Regulation before execution. Always.
@@ -2690,7 +2706,7 @@ Before every response, ask yourself: "Would this feel like a thoughtful human wh
         const data = await callAI({
           systemPrompt: systemPrompt,
           contents: payloadHistory,
-          maxOutputTokens: 320,
+          maxOutputTokens: 1024,
           temperature: 0.8,
           topP: 0.9
         });
@@ -2702,7 +2718,7 @@ Before every response, ask yourself: "Would this feel like a thoughtful human wh
         const data = await callAI({
           systemPrompt: "You are Mai - calm, warm, grounded.",
           contents: [{ role: "user", parts: [{ text: promptText }] }],
-          maxOutputTokens: 260,
+          maxOutputTokens: 512,
           temperature: 0.75,
           topP: 0.9
         });
@@ -2745,7 +2761,7 @@ Before every response, ask yourself: "Would this feel like a thoughtful human wh
               generationConfig: {
                 temperature: options.temperature == null ? 0.8 : options.temperature,
                 topP: options.topP == null ? 0.9 : options.topP,
-                maxOutputTokens: options.maxOutputTokens == null ? 320 : options.maxOutputTokens
+                maxOutputTokens: options.maxOutputTokens == null ? 1024 : options.maxOutputTokens
               }
             })
           });
