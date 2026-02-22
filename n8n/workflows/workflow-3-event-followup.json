@@ -1,0 +1,650 @@
+{
+  "name": "MaiTribe - WF3 Event Follow-Up",
+  "nodes": [
+    {
+      "id": "wf3-webhook",
+      "name": "Webhook Event Followup",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1700,
+        260
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "maitribe/event-followup",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf3-normalize-input",
+      "name": "Normalize Webhook Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1480,
+        260
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const body = $json.body || {};\nconst headers = $json.headers || {};\nconst query = $json.query || {};\n\nconst eventId = body.event_id || body.eventId || query.event_id || null;\nconst providedSecret = headers['x-internal-secret'] || headers['X-Internal-Secret'] || body.secret || null;\n\nreturn [{\n  json: {\n    event_id: eventId,\n    provided_secret: providedSecret\n  }\n}];"
+      }
+    },
+    {
+      "id": "wf3-if-event-id",
+      "name": "Has Event ID?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -1260,
+        260
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.event_id || '' }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wf3-if-secret-valid",
+      "name": "Secret Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -1040,
+        260
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.provided_secret === $env.INTERNAL_WEBHOOK_SECRET }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wf3-load-event",
+      "name": "Load Event Context",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -820,
+        260
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"select json_build_object('event_found', exists(select 1 from public.events e where e.id = '\" + $json.event_id + \"'), 'payload', (select row_to_json(t) from (select e.id as event_id, e.user_id, e.title, e.description, e.event_time, e.followup_sent, e.status, u.display_name, u.language, u.timezone, u.event_followup_enabled, u.push_token, i.one_liner from public.events e join public.users u on u.id = e.user_id left join public.identities i on i.user_id = e.user_id and i.is_active = true where e.id = '\" + $json.event_id + \"' order by i.created_at desc nulls last limit 1) t)) as result;\" }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf3-flatten-event",
+      "name": "Flatten Event Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -600,
+        260
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const result = $json.result || {};\nconst payload = result.payload || {};\n\nreturn [{\n  json: {\n    event_found: !!result.event_found,\n    event_id: payload.event_id || null,\n    user_id: payload.user_id || null,\n    title: payload.title || null,\n    description: payload.description || null,\n    event_time: payload.event_time || null,\n    followup_sent: !!payload.followup_sent,\n    status: payload.status || null,\n    display_name: payload.display_name || 'friend',\n    language: payload.language || 'en',\n    timezone: payload.timezone || 'UTC',\n    event_followup_enabled: payload.event_followup_enabled !== false,\n    push_token: payload.push_token || null,\n    one_liner: payload.one_liner || ''\n  }\n}];"
+      }
+    },
+    {
+      "id": "wf3-if-eligible",
+      "name": "Eligible For Follow-Up?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -380,
+        260
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.event_found && $json.event_followup_enabled === true && !$json.followup_sent && $json.status !== 'cancelled' && $json.event_time && new Date($json.event_time).getTime() <= (Date.now() - 30 * 60 * 1000) }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wf3-build-prompt",
+      "name": "Build Gemini Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        260
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const row = $json;\n\nconst isDe = String(row.language || 'en').toLowerCase() === 'de';\nconst fallbackText = isDe ? `Wie war ${row.title || 'dein Termin'} fuer dich?` : `How was ${row.title || 'your event'} for you?`;\n\nconst prompt = `Create one warm follow-up question after this event.\nUser: ${row.display_name || 'friend'}\nEvent title: ${row.title || ''}\nEvent description: ${row.description || ''}\nIdentity one-liner: ${row.one_liner || ''}\nLanguage: ${row.language || 'en'}\n\nRules:\n- 1 short message, max 22 words.\n- Personal, caring, not generic.\n- End with one gentle question.\n- Plain text only.`;\n\nlet pushSubscription = null;\nif (row.push_token) {\n  try {\n    pushSubscription = typeof row.push_token === 'string' ? JSON.parse(row.push_token) : row.push_token;\n  } catch (e) {\n    pushSubscription = null;\n  }\n}\n\nconst sqlLiteral = (value) => {\n  const escaped = String(value || '').replace(/'/g, String.fromCharCode(39, 39));\n  return String.fromCharCode(39) + escaped + String.fromCharCode(39);\n};\n\nreturn [{\n  json: {\n    ...row,\n    prompt,\n    fallback_text: fallbackText,\n    push_subscription: pushSubscription,\n    fallback_sql: sqlLiteral(fallbackText)\n  }\n}];"
+      }
+    },
+    {
+      "id": "wf3-gemini",
+      "name": "Gemini Follow-Up",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        60,
+        160
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + $env.GEMINI_API_KEY }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { system_instruction: { parts: [{ text: 'You are Mai - calm, warm, grounded.' }] }, contents: [{ role: 'user', parts: [{ text: $json.prompt }] }], generationConfig: { temperature: 0.75, topP: 0.9, maxOutputTokens: 80 } } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf3-merge-gemini",
+      "name": "Merge Gemini + Payload",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        280,
+        260
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf3-finalize-text",
+      "name": "Finalize Follow-Up Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        260
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const extractGeminiText = (obj) => {\n  if (!obj) return '';\n  if (obj.candidates && obj.candidates[0] && obj.candidates[0].content && Array.isArray(obj.candidates[0].content.parts)) {\n    return obj.candidates[0].content.parts.map((p) => p.text || '').join('\\n').trim();\n  }\n  if (obj.body && obj.body.candidates && obj.body.candidates[0] && obj.body.candidates[0].content && Array.isArray(obj.body.candidates[0].content.parts)) {\n    return obj.body.candidates[0].content.parts.map((p) => p.text || '').join('\\n').trim();\n  }\n  return '';\n};\n\nlet finalText = extractGeminiText($json);\nif (!finalText) finalText = $json.fallback_text;\nif (finalText.length > 180) finalText = `${finalText.slice(0, 177)}...`;\n\nconst sqlLiteral = (value) => {\n  const escaped = String(value || '').replace(/'/g, String.fromCharCode(39, 39));\n  return String.fromCharCode(39) + escaped + String.fromCharCode(39);\n};\n\nreturn [{\n  json: {\n    ...$json,\n    followup_text: finalText,\n    content_sql: sqlLiteral(finalText),\n    variation_sql: sqlLiteral('gemini')\n  }\n}];"
+      }
+    },
+    {
+      "id": "wf3-if-has-push",
+      "name": "Has Push Subscription?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        720,
+        260
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ !!$json.push_subscription }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wf3-send-push",
+      "name": "Send Follow-Up Push",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        940,
+        160
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/functions/v1/send-push' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { userId: $json.user_id, subscription: $json.push_subscription, title: 'MaiTribe 🌿', body: $json.followup_text, data: { type: 'event_followup', eventId: $json.event_id } } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf3-merge-push",
+      "name": "Merge Push + Payload",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        160
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf3-mark-push",
+      "name": "Mark Delivery From Push",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1380,
+        160
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const sent = !$json.error;\n\nreturn [{\n  json: {\n    ...$json,\n    sent,\n    push_error: sent ? null : JSON.stringify($json.error)\n  }\n}];"
+      }
+    },
+    {
+      "id": "wf3-mark-no-push",
+      "name": "Mark Unsent (No Push Token)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        940,
+        360
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return [{\n  json: {\n    ...$json,\n    sent: false,\n    push_error: 'no_push_subscription'\n  }\n}];"
+      }
+    },
+    {
+      "id": "wf3-merge-delivery",
+      "name": "Merge Delivery Streams",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        260
+      ],
+      "parameters": {
+        "mode": "append"
+      }
+    },
+    {
+      "id": "wf3-update-event",
+      "name": "Update Event Follow-Up",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1820,
+        260
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"update public.events set followup_sent = \" + ($json.sent ? 'true' : 'false') + \", followup_time = \" + ($json.sent ? 'now()' : 'followup_time') + \", followup_response = \" + $json.content_sql + \", status = case when status = 'upcoming' then 'completed' else status end where id = '\" + $json.event_id + \"';\" }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf3-insert-reminder",
+      "name": "Insert Reminder Row",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2040,
+        260
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"insert into public.reminders (user_id, type, content, variation_type, scheduled_for, sent, sent_at, delivery_method, event_id) values ('\" + $json.user_id + \"', 'event_followup', \" + $json.content_sql + \", \" + $json.variation_sql + \", now(), \" + ($json.sent ? 'true' : 'false') + \", \" + ($json.sent ? 'now()' : 'null') + \", 'push', '\" + $json.event_id + \"');\" }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf3-respond-success",
+      "name": "Respond 200 Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2260,
+        260
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 200,
+        "responseBody": "={{ { ok: true, event_id: $json.event_id, sent: $json.sent, push_error: $json.push_error || null } }}"
+      }
+    },
+    {
+      "id": "wf3-respond-missing",
+      "name": "Respond 400 Missing Event",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -1040,
+        460
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 400,
+        "responseBody": "={{ { ok: false, error: 'missing_event_id' } }}"
+      }
+    },
+    {
+      "id": "wf3-respond-unauthorized",
+      "name": "Respond 401 Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -820,
+        460
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 401,
+        "responseBody": "={{ { ok: false, error: 'unauthorized' } }}"
+      }
+    },
+    {
+      "id": "wf3-respond-ignored",
+      "name": "Respond 202 Ignored",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        460
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 202,
+        "responseBody": "={{ { ok: true, ignored: true, reason: 'not_eligible_or_not_due' } }}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Event Followup": {
+      "main": [
+        [
+          {
+            "node": "Normalize Webhook Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Webhook Input": {
+      "main": [
+        [
+          {
+            "node": "Has Event ID?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Event ID?": {
+      "main": [
+        [
+          {
+            "node": "Secret Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 400 Missing Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Secret Valid?": {
+      "main": [
+        [
+          {
+            "node": "Load Event Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401 Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Event Context": {
+      "main": [
+        [
+          {
+            "node": "Flatten Event Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten Event Context": {
+      "main": [
+        [
+          {
+            "node": "Eligible For Follow-Up?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Eligible For Follow-Up?": {
+      "main": [
+        [
+          {
+            "node": "Build Gemini Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 202 Ignored",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Gemini Prompt": {
+      "main": [
+        [
+          {
+            "node": "Gemini Follow-Up",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Gemini + Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Follow-Up": {
+      "main": [
+        [
+          {
+            "node": "Merge Gemini + Payload",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Gemini + Payload": {
+      "main": [
+        [
+          {
+            "node": "Finalize Follow-Up Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Follow-Up Text": {
+      "main": [
+        [
+          {
+            "node": "Has Push Subscription?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Push Subscription?": {
+      "main": [
+        [
+          {
+            "node": "Send Follow-Up Push",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Push + Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Unsent (No Push Token)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Follow-Up Push": {
+      "main": [
+        [
+          {
+            "node": "Merge Push + Payload",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Push + Payload": {
+      "main": [
+        [
+          {
+            "node": "Mark Delivery From Push",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Delivery From Push": {
+      "main": [
+        [
+          {
+            "node": "Merge Delivery Streams",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Unsent (No Push Token)": {
+      "main": [
+        [
+          {
+            "node": "Merge Delivery Streams",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Delivery Streams": {
+      "main": [
+        [
+          {
+            "node": "Update Event Follow-Up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Event Follow-Up": {
+      "main": [
+        [
+          {
+            "node": "Insert Reminder Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Reminder Row": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

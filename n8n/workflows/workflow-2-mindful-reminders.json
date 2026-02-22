@@ -1,0 +1,603 @@
+{
+  "name": "MaiTribe - WF2 Mindful Reminders",
+  "nodes": [
+    {
+      "id": "wf2-cron",
+      "name": "Cron Every 10 Minutes",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -1660,
+        260
+      ],
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 10,
+              "unit": "minutes"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wf2-select-due-users",
+      "name": "Select Due Mindful Users",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1440,
+        260
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "with base as (\n  select\n    u.id as user_id,\n    u.display_name,\n    u.language,\n    u.timezone,\n    u.morning_reminder_time,\n    u.mindful_reminder_count,\n    u.push_token,\n    (now() at time zone u.timezone) as local_now,\n    date_trunc('day', now() at time zone u.timezone) as local_day_start\n  from public.users u\n  where u.onboarding_completed = true\n    and u.mindful_reminders_enabled = true\n    and u.mindful_reminder_count between 2 and 5\n), window_calc as (\n  select\n    *,\n    (local_day_start + morning_reminder_time) as wake_ts,\n    (local_day_start + time '21:00') as end_ts\n  from base\n), sent_today as (\n  select\n    w.*,\n    coalesce((\n      select count(*)\n      from public.reminders r\n      where r.user_id = w.user_id\n        and r.type = 'mindful_reminder'\n        and (r.scheduled_for at time zone w.timezone)::date = (w.local_now)::date\n    ), 0) as sent_count\n  from window_calc w\n), slot_calc as (\n  select\n    *,\n    greatest(1, mindful_reminder_count) as target_count,\n    extract(epoch from (end_ts - wake_ts)) / 60.0 as window_minutes\n  from sent_today\n), due as (\n  select\n    *,\n    (window_minutes / target_count) as slot_minutes,\n    (wake_ts + make_interval(mins => floor((window_minutes / target_count) * sent_count)::int)) as next_slot_local\n  from slot_calc\n)\nselect\n  user_id,\n  display_name,\n  language,\n  timezone,\n  push_token,\n  mindful_reminder_count,\n  sent_count,\n  next_slot_local,\n  local_now\nfrom due\nwhere sent_count < mindful_reminder_count\n  and local_now >= next_slot_local\n  and local_now < (next_slot_local + interval '10 minutes')\n  and not exists (\n    select 1 from public.reminders r\n    where r.user_id = due.user_id\n      and r.type = 'mindful_reminder'\n      and r.scheduled_for > now() - interval '20 minutes'\n  );",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf2-load-recent",
+      "name": "Load Recent 7d Mindful",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1220,
+        260
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"select u.id as user_id, u.display_name, u.language, u.timezone, u.push_token, u.mindful_reminder_count, coalesce(json_agg(r.content) filter (where r.id is not null), '[]'::json) as recent_mindful from public.users u left join public.reminders r on r.user_id = u.id and r.type = 'mindful_reminder' and r.sent = true and r.sent_at > now() - interval '7 days' where u.id = '\" + $json.user_id + \"' group by u.id, u.display_name, u.language, u.timezone, u.push_token, u.mindful_reminder_count;\" }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf2-build-prompts",
+      "name": "Build Gemini Prompts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1000,
+        260
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const row = $json;\n\nlet recent = row.recent_mindful;\nif (typeof recent === 'string') {\n  try {\n    recent = JSON.parse(recent);\n  } catch (e) {\n    recent = [];\n  }\n}\nif (!Array.isArray(recent)) recent = [];\n\nconst normalize = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9äöüß ]/gi, '').replace(/\\s+/g, ' ').trim();\nconst recentNormalized = recent.map(normalize).filter(Boolean);\n\nconst lang = String(row.language || 'en').toLowerCase();\nconst isDe = lang === 'de';\n\nconst fallbackDe = [\n  'Du bist nicht deine Gedanken.',\n  'Ein Atemzug. Dann der naechste.',\n  'Was fuehlst du gerade in deinem Koerper?',\n  'Du musst es nicht sofort loesen. Nur jetzt da sein.',\n  'Sanft bleiben ist heute stark genug.'\n];\nconst fallbackEn = [\n  'You are not your thoughts.',\n  'One breath. Then the next.',\n  'What do you feel in your body right now?',\n  'You do not need to solve everything now.',\n  'Soft is strong enough for today.'\n];\n\nconst fallbackPool = isDe ? fallbackDe : fallbackEn;\nconst fallbackText = fallbackPool.find((line) => !recentNormalized.includes(normalize(line))) || fallbackPool[0];\n\nconst promptPrimary = isDe\n  ? `Du bist Mai. Schreibe genau eine kurze achtsame Erinnerung auf Deutsch. Stil: still, praesent, geerdet. Laenge: 8-18 Woerter. Keine Emojis. Nicht predigend. Keine Wiederholung dieser letzten Erinnerungen: ${recent.join(' | ')}. Gib nur den Text aus.`\n  : `You are Mai. Write exactly one short mindful reminder in English. Style: calm, present, grounded. Length: 8-18 words. No emojis. Not preachy. Do not repeat any of these recent reminders: ${recent.join(' | ')}. Return plain text only.`;\n\nconst promptRetry = isDe\n  ? `Erzeuge eine ALTERNATIVE achtsame Erinnerung (Deutsch), die sich klar von den letzten 7 Tagen unterscheidet. 8-18 Woerter. Nur Text.`\n  : `Generate an ALTERNATIVE mindful reminder (English) clearly different from the last 7 days. 8-18 words. Plain text only.`;\n\nlet pushSubscription = null;\nif (row.push_token) {\n  try {\n    pushSubscription = typeof row.push_token === 'string' ? JSON.parse(row.push_token) : row.push_token;\n  } catch (e) {\n    pushSubscription = null;\n  }\n}\n\nreturn [{\n  json: {\n    ...row,\n    recent_mindful: recent,\n    recent_normalized: recentNormalized,\n    fallback_text: fallbackText,\n    prompt_primary: promptPrimary,\n    prompt_retry: promptRetry,\n    push_subscription: pushSubscription\n  }\n}];"
+      }
+    },
+    {
+      "id": "wf2-gemini-primary",
+      "name": "Gemini Primary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -780,
+        160
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + $env.GEMINI_API_KEY }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { system_instruction: { parts: [{ text: 'You are Mai - calm, warm, grounded.' }] }, contents: [{ role: 'user', parts: [{ text: $json.prompt_primary }] }], generationConfig: { temperature: 0.75, topP: 0.9, maxOutputTokens: 80 } } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf2-merge-primary",
+      "name": "Merge Primary + Payload",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        260
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf2-normalize-primary",
+      "name": "Normalize Primary Candidate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -340,
+        260
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const normalize = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9äöüß ]/gi, '').replace(/\\s+/g, ' ').trim();\n\nconst extractGeminiText = (obj) => {\n  if (!obj) return '';\n  if (obj.candidates && obj.candidates[0] && obj.candidates[0].content && Array.isArray(obj.candidates[0].content.parts)) {\n    return obj.candidates[0].content.parts.map((p) => p.text || '').join('\\n').trim();\n  }\n  if (obj.body && obj.body.candidates && obj.body.candidates[0] && obj.body.candidates[0].content && Array.isArray(obj.body.candidates[0].content.parts)) {\n    return obj.body.candidates[0].content.parts.map((p) => p.text || '').join('\\n').trim();\n  }\n  return '';\n};\n\nconst recentNormalized = Array.isArray($json.recent_normalized) ? $json.recent_normalized : [];\nconst candidate = extractGeminiText($json);\nconst candidateNorm = normalize(candidate);\nconst needsRetry = !candidate || recentNormalized.includes(candidateNorm);\n\nreturn [{\n  json: {\n    ...$json,\n    candidate_primary: candidate,\n    candidate_primary_norm: candidateNorm,\n    needs_retry: needsRetry\n  }\n}];"
+      }
+    },
+    {
+      "id": "wf2-if-needs-retry",
+      "name": "Needs Retry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        260
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needs_retry }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wf2-gemini-retry",
+      "name": "Gemini Retry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        100,
+        160
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + $env.GEMINI_API_KEY }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { system_instruction: { parts: [{ text: 'You are Mai - calm, warm, grounded.' }] }, contents: [{ role: 'user', parts: [{ text: $json.prompt_retry }] }], generationConfig: { temperature: 0.8, topP: 0.92, maxOutputTokens: 80 } } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf2-merge-retry",
+      "name": "Merge Retry + Payload",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        320,
+        260
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf2-finalize-retry",
+      "name": "Finalize After Retry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        540,
+        260
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const normalize = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9äöüß ]/gi, '').replace(/\\s+/g, ' ').trim();\n\nconst extractGeminiText = (obj) => {\n  if (!obj) return '';\n  if (obj.candidates && obj.candidates[0] && obj.candidates[0].content && Array.isArray(obj.candidates[0].content.parts)) {\n    return obj.candidates[0].content.parts.map((p) => p.text || '').join('\\n').trim();\n  }\n  if (obj.body && obj.body.candidates && obj.body.candidates[0] && obj.body.candidates[0].content && Array.isArray(obj.body.candidates[0].content.parts)) {\n    return obj.body.candidates[0].content.parts.map((p) => p.text || '').join('\\n').trim();\n  }\n  return '';\n};\n\nconst recentNormalized = Array.isArray($json.recent_normalized) ? $json.recent_normalized : [];\nconst retryText = extractGeminiText($json);\nconst retryNorm = normalize(retryText);\nconst reminderContent = (retryText && !recentNormalized.includes(retryNorm)) ? retryText : $json.fallback_text;\n\nconst sqlLiteral = (value) => `'${String(value || '').replace(/'/g, \"''\")}'`;\n\nreturn [{\n  json: {\n    ...$json,\n    reminder_content: reminderContent,\n    content_sql: sqlLiteral(reminderContent),\n    variation_sql: sqlLiteral('gemini')\n  }\n}];"
+      }
+    },
+    {
+      "id": "wf2-finalize-primary",
+      "name": "Finalize Primary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        100,
+        380
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const reminderContent = $json.candidate_primary || $json.fallback_text;\nconst sqlLiteral = (value) => `'${String(value || '').replace(/'/g, \"''\")}'`;\n\nreturn [{\n  json: {\n    ...$json,\n    reminder_content: reminderContent,\n    content_sql: sqlLiteral(reminderContent),\n    variation_sql: sqlLiteral('gemini')\n  }\n}];"
+      }
+    },
+    {
+      "id": "wf2-merge-final-text",
+      "name": "Merge Final Text",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        760,
+        320
+      ],
+      "parameters": {
+        "mode": "append"
+      }
+    },
+    {
+      "id": "wf2-if-has-push",
+      "name": "Has Push Subscription?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        980,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ !!$json.push_subscription }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wf2-send-push",
+      "name": "Send Mindful Push",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        220
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/functions/v1/send-push' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { userId: $json.user_id, subscription: $json.push_subscription, title: 'MaiTribe 🌿', body: $json.reminder_content, data: { type: 'mindful_reminder', variation: 'gemini' } } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf2-merge-push",
+      "name": "Merge Push + Payload",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        1420,
+        220
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf2-mark-push-result",
+      "name": "Mark Delivery From Push",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1640,
+        220
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const sent = !$json.error;\n\nreturn [{\n  json: {\n    ...$json,\n    sent,\n    push_error: sent ? null : JSON.stringify($json.error)\n  }\n}];"
+      }
+    },
+    {
+      "id": "wf2-mark-no-push",
+      "name": "Mark Unsent (No Push Token)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        420
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return [{\n  json: {\n    ...$json,\n    sent: false,\n    push_error: 'no_push_subscription'\n  }\n}];"
+      }
+    },
+    {
+      "id": "wf2-merge-delivery",
+      "name": "Merge Delivery Streams",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        1860,
+        320
+      ],
+      "parameters": {
+        "mode": "append"
+      }
+    },
+    {
+      "id": "wf2-insert-reminder",
+      "name": "Insert Reminder Row",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2080,
+        320
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"insert into public.reminders (user_id, type, content, variation_type, scheduled_for, sent, sent_at, delivery_method) values ('\" + $json.user_id + \"', 'mindful_reminder', \" + $json.content_sql + \", \" + $json.variation_sql + \", now(), \" + ($json.sent ? 'true' : 'false') + \", \" + ($json.sent ? 'now()' : 'null') + \", 'push');\" }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Cron Every 10 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Select Due Mindful Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Due Mindful Users": {
+      "main": [
+        [
+          {
+            "node": "Load Recent 7d Mindful",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Recent 7d Mindful": {
+      "main": [
+        [
+          {
+            "node": "Build Gemini Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Gemini Prompts": {
+      "main": [
+        [
+          {
+            "node": "Gemini Primary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Primary + Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Primary": {
+      "main": [
+        [
+          {
+            "node": "Merge Primary + Payload",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Primary + Payload": {
+      "main": [
+        [
+          {
+            "node": "Normalize Primary Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Primary Candidate": {
+      "main": [
+        [
+          {
+            "node": "Needs Retry?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Retry?": {
+      "main": [
+        [
+          {
+            "node": "Gemini Retry",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Retry + Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Finalize Primary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Retry": {
+      "main": [
+        [
+          {
+            "node": "Merge Retry + Payload",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Retry + Payload": {
+      "main": [
+        [
+          {
+            "node": "Finalize After Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize After Retry": {
+      "main": [
+        [
+          {
+            "node": "Merge Final Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Primary": {
+      "main": [
+        [
+          {
+            "node": "Merge Final Text",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Final Text": {
+      "main": [
+        [
+          {
+            "node": "Has Push Subscription?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Push Subscription?": {
+      "main": [
+        [
+          {
+            "node": "Send Mindful Push",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Push + Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Unsent (No Push Token)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Mindful Push": {
+      "main": [
+        [
+          {
+            "node": "Merge Push + Payload",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Push + Payload": {
+      "main": [
+        [
+          {
+            "node": "Mark Delivery From Push",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Delivery From Push": {
+      "main": [
+        [
+          {
+            "node": "Merge Delivery Streams",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Unsent (No Push Token)": {
+      "main": [
+        [
+          {
+            "node": "Merge Delivery Streams",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Delivery Streams": {
+      "main": [
+        [
+          {
+            "node": "Insert Reminder Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

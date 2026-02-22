@@ -1,0 +1,327 @@
+{
+  "name": "MaiTribe - WF1 Morning Identity Reminder",
+  "nodes": [
+    {
+      "id": "wf1-cron",
+      "name": "Cron Every 5 Minutes",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -1200,
+        120
+      ],
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 5,
+              "unit": "minutes"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wf1-select-due-users",
+      "name": "Select Due Users",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -980,
+        120
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select\n  u.id as user_id\nfrom public.users u\nwhere u.onboarding_completed = true\n  and u.morning_reminder_enabled = true\n  and ((now() at time zone u.timezone)::time >= u.morning_reminder_time)\n  and ((now() at time zone u.timezone)::time < (u.morning_reminder_time + interval '5 minutes'))\n  and not exists (\n    select 1\n    from public.reminders r\n    where r.user_id = u.id\n      and r.type = 'morning_identity'\n      and (r.scheduled_for at time zone u.timezone)::date = (now() at time zone u.timezone)::date\n  );",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf1-load-identity",
+      "name": "Load Identity Context",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -760,
+        120
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"select u.id as user_id, u.display_name, u.language, u.timezone, u.push_token, i.full_text, i.one_liner, i.sentences from public.users u left join lateral (select full_text, one_liner, sentences from public.identities where user_id = u.id and is_active = true order by created_at desc limit 1) i on true where u.id = '\" + $json.user_id + \"' limit 1;\" }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf1-build-rotation",
+      "name": "Build Rotation Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -540,
+        120
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const row = $json;\n\nconst full = (row.full_text || '').trim();\nlet sentences = row.sentences;\nif (typeof sentences === 'string') {\n  try {\n    sentences = JSON.parse(sentences);\n  } catch (e) {\n    sentences = [];\n  }\n}\nif (!Array.isArray(sentences)) sentences = [];\n\nconst oneLiner = (row.one_liner || sentences[0] || full || 'I return to myself, gently.').trim();\n\nconst hash = [...String(row.user_id || '')].reduce((acc, ch) => acc + ch.charCodeAt(0), 0);\nconst now = new Date();\nconst start = new Date(now.getFullYear(), 0, 0);\nconst dayOfYear = Math.floor((now - start) / 86400000);\nconst rotationType = ['A', 'B', 'C', 'D', 'E'][(dayOfYear + hash) % 5];\n\nconst lang = String(row.language || 'en').toLowerCase();\nconst isDe = lang === 'de';\n\nconst question = isDe ? 'Was ist heute ein kleiner, echter Schritt?' : 'What is one small, honest step today?';\nconst bodyFocus = isDe ? 'Spuer einmal in deinen Koerper: Was braucht heute sanfte Aufmerksamkeit?' : 'Check in with your body: what needs gentle attention today?';\nconst presentAnchor = isDe ? 'Ein Atemzug. Dieser Moment ist genug.' : 'One breath. This moment is enough.';\nconst dreamVision = isDe ? 'Welcher kleine Schritt bringt heute deinen Traum naeher?' : 'What small step brings your dream closer today?';\n\nlet reminderContent = '';\nif (rotationType === 'A') {\n  reminderContent = full || oneLiner;\n} else if (rotationType === 'B') {\n  reminderContent = `${oneLiner} ${question}`;\n} else if (rotationType === 'C') {\n  reminderContent = `${oneLiner} ${bodyFocus}`;\n} else if (rotationType === 'D') {\n  reminderContent = `${oneLiner} ${presentAnchor}`;\n} else {\n  reminderContent = `${oneLiner} ${dreamVision}`;\n}\n\nif (reminderContent.length > 220) {\n  reminderContent = `${reminderContent.slice(0, 217)}...`;\n}\n\nlet pushSubscription = null;\nif (row.push_token) {\n  try {\n    pushSubscription = typeof row.push_token === 'string' ? JSON.parse(row.push_token) : row.push_token;\n  } catch (e) {\n    pushSubscription = null;\n  }\n}\n\nconst sqlLiteral = (value) => `'${String(value || '').replace(/'/g, \"''\")}'`;\n\nreturn [{\n  json: {\n    ...row,\n    variation_type: rotationType,\n    reminder_content: reminderContent,\n    push_subscription: pushSubscription,\n    content_sql: sqlLiteral(reminderContent),\n    variation_sql: sqlLiteral(rotationType)\n  }\n}];"
+      }
+    },
+    {
+      "id": "wf1-if-has-push",
+      "name": "Has Push Subscription?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        120
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ !!$json.push_subscription }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wf1-send-push",
+      "name": "Send Push (Edge Function)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -100,
+        20
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/functions/v1/send-push' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { userId: $json.user_id, subscription: $json.push_subscription, title: 'MaiTribe 🌿', body: $json.reminder_content, data: { type: 'morning_identity', variation: $json.variation_type } } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf1-merge-push",
+      "name": "Merge Push + Payload",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        120,
+        20
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf1-mark-push-result",
+      "name": "Mark Delivery From Push",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        20
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const sent = !$json.error;\n\nreturn [{\n  json: {\n    ...$json,\n    sent,\n    push_error: sent ? null : JSON.stringify($json.error)\n  }\n}];"
+      }
+    },
+    {
+      "id": "wf1-mark-no-push",
+      "name": "Mark Unsent (No Push Token)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -100,
+        220
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return [{\n  json: {\n    ...$json,\n    sent: false,\n    push_error: 'no_push_subscription'\n  }\n}];"
+      }
+    },
+    {
+      "id": "wf1-merge-delivery-streams",
+      "name": "Merge Delivery Streams",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        560,
+        120
+      ],
+      "parameters": {
+        "mode": "append"
+      }
+    },
+    {
+      "id": "wf1-insert-reminder",
+      "name": "Insert Reminder Row",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        780,
+        120
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"insert into public.reminders (user_id, type, content, variation_type, scheduled_for, sent, sent_at, delivery_method) values ('\" + $json.user_id + \"', 'morning_identity', \" + $json.content_sql + \", \" + $json.variation_sql + \", now(), \" + ($json.sent ? 'true' : 'false') + \", \" + ($json.sent ? 'now()' : 'null') + \", 'push');\" }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Cron Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Select Due Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Due Users": {
+      "main": [
+        [
+          {
+            "node": "Load Identity Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Identity Context": {
+      "main": [
+        [
+          {
+            "node": "Build Rotation Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Rotation Payload": {
+      "main": [
+        [
+          {
+            "node": "Has Push Subscription?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Push Subscription?": {
+      "main": [
+        [
+          {
+            "node": "Send Push (Edge Function)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Push + Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Unsent (No Push Token)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Push (Edge Function)": {
+      "main": [
+        [
+          {
+            "node": "Merge Push + Payload",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Push + Payload": {
+      "main": [
+        [
+          {
+            "node": "Mark Delivery From Push",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Delivery From Push": {
+      "main": [
+        [
+          {
+            "node": "Merge Delivery Streams",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Unsent (No Push Token)": {
+      "main": [
+        [
+          {
+            "node": "Merge Delivery Streams",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Delivery Streams": {
+      "main": [
+        [
+          {
+            "node": "Insert Reminder Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

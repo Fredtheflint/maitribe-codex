@@ -1,0 +1,248 @@
+{
+  "name": "MaiTribe - Push WF2 Mindful Reminders",
+  "nodes": [
+    {
+      "id": "wf2-cron",
+      "name": "Cron Every 10 Minutes",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [-1160, 260],
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 10,
+              "unit": "minutes"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wf2-select",
+      "name": "Select Due Mindful Users",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-940, 260],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select\n  u.id as user_id,\n  u.language,\n  u.timezone,\n  u.push_token\nfrom public.users u\nwhere u.onboarding_completed = true\n  and u.mindful_reminders_enabled = true\n  and u.push_token is not null\n  and extract(hour from (now() at time zone u.timezone)) in (10, 14, 19)\n  and extract(minute from (now() at time zone u.timezone)) between 0 and 9\n  and not exists (\n    select 1\n    from public.reminders r\n    where r.user_id = u.id\n      and r.type = 'mindful_reminder'\n      and date_trunc('hour', r.scheduled_for at time zone u.timezone) = date_trunc('hour', now() at time zone u.timezone)\n  );",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf2-recent",
+      "name": "Load Recent 7 Days",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-720, 260],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"select u.id as user_id, u.language, u.timezone, u.push_token, coalesce(json_agg(r.content) filter (where r.id is not null), '[]'::json) as recent_reminders from public.users u left join public.reminders r on r.user_id = u.id and r.type = 'mindful_reminder' and r.sent = true and r.sent_at > now() - interval '7 days' where u.id = '\" + $json.user_id + \"' group by u.id, u.language, u.timezone, u.push_token;\" }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf2-build",
+      "name": "Build Prompt + Fallback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-500, 260],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const row = $json;\n\nlet recent = row.recent_reminders;\nif (typeof recent === 'string') { try { recent = JSON.parse(recent); } catch (e) { recent = []; } }\nif (!Array.isArray(recent)) recent = [];\n\nconst normalize = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9äöüß ]/gi, '').replace(/\\s+/g, ' ').trim();\nconst recentNorm = recent.map(normalize).filter(Boolean);\n\nconst isDe = String(row.language || 'en').toLowerCase() === 'de';\nconst fallbackPool = isDe\n  ? [\n      'Du bist nicht deine Gedanken.',\n      'Ein Atemzug. Dann der naechste.',\n      'Was fuehlst du gerade in deinem Koerper?',\n      'Du musst es nicht sofort loesen. Nur jetzt da sein.'\n    ]\n  : [\n      'You are not your thoughts.',\n      'One breath. Then the next.',\n      'What do you feel in your body right now?',\n      'You do not need to solve everything now.'\n    ];\n\nconst fallback = fallbackPool.find((x) => !recentNorm.includes(normalize(x))) || fallbackPool[0];\n\nlet subscription = null;\ntry { subscription = typeof row.push_token === 'string' ? JSON.parse(row.push_token) : row.push_token; } catch (e) { subscription = null; }\n\nconst prompt = isDe\n  ? `Du bist Mai. Erzeuge genau eine kurze achtsame Erinnerung auf Deutsch. Stil: warm, klar, praesenz-orientiert. 8-18 Woerter. Keine Emojis. Keine Bullet Points. Vermeide Wiederholungen dieser Texte: ${recent.join(' | ')}. Gib nur den finalen Satz aus.`\n  : `You are Mai. Generate exactly one short mindful reminder in English. Style: warm, clear, present. 8-18 words. No emojis. No bullet points. Avoid repeating these texts: ${recent.join(' | ')}. Return only the final sentence.`;\n\nconst sqlLiteral = (v) => `'${String(v || '').replace(/'/g, \"''\")}'`;\n\nreturn [{ json: { ...row, prompt, fallback_text: fallback, recent_norm: recentNorm, subscription, fallback_sql: sqlLiteral(fallback) } }];"
+      }
+    },
+    {
+      "id": "wf2-has-sub",
+      "name": "Has Push Subscription",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [-280, 260],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ !!$json.subscription }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wf2-gemini",
+      "name": "Gemini Mindful Text",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [-60, 160],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + $env.GEMINI_API_KEY }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { contents: [{ role: 'user', parts: [{ text: $json.prompt }] }], generationConfig: { temperature: 0.75, topP: 0.9, maxOutputTokens: 80 } } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf2-merge",
+      "name": "Merge Gemini + Payload",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [160, 260],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf2-finalize",
+      "name": "Finalize Reminder Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [380, 260],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const normalize = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9äöüß ]/gi, '').replace(/\\s+/g, ' ').trim();\n\nconst extract = (obj) => {\n  if (!obj) return '';\n  if (obj.candidates && obj.candidates[0] && obj.candidates[0].content && Array.isArray(obj.candidates[0].content.parts)) {\n    return obj.candidates[0].content.parts.map((p) => p.text || '').join('\\n').trim();\n  }\n  if (obj.body && obj.body.candidates && obj.body.candidates[0] && obj.body.candidates[0].content && Array.isArray(obj.body.candidates[0].content.parts)) {\n    return obj.body.candidates[0].content.parts.map((p) => p.text || '').join('\\n').trim();\n  }\n  return '';\n};\n\nlet text = extract($json);\nif (!text) text = $json.fallback_text;\nconst recentNorm = Array.isArray($json.recent_norm) ? $json.recent_norm : [];\nif (recentNorm.includes(normalize(text))) text = $json.fallback_text;\nif (text.length > 200) text = `${text.slice(0, 197)}...`;\n\nconst sqlLiteral = (v) => `'${String(v || '').replace(/'/g, \"''\")}'`;\n\nreturn [{ json: { ...$json, reminder_text: text, content_sql: sqlLiteral(text), variation_sql: sqlLiteral('gemini') } }];"
+      }
+    },
+    {
+      "id": "wf2-push",
+      "name": "Send Push via Edge Function",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [600, 180],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/functions/v1/send-push' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { userId: $json.user_id, subscription: $json.subscription, title: 'MaiTribe', body: $json.reminder_text, data: { type: 'mindful_reminder' } } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf2-mark-sent",
+      "name": "Mark Sent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [820, 180],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const sent = !$json.error;\nreturn [{ json: { ...$json, sent } }];"
+      }
+    },
+    {
+      "id": "wf2-log-sent",
+      "name": "Insert Reminder (Sent Path)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1040, 180],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"insert into public.reminders (user_id, type, content, variation_type, scheduled_for, sent, sent_at, delivery_method) values ('\" + $json.user_id + \"', 'mindful_reminder', \" + $json.content_sql + \", \" + $json.variation_sql + \", now(), \" + ($json.sent ? 'true' : 'false') + \", \" + ($json.sent ? 'now()' : 'null') + \", 'push');\" }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wf2-mark-nosub",
+      "name": "Mark Skipped (No Subscription)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-60, 360],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return [{ json: { ...$json, reminder_text: $json.fallback_text, content_sql: $json.fallback_sql, variation_sql: '\\'fallback\\'', sent: false } }];"
+      }
+    },
+    {
+      "id": "wf2-log-nosub",
+      "name": "Insert Reminder (Skipped Path)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [160, 360],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"insert into public.reminders (user_id, type, content, variation_type, scheduled_for, sent, sent_at, delivery_method) values ('\" + $json.user_id + \"', 'mindful_reminder', \" + $json.content_sql + \", \" + $json.variation_sql + \", now(), false, null, 'push');\" }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Cron Every 10 Minutes": {
+      "main": [[{ "node": "Select Due Mindful Users", "type": "main", "index": 0 }]]
+    },
+    "Select Due Mindful Users": {
+      "main": [[{ "node": "Load Recent 7 Days", "type": "main", "index": 0 }]]
+    },
+    "Load Recent 7 Days": {
+      "main": [[{ "node": "Build Prompt + Fallback", "type": "main", "index": 0 }]]
+    },
+    "Build Prompt + Fallback": {
+      "main": [[{ "node": "Has Push Subscription", "type": "main", "index": 0 }, { "node": "Merge Gemini + Payload", "type": "main", "index": 0 }]]
+    },
+    "Has Push Subscription": {
+      "main": [
+        [{ "node": "Gemini Mindful Text", "type": "main", "index": 0 }],
+        [{ "node": "Mark Skipped (No Subscription)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Gemini Mindful Text": {
+      "main": [[{ "node": "Merge Gemini + Payload", "type": "main", "index": 1 }]]
+    },
+    "Merge Gemini + Payload": {
+      "main": [[{ "node": "Finalize Reminder Text", "type": "main", "index": 0 }]]
+    },
+    "Finalize Reminder Text": {
+      "main": [[{ "node": "Send Push via Edge Function", "type": "main", "index": 0 }]]
+    },
+    "Send Push via Edge Function": {
+      "main": [[{ "node": "Mark Sent", "type": "main", "index": 0 }]]
+    },
+    "Mark Sent": {
+      "main": [[{ "node": "Insert Reminder (Sent Path)", "type": "main", "index": 0 }]]
+    },
+    "Mark Skipped (No Subscription)": {
+      "main": [[{ "node": "Insert Reminder (Skipped Path)", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "wf2-push-v1",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

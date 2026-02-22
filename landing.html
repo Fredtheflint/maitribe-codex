@@ -1,0 +1,961 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#131814" />
+  <title>MaiTribe — Holistic AI Wellness</title>
+  <meta name="description" content="Mai is your holistic AI companion for body, mind, and soul. Join the waitlist." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <!--
+    Supabase waitlist table — run this SQL manually in your Supabase dashboard:
+
+    CREATE TABLE public.waitlist (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      email text NOT NULL UNIQUE,
+      source text DEFAULT 'landing',
+      created_at timestamptz DEFAULT now()
+    );
+    ALTER TABLE public.waitlist ENABLE ROW LEVEL SECURITY;
+    CREATE POLICY "Anyone can insert" ON public.waitlist FOR INSERT WITH CHECK (true);
+    CREATE POLICY "No anonymous reads" ON public.waitlist FOR SELECT USING (false);
+  -->
+
+  <style>
+    :root {
+      --forest: #131814;
+      --sage: #a8c5a0;
+      --cream: #e8e4df;
+      --gold: #c9b88c;
+      --card: rgba(232, 228, 223, 0.08);
+      --card-strong: rgba(232, 228, 223, 0.14);
+      --line: rgba(232, 228, 223, 0.22);
+      --muted: rgba(232, 228, 223, 0.68);
+      --warn: #c67f7f;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 10px 32px rgba(0, 0, 0, 0.28);
+      --ease: all 380ms ease;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: "DM Sans", sans-serif;
+      background: radial-gradient(circle at 20% -10%, rgba(168, 197, 160, 0.16), transparent 48%),
+                  radial-gradient(circle at 84% 20%, rgba(201, 184, 140, 0.12), transparent 44%),
+                  var(--forest);
+      color: var(--cream);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: linear-gradient(130deg, rgba(232, 228, 223, 0.03) 0%, transparent 32%, rgba(168, 197, 160, 0.03) 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* --- Header / Nav --- */
+    .site-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(19, 24, 20, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line);
+      transition: var(--ease);
+    }
+
+    .site-header.scrolled {
+      background: rgba(19, 24, 20, 0.95);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .nav-inner {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.6rem;
+      font-weight: 300;
+      text-decoration: none;
+      letter-spacing: 0.3px;
+    }
+
+    .nav-logo .logo-mai { color: var(--sage); }
+    .nav-logo .logo-tribe { color: var(--cream); }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.88rem;
+      letter-spacing: 0.02em;
+      transition: color 280ms ease;
+    }
+
+    .nav-links a:hover { color: var(--cream); }
+
+    .lang-toggle {
+      background: rgba(232, 228, 223, 0.09);
+      border: 1px solid var(--line);
+      color: var(--cream);
+      border-radius: var(--radius-sm);
+      padding: 6px 12px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--ease);
+      letter-spacing: 0.04em;
+    }
+
+    .lang-toggle:hover { background: rgba(232, 228, 223, 0.15); }
+
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--cream);
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .hamburger svg { display: block; }
+
+    /* --- Container --- */
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* --- Section shared --- */
+    section {
+      padding: 100px 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .section-title {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(2rem, 5vw, 2.8rem);
+      font-weight: 300;
+      line-height: 1.1;
+      margin-bottom: 12px;
+    }
+
+    .section-subtitle {
+      color: var(--muted);
+      font-size: 1.02rem;
+      max-width: 520px;
+    }
+
+    /* --- Hero --- */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding-top: 64px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+    }
+
+    .hero-orb--sage {
+      width: 400px;
+      height: 400px;
+      background: rgba(168, 197, 160, 0.12);
+      top: 10%;
+      left: -8%;
+    }
+
+    .hero-orb--gold {
+      width: 320px;
+      height: 320px;
+      background: rgba(201, 184, 140, 0.09);
+      bottom: 10%;
+      right: -5%;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 640px;
+    }
+
+    .hero-logo {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(3.6rem, 12vw, 5.6rem);
+      letter-spacing: 0.3px;
+      font-weight: 300;
+      line-height: 0.95;
+      margin-bottom: 20px;
+      animation: fadeIn 1.2s ease both;
+    }
+
+    .hero-logo .logo-mai { color: var(--sage); }
+    .hero-logo .logo-tribe { color: var(--cream); }
+
+    .hero-tagline {
+      font-size: 1.15rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+      animation: fadeIn 1s ease 0.4s both;
+    }
+
+    .hero-note {
+      font-size: 0.88rem;
+      color: var(--muted);
+      opacity: 0.7;
+      margin-bottom: 36px;
+      animation: fadeIn 1s ease 0.6s both;
+    }
+
+    .hero-form {
+      animation: fadeIn 1s ease 0.8s both;
+    }
+
+    .waitlist-form {
+      display: flex;
+      gap: 10px;
+      max-width: 440px;
+      margin: 0 auto;
+    }
+
+    .waitlist-form input {
+      flex: 1;
+      border: 1px solid var(--line);
+      background: rgba(20, 24, 21, 0.76);
+      border-radius: var(--radius-sm);
+      color: var(--cream);
+      padding: 12px 14px;
+      font: inherit;
+      transition: var(--ease);
+    }
+
+    .waitlist-form input::placeholder { color: var(--muted); opacity: 0.6; }
+
+    .waitlist-form input:focus {
+      outline: none;
+      border-color: var(--sage);
+      box-shadow: 0 0 0 2px rgba(168, 197, 160, 0.25);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, rgba(168, 197, 160, 0.26), rgba(201, 184, 140, 0.2));
+      border: 1px solid rgba(168, 197, 160, 0.5);
+      color: var(--cream);
+      font-weight: 500;
+      font: inherit;
+      border-radius: var(--radius-sm);
+      padding: 12px 22px;
+      cursor: pointer;
+      transition: var(--ease);
+      white-space: nowrap;
+    }
+
+    .btn-primary:hover { filter: brightness(1.08); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .form-status {
+      min-height: 24px;
+      font-size: 0.84rem;
+      color: var(--gold);
+      margin-top: 10px;
+    }
+
+    .form-status.error { color: var(--warn); }
+
+    /* --- What section --- */
+    .what-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 48px;
+    }
+
+    .what-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      backdrop-filter: blur(8px);
+      padding: 32px 24px;
+      text-align: center;
+      transition: transform 380ms ease, border-color 380ms ease;
+    }
+
+    .what-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(232, 228, 223, 0.35);
+    }
+
+    .what-card-icon {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 18px;
+    }
+
+    .what-card h3 {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.5rem;
+      font-weight: 400;
+      margin-bottom: 10px;
+    }
+
+    .what-card p {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    /* --- How section --- */
+    .how-steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 40px;
+      margin-top: 48px;
+      position: relative;
+    }
+
+    .how-steps::before {
+      content: "";
+      position: absolute;
+      top: 28px;
+      left: calc(16.67% + 28px);
+      right: calc(16.67% + 28px);
+      height: 1px;
+      background: var(--line);
+    }
+
+    .how-step {
+      text-align: center;
+    }
+
+    .step-number {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--card);
+      border: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 18px;
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.4rem;
+      color: var(--sage);
+      position: relative;
+      z-index: 2;
+      backdrop-filter: blur(8px);
+    }
+
+    .how-step h3 {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.3rem;
+      font-weight: 400;
+      margin-bottom: 8px;
+    }
+
+    .how-step p {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    /* --- Philosophy section --- */
+    .philosophy {
+      padding: 80px 0;
+    }
+
+    .philosophy-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      backdrop-filter: blur(8px);
+      padding: 48px 40px;
+      max-width: 720px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .philosophy-card blockquote {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(1.2rem, 3vw, 1.6rem);
+      font-weight: 300;
+      font-style: italic;
+      line-height: 1.55;
+      color: var(--cream);
+    }
+
+    /* --- Waitlist CTA section --- */
+    .waitlist-cta {
+      text-align: center;
+      padding-bottom: 120px;
+    }
+
+    .waitlist-cta .section-subtitle {
+      margin: 0 auto 36px;
+    }
+
+    /* --- Footer --- */
+    .site-footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--line);
+      padding: 32px 0;
+    }
+
+    .footer-inner {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-logo {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.2rem;
+      font-weight: 300;
+    }
+
+    .footer-logo .logo-mai { color: var(--sage); }
+    .footer-logo .logo-tribe { color: var(--cream); }
+
+    .footer-copy {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    /* --- Scroll reveal --- */
+    [data-reveal] {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+
+    [data-reveal].revealed {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* --- Animations --- */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.015); }
+    }
+
+    .hero-logo {
+      animation: fadeIn 1.2s ease both, breathe 6s ease-in-out 1.2s infinite;
+    }
+
+    /* --- Reduced motion --- */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+      html { scroll-behavior: auto; }
+      [data-reveal] { opacity: 1; transform: none; }
+    }
+
+    /* --- Mobile --- */
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .nav-links.open {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 64px;
+        left: 0;
+        right: 0;
+        background: rgba(19, 24, 20, 0.96);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--line);
+        padding: 20px 24px;
+        gap: 16px;
+      }
+      .hamburger { display: block; }
+
+      .waitlist-form {
+        flex-direction: column;
+      }
+
+      .what-cards {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      .how-steps {
+        grid-template-columns: 1fr;
+        gap: 32px;
+      }
+
+      .how-steps::before { display: none; }
+
+      .philosophy-card {
+        padding: 32px 24px;
+      }
+
+      section { padding: 72px 0; }
+
+      .hero { min-height: calc(100vh - 64px); min-height: calc(100dvh - 64px); }
+    }
+
+    /* --- Focus --- */
+    *:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(168, 197, 160, 0.5);
+      border-radius: var(--radius-sm);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="nav-inner">
+      <a href="#hero" class="nav-logo">
+        <span class="logo-mai">mai</span><span class="logo-tribe">tribe</span>
+      </a>
+      <nav>
+        <ul class="nav-links" id="navLinks">
+          <li><a href="#what" data-i18n="nav_what">What is Mai?</a></li>
+          <li><a href="#how" data-i18n="nav_how">How it works</a></li>
+          <li><a href="#philosophy" data-i18n="nav_philosophy">Philosophy</a></li>
+          <li><a href="#waitlist" data-i18n="nav_waitlist_link">Join</a></li>
+          <li>
+            <button class="lang-toggle" id="langToggle" aria-label="Switch language">DE</button>
+          </li>
+        </ul>
+      </nav>
+      <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero" id="hero">
+      <div class="hero-orb hero-orb--sage"></div>
+      <div class="hero-orb hero-orb--gold"></div>
+      <div class="hero-content">
+        <h1 class="hero-logo">
+          <span class="logo-mai">mai</span><span class="logo-tribe">tribe</span>
+        </h1>
+        <p class="hero-tagline" data-i18n="hero_tagline">Your holistic AI companion for body, mind, and soul.</p>
+        <p class="hero-note" data-i18n="hero_note">Not a chatbot. Not a coach. A quiet presence that walks beside you.</p>
+        <div class="hero-form">
+          <form class="waitlist-form" id="heroForm" onsubmit="return submitWaitlist(event, 'hero')">
+            <input type="email" id="heroEmail" data-i18n-placeholder="waitlist_placeholder" placeholder="Your email" aria-label="Email for waitlist" required />
+            <button type="submit" class="btn-primary" data-i18n="waitlist_btn">Join the waitlist</button>
+          </form>
+          <div class="form-status" id="heroStatus" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- What is Mai? -->
+    <section id="what">
+      <div class="container">
+        <h2 class="section-title" data-reveal data-i18n="what_title">What is Mai?</h2>
+        <p class="section-subtitle" data-reveal data-i18n="what_subtitle">A calm AI companion designed around three dimensions of your wellbeing.</p>
+        <div class="what-cards">
+          <!-- Body -->
+          <div class="what-card" data-reveal style="transition-delay: 0.1s">
+            <div class="what-card-icon">
+              <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M28 6c-2 8-8 14-16 16 8 2 14 8 16 16 2-8 8-14 16-16-8-2-14-8-16-16z" fill="none" stroke="var(--sage)" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M28 16c-1 4.5-4.5 8-9 9 4.5 1 8 4.5 9 9 1-4.5 4.5-8 9-9-4.5-1-8-4.5-9-9z" fill="var(--sage)" opacity="0.25"/>
+              </svg>
+            </div>
+            <h3 data-i18n="card_body_title">Body</h3>
+            <p data-i18n="card_body_desc">Track your physical energy. Notice patterns. Learn what your body is telling you each day.</p>
+          </div>
+          <!-- Mind -->
+          <div class="what-card" data-reveal style="transition-delay: 0.25s">
+            <div class="what-card-icon">
+              <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="28" cy="28" r="20" stroke="var(--sage)" stroke-width="1.5" opacity="0.3"/>
+                <circle cx="28" cy="28" r="13" stroke="var(--sage)" stroke-width="1.5" opacity="0.5"/>
+                <circle cx="28" cy="28" r="6" stroke="var(--sage)" stroke-width="1.8"/>
+                <circle cx="28" cy="28" r="2" fill="var(--sage)"/>
+              </svg>
+            </div>
+            <h3 data-i18n="card_mind_title">Mind</h3>
+            <p data-i18n="card_mind_desc">Observe your thoughts without judgment. Create space between stimulus and response.</p>
+          </div>
+          <!-- Soul -->
+          <div class="what-card" data-reveal style="transition-delay: 0.4s">
+            <div class="what-card-icon">
+              <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 36c10-2 20-8 28-16" stroke="var(--gold)" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M4 40c12-2 24-8 32-16" stroke="var(--gold)" stroke-width="1.2" opacity="0.4" stroke-linecap="round"/>
+                <circle cx="40" cy="16" r="5" stroke="var(--sage)" stroke-width="1.5"/>
+                <circle cx="40" cy="16" r="1.5" fill="var(--sage)"/>
+              </svg>
+            </div>
+            <h3 data-i18n="card_soul_title">Soul</h3>
+            <p data-i18n="card_soul_desc">Connect with what truly matters to you. Find meaning in the quiet moments between.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section id="how">
+      <div class="container">
+        <h2 class="section-title" data-reveal data-i18n="how_title">How it works</h2>
+        <div class="how-steps">
+          <div class="how-step" data-reveal style="transition-delay: 0.1s">
+            <div class="step-number">1</div>
+            <h3 data-i18n="step1_title">Check in</h3>
+            <p data-i18n="step1_desc">A gentle daily moment. Rate your body, mind, and soul. No pressure, no scores, just honest awareness.</p>
+          </div>
+          <div class="how-step" data-reveal style="transition-delay: 0.3s">
+            <div class="step-number">2</div>
+            <h3 data-i18n="step2_title">Talk to Mai</h3>
+            <p data-i18n="step2_desc">Share what's on your mind. Mai listens, reflects, and offers one small step forward. Always gentle, never pushy.</p>
+          </div>
+          <div class="how-step" data-reveal style="transition-delay: 0.5s">
+            <div class="step-number">3</div>
+            <h3 data-i18n="step3_title">Grow quietly</h3>
+            <p data-i18n="step3_desc">Over time, Mai learns your patterns and rhythms. Insights emerge. You begin to see yourself more clearly.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Philosophy -->
+    <section class="philosophy" id="philosophy">
+      <div class="container">
+        <div class="philosophy-card" data-reveal>
+          <blockquote data-i18n="philosophy_quote">Mai is not a chatbot. Not a coach. Not a therapist. She is a quiet, caring presence — like a thoughtful friend who truly sees you. She acknowledges first, then gently helps you see for yourself.</blockquote>
+        </div>
+      </div>
+    </section>
+
+    <!-- Waitlist CTA -->
+    <section class="waitlist-cta" id="waitlist">
+      <div class="container">
+        <h2 class="section-title" data-reveal data-i18n="cta_title">Begin your journey</h2>
+        <p class="section-subtitle" data-reveal data-i18n="cta_subtitle">Join the waitlist and be among the first to meet Mai.</p>
+        <div data-reveal style="transition-delay: 0.2s">
+          <form class="waitlist-form" id="ctaForm" onsubmit="return submitWaitlist(event, 'cta')">
+            <input type="email" id="ctaEmail" data-i18n-placeholder="waitlist_placeholder" placeholder="Your email" aria-label="Email for waitlist" required />
+            <button type="submit" class="btn-primary" data-i18n="waitlist_btn">Join the waitlist</button>
+          </form>
+          <div class="form-status" id="ctaStatus" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-logo">
+        <span class="logo-mai">mai</span><span class="logo-tribe">tribe</span>
+      </div>
+      <p class="footer-copy" data-i18n="footer_copy">&copy; 2025 MaiTribe. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    /* ================================================================
+       i18n
+       ================================================================ */
+    const i18n = {
+      en: {
+        nav_what: "What is Mai?",
+        nav_how: "How it works",
+        nav_philosophy: "Philosophy",
+        nav_waitlist_link: "Join",
+        hero_tagline: "Your holistic AI companion for body, mind, and soul.",
+        hero_note: "Not a chatbot. Not a coach. A quiet presence that walks beside you.",
+        waitlist_placeholder: "Your email",
+        waitlist_btn: "Join the waitlist",
+        waitlist_success: "You\u2019re on the list. We\u2019ll be in touch.",
+        waitlist_exists: "You\u2019re already on the list. We\u2019ll be in touch soon.",
+        waitlist_error: "Something went wrong. Please try again.",
+        waitlist_invalid: "Please enter a valid email address.",
+        what_title: "What is Mai?",
+        what_subtitle: "A calm AI companion designed around three dimensions of your wellbeing.",
+        card_body_title: "Body",
+        card_body_desc: "Track your physical energy. Notice patterns. Learn what your body is telling you each day.",
+        card_mind_title: "Mind",
+        card_mind_desc: "Observe your thoughts without judgment. Create space between stimulus and response.",
+        card_soul_title: "Soul",
+        card_soul_desc: "Connect with what truly matters to you. Find meaning in the quiet moments between.",
+        how_title: "How it works",
+        step1_title: "Check in",
+        step1_desc: "A gentle daily moment. Rate your body, mind, and soul. No pressure, no scores, just honest awareness.",
+        step2_title: "Talk to Mai",
+        step2_desc: "Share what\u2019s on your mind. Mai listens, reflects, and offers one small step forward. Always gentle, never pushy.",
+        step3_title: "Grow quietly",
+        step3_desc: "Over time, Mai learns your patterns and rhythms. Insights emerge. You begin to see yourself more clearly.",
+        philosophy_quote: "Mai is not a chatbot. Not a coach. Not a therapist. She is a quiet, caring presence \u2014 like a thoughtful friend who truly sees you. She acknowledges first, then gently helps you see for yourself.",
+        cta_title: "Begin your journey",
+        cta_subtitle: "Join the waitlist and be among the first to meet Mai.",
+        footer_copy: "\u00A9 2025 MaiTribe. All rights reserved."
+      },
+      de: {
+        nav_what: "Was ist Mai?",
+        nav_how: "So funktioniert\u2019s",
+        nav_philosophy: "Philosophie",
+        nav_waitlist_link: "Mitmachen",
+        hero_tagline: "Deine ganzheitliche KI-Begleiterin f\u00FCr K\u00F6rper, Geist und Seele.",
+        hero_note: "Kein Chatbot. Kein Coach. Eine stille Pr\u00E4senz, die neben dir geht.",
+        waitlist_placeholder: "Deine E-Mail",
+        waitlist_btn: "Auf die Warteliste",
+        waitlist_success: "Du bist dabei. Wir melden uns.",
+        waitlist_exists: "Du stehst schon auf der Liste. Wir melden uns bald.",
+        waitlist_error: "Etwas ist schiefgelaufen. Bitte versuch es noch einmal.",
+        waitlist_invalid: "Bitte gib eine g\u00FCltige E-Mail-Adresse ein.",
+        what_title: "Was ist Mai?",
+        what_subtitle: "Eine ruhige KI-Begleiterin f\u00FCr drei Dimensionen deines Wohlbefindens.",
+        card_body_title: "K\u00F6rper",
+        card_body_desc: "Sp\u00FCre deine k\u00F6rperliche Energie. Erkenne Muster. Lerne, was dein K\u00F6rper dir jeden Tag sagt.",
+        card_mind_title: "Geist",
+        card_mind_desc: "Beobachte deine Gedanken ohne Urteil. Schaffe Raum zwischen Reiz und Reaktion.",
+        card_soul_title: "Seele",
+        card_soul_desc: "Verbinde dich mit dem, was dir wirklich wichtig ist. Finde Bedeutung in den stillen Momenten dazwischen.",
+        how_title: "So funktioniert\u2019s",
+        step1_title: "Check-in",
+        step1_desc: "Ein sanfter t\u00E4glicher Moment. Sp\u00FCre in K\u00F6rper, Geist und Seele hinein. Kein Druck, keine Bewertung \u2014 nur ehrliche Wahrnehmung.",
+        step2_title: "Sprich mit Mai",
+        step2_desc: "Teile, was dich bewegt. Mai h\u00F6rt zu, reflektiert und bietet einen kleinen Schritt nach vorn. Immer sanft, nie dr\u00E4ngend.",
+        step3_title: "Wachse in Stille",
+        step3_desc: "\u00DCber die Zeit lernt Mai deine Muster und Rhythmen. Einsichten entstehen. Du beginnst, dich klarer zu sehen.",
+        philosophy_quote: "Mai ist kein Chatbot. Kein Coach. Keine Therapeutin. Sie ist eine stille, f\u00FCrsorgliche Pr\u00E4senz \u2014 wie eine aufmerksame Freundin, die dich wirklich sieht. Sie nimmt wahr, bevor sie sanft hilft, selbst zu erkennen.",
+        cta_title: "Beginne deine Reise",
+        cta_subtitle: "Trag dich in die Warteliste ein und sei unter den Ersten, die Mai kennenlernen.",
+        footer_copy: "\u00A9 2025 MaiTribe. Alle Rechte vorbehalten."
+      }
+    };
+
+    let currentLang = localStorage.getItem("maitribe-landing-lang") || (navigator.language.startsWith("de") ? "de" : "en");
+
+    function t(key) {
+      return (i18n[currentLang] && i18n[currentLang][key]) || i18n.en[key] || key;
+    }
+
+    function applyI18n() {
+      document.documentElement.lang = currentLang;
+      document.querySelectorAll("[data-i18n]").forEach(function(el) {
+        var key = el.getAttribute("data-i18n");
+        var val = t(key);
+        if (val) el.textContent = val;
+      });
+      document.querySelectorAll("[data-i18n-placeholder]").forEach(function(el) {
+        var key = el.getAttribute("data-i18n-placeholder");
+        var val = t(key);
+        if (val) el.placeholder = val;
+      });
+      var toggle = document.getElementById("langToggle");
+      if (toggle) toggle.textContent = currentLang === "en" ? "DE" : "EN";
+    }
+
+    /* ================================================================
+       Language toggle
+       ================================================================ */
+    document.getElementById("langToggle").addEventListener("click", function() {
+      currentLang = currentLang === "en" ? "de" : "en";
+      localStorage.setItem("maitribe-landing-lang", currentLang);
+      applyI18n();
+    });
+
+    /* ================================================================
+       Supabase
+       ================================================================ */
+    var supabaseClient = null;
+
+    function initSupabase() {
+      var cfg = null;
+      try { cfg = JSON.parse(localStorage.getItem("MAITRIBE_CONFIG")); } catch(e) {}
+      if (!cfg) {
+        try {
+          var url = localStorage.getItem("maitribe_supabase_url");
+          var key = localStorage.getItem("maitribe_supabase_anon");
+          if (url && key) cfg = { supabaseUrl: url, supabaseAnonKey: key };
+        } catch(e) {}
+      }
+      if (!cfg || !cfg.supabaseUrl || !cfg.supabaseAnonKey) return;
+      if (!window.supabase || typeof window.supabase.createClient !== "function") return;
+      supabaseClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
+        auth: { persistSession: false }
+      });
+    }
+
+    /* ================================================================
+       Waitlist form
+       ================================================================ */
+    function submitWaitlist(e, formId) {
+      e.preventDefault();
+      var emailInput = document.getElementById(formId === "hero" ? "heroEmail" : "ctaEmail");
+      var statusEl = document.getElementById(formId === "hero" ? "heroStatus" : "ctaStatus");
+      var email = emailInput.value.trim().toLowerCase();
+
+      statusEl.className = "form-status";
+      statusEl.textContent = "";
+
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        statusEl.className = "form-status error";
+        statusEl.textContent = t("waitlist_invalid");
+        return false;
+      }
+
+      if (!supabaseClient) {
+        statusEl.textContent = t("waitlist_success");
+        emailInput.value = "";
+        return false;
+      }
+
+      var btn = emailInput.closest("form").querySelector("button");
+      btn.disabled = true;
+
+      supabaseClient.from("waitlist").insert({ email: email, source: "landing" })
+        .then(function(res) {
+          btn.disabled = false;
+          if (res.error) {
+            if (res.error.code === "23505") {
+              statusEl.textContent = t("waitlist_exists");
+            } else {
+              statusEl.className = "form-status error";
+              statusEl.textContent = t("waitlist_error");
+            }
+          } else {
+            statusEl.textContent = t("waitlist_success");
+            emailInput.value = "";
+          }
+        })
+        .catch(function() {
+          btn.disabled = false;
+          statusEl.className = "form-status error";
+          statusEl.textContent = t("waitlist_error");
+        });
+
+      return false;
+    }
+
+    /* ================================================================
+       Scroll reveal (IntersectionObserver)
+       ================================================================ */
+    function initReveal() {
+      var els = document.querySelectorAll("[data-reveal]");
+      if (!("IntersectionObserver" in window)) {
+        els.forEach(function(el) { el.classList.add("revealed"); });
+        return;
+      }
+      var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("revealed");
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.15 });
+      els.forEach(function(el) { observer.observe(el); });
+    }
+
+    /* ================================================================
+       Header scroll effect
+       ================================================================ */
+    function initHeaderScroll() {
+      var header = document.querySelector(".site-header");
+      window.addEventListener("scroll", function() {
+        if (window.scrollY > 40) {
+          header.classList.add("scrolled");
+        } else {
+          header.classList.remove("scrolled");
+        }
+      }, { passive: true });
+    }
+
+    /* ================================================================
+       Smooth scroll for anchor links
+       ================================================================ */
+    function initSmoothScroll() {
+      document.querySelectorAll('a[href^="#"]').forEach(function(a) {
+        a.addEventListener("click", function(e) {
+          var target = document.querySelector(a.getAttribute("href"));
+          if (target) {
+            e.preventDefault();
+            target.scrollIntoView({ behavior: "smooth" });
+            // Close mobile menu if open
+            document.getElementById("navLinks").classList.remove("open");
+          }
+        });
+      });
+    }
+
+    /* ================================================================
+       Mobile hamburger menu
+       ================================================================ */
+    function initHamburger() {
+      var btn = document.getElementById("hamburger");
+      var nav = document.getElementById("navLinks");
+      btn.addEventListener("click", function() {
+        nav.classList.toggle("open");
+      });
+    }
+
+    /* ================================================================
+       Init
+       ================================================================ */
+    applyI18n();
+    initSupabase();
+    initReveal();
+    initHeaderScroll();
+    initSmoothScroll();
+    initHamburger();
+  </script>
+</body>
+</html>

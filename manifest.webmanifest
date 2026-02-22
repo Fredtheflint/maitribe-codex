@@ -1,0 +1,21 @@
+{
+  "name": "MaiTribe",
+  "short_name": "MaiTribe",
+  "description": "Your holistic AI companion for body, mind and soul",
+  "id": "/",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#131814",
+  "theme_color": "#131814",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

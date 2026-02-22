@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MaiTribe Auth Debugger</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: monospace; background: #111; color: #0f0; padding: 12px; font-size: 13px; }
+  h1 { font-size: 16px; margin-bottom: 8px; color: #0ff; }
+  h2 { font-size: 14px; margin: 12px 0 6px; color: #ff0; border-bottom: 1px solid #333; padding-bottom: 4px; }
+  .section { background: #1a1a1a; border: 1px solid #333; border-radius: 4px; padding: 10px; margin-bottom: 10px; }
+  input[type="text"], input[type="url"], input[type="email"] {
+    background: #222; color: #0f0; border: 1px solid #555; padding: 6px 8px; width: 100%; margin: 4px 0;
+    font-family: monospace; font-size: 13px; border-radius: 3px;
+  }
+  button {
+    background: #333; color: #0ff; border: 1px solid #0ff; padding: 6px 14px; cursor: pointer;
+    font-family: monospace; font-size: 13px; border-radius: 3px; margin: 4px 4px 4px 0;
+  }
+  button:hover { background: #0ff; color: #000; }
+  button.danger { border-color: #f55; color: #f55; }
+  button.danger:hover { background: #f55; color: #000; }
+  #log-output {
+    background: #0a0a0a; border: 1px solid #333; border-radius: 3px; padding: 8px;
+    max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+    font-size: 12px; line-height: 1.4;
+  }
+  .log-info { color: #0f0; }
+  .log-warn { color: #ff0; }
+  .log-error { color: #f55; }
+  .log-debug { color: #888; }
+  .log-time { color: #666; }
+  label { display: block; color: #888; margin-top: 6px; font-size: 11px; }
+  .status-box { padding: 6px 8px; border-radius: 3px; margin: 4px 0; word-break: break-all; }
+  .status-ok { background: #0a2a0a; border: 1px solid #0f0; }
+  .status-none { background: #2a2a0a; border: 1px solid #ff0; }
+  .status-err { background: #2a0a0a; border: 1px solid #f55; }
+  #hash-display { color: #f0f; padding: 4px; background: #1a0a1a; border: 1px solid #f0f; border-radius: 3px; word-break: break-all; }
+  #auth-events { max-height: 200px; overflow-y: auto; }
+  .auth-event { padding: 3px 0; border-bottom: 1px solid #222; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+  #user-object, #session-display { max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; font-size: 11px; color: #aaa; }
+</style>
+</head>
+<body>
+
+<h1>MaiTribe Auth Debugger</h1>
+
+<!-- URL Hash Monitor -->
+<div class="section">
+  <h2>URL Hash</h2>
+  <div>Captured at load: <code id="captured-hash-display"></code></div>
+  <div style="margin-top:4px">Current hash: <code id="hash-display"></code></div>
+  <div style="margin-top:4px">Current full URL: <code id="full-url" style="color:#aaa;font-size:11px"></code></div>
+</div>
+
+<!-- Supabase Config -->
+<div class="section">
+  <h2>Supabase Config</h2>
+  <label>SUPABASE_URL</label>
+  <input type="url" id="sb-url" placeholder="https://xxxx.supabase.co">
+  <label>SUPABASE_ANON_KEY</label>
+  <input type="text" id="sb-key" placeholder="eyJ...">
+  <div style="margin-top:6px">
+    <button onclick="initSupabase()">Initialize Supabase</button>
+    <button onclick="saveConfig()">Save Config</button>
+    <button onclick="clearConfig()" class="danger">Clear Config</button>
+  </div>
+  <div id="sb-status" class="status-box status-none" style="margin-top:6px">Not initialized</div>
+</div>
+
+<!-- Auth Actions -->
+<div class="section">
+  <h2>Auth Actions</h2>
+  <label>Email</label>
+  <input type="email" id="auth-email" placeholder="you@example.com">
+  <div style="margin-top:6px">
+    <button onclick="sendMagicLink()">Send Magic Link</button>
+    <button onclick="checkSession()">Check Session</button>
+    <button onclick="processRedirect()">Process Auth Redirect</button>
+    <button onclick="refreshSession()">Refresh Session</button>
+    <button onclick="signOut()" class="danger">Sign Out</button>
+  </div>
+  <div id="auth-action-status" class="status-box status-none" style="margin-top:6px">Ready</div>
+</div>
+
+<!-- Auth State & Session -->
+<div class="grid-2">
+  <div class="section">
+    <h2>Auth State Events</h2>
+    <div id="auth-events"></div>
+  </div>
+  <div class="section">
+    <h2>LockManager Status</h2>
+    <div id="lock-status"></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>User Object</h2>
+  <pre id="user-object">No user</pre>
+</div>
+
+<div class="section">
+  <h2>Session Token</h2>
+  <pre id="session-display">No session</pre>
+</div>
+
+<!-- Console Log -->
+<div class="section">
+  <h2>Console Log <button onclick="clearLog()" style="font-size:11px;padding:2px 8px">Clear</button></h2>
+  <div id="log-output"></div>
+</div>
+
+<!-- Supabase SDK - same version as index.html (2.49.1) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1"></script>
+
+<script>
+  // ============ CAPTURE HASH IMMEDIATELY ============
+  var _capturedHash = window.location.hash || "";
+  document.getElementById("captured-hash-display").textContent = _capturedHash || "(empty)";
+
+  // ============ CONSOLE INTERCEPT ============
+  var logEl = document.getElementById("log-output");
+  var logBuffer = [];
+
+  function appendLog(level, args) {
+    var time = new Date().toISOString().split("T")[1].replace("Z","");
+    var msg = Array.from(args).map(function(a) {
+      if (typeof a === "object") {
+        try { return JSON.stringify(a, null, 2); } catch(e) { return String(a); }
+      }
+      return String(a);
+    }).join(" ");
+    var line = document.createElement("div");
+    line.className = "log-" + level;
+    line.innerHTML = '<span class="log-time">[' + time + ']</span> <b>' + level.toUpperCase() + '</b> ' + escapeHtml(msg);
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  var origConsole = {
+    log: console.log.bind(console),
+    warn: console.warn.bind(console),
+    error: console.error.bind(console),
+    debug: console.debug.bind(console),
+    info: console.info.bind(console)
+  };
+
+  console.log = function() { origConsole.log.apply(null, arguments); appendLog("info", arguments); };
+  console.warn = function() { origConsole.warn.apply(null, arguments); appendLog("warn", arguments); };
+  console.error = function() { origConsole.error.apply(null, arguments); appendLog("error", arguments); };
+  console.debug = function() { origConsole.debug.apply(null, arguments); appendLog("debug", arguments); };
+  console.info = function() { origConsole.info.apply(null, arguments); appendLog("info", arguments); };
+
+  // Catch unhandled errors
+  window.addEventListener("error", function(e) {
+    appendLog("error", ["UNCAUGHT: " + e.message + " at " + e.filename + ":" + e.lineno]);
+  });
+  window.addEventListener("unhandledrejection", function(e) {
+    appendLog("error", ["UNHANDLED PROMISE: " + (e.reason && e.reason.message || e.reason || "unknown")]);
+  });
+
+  function clearLog() { logEl.innerHTML = ""; }
+
+  // ============ URL HASH MONITOR ============
+  function updateHashDisplay() {
+    document.getElementById("hash-display").textContent = window.location.hash || "(empty)";
+    document.getElementById("full-url").textContent = window.location.href;
+  }
+  updateHashDisplay();
+  setInterval(updateHashDisplay, 500);
+  window.addEventListener("hashchange", function() {
+    updateHashDisplay();
+    console.log("hashchange event fired, new hash: " + window.location.hash);
+  });
+
+  // ============ LOCKMANAGER PATCH + MONITOR ============
+  var lockStatusEl = document.getElementById("lock-status");
+  var lockErrors = [];
+
+  function logLock(msg, isError) {
+    var div = document.createElement("div");
+    div.style.color = isError ? "#f55" : "#0f0";
+    div.style.padding = "2px 0";
+    div.style.borderBottom = "1px solid #222";
+    div.textContent = new Date().toISOString().split("T")[1].replace("Z","") + " " + msg;
+    lockStatusEl.appendChild(div);
+    lockStatusEl.scrollTop = lockStatusEl.scrollHeight;
+    if (isError) lockErrors.push(msg);
+  }
+
+  if (navigator.locks) {
+    logLock("LockManager available, bypassing entirely (single-user PWA)...", false);
+    navigator.locks.request = async function(name, optionsOrCallback, maybeCallback) {
+      var callback = typeof optionsOrCallback === "function" ? optionsOrCallback : maybeCallback;
+      logLock("Lock bypassed: " + name, false);
+      if (callback) {
+        return callback();
+      }
+    };
+  } else {
+    logLock("LockManager NOT available (navigator.locks is undefined)", false);
+  }
+
+  // ============ SUPABASE ============
+  var sb = null;
+
+  function loadConfig() {
+    var url = localStorage.getItem("maitribe.supabase.url") || "";
+    var key = localStorage.getItem("maitribe.supabase.anon") || "";
+    document.getElementById("sb-url").value = url;
+    document.getElementById("sb-key").value = key;
+    return { url: url, key: key };
+  }
+
+  function saveConfig() {
+    var url = document.getElementById("sb-url").value.trim();
+    var key = document.getElementById("sb-key").value.trim();
+    localStorage.setItem("maitribe.supabase.url", url);
+    localStorage.setItem("maitribe.supabase.anon", key);
+    console.log("Config saved to localStorage");
+  }
+
+  function clearConfig() {
+    localStorage.removeItem("maitribe.supabase.url");
+    localStorage.removeItem("maitribe.supabase.anon");
+    document.getElementById("sb-url").value = "";
+    document.getElementById("sb-key").value = "";
+    console.log("Config cleared");
+  }
+
+  function setActionStatus(msg, type) {
+    var el = document.getElementById("auth-action-status");
+    el.textContent = msg;
+    el.className = "status-box status-" + (type || "none");
+  }
+
+  function initSupabase() {
+    var url = document.getElementById("sb-url").value.trim();
+    var key = document.getElementById("sb-key").value.trim();
+    var statusEl = document.getElementById("sb-status");
+
+    if (!url || !key) {
+      statusEl.textContent = "Missing URL or anon key";
+      statusEl.className = "status-box status-err";
+      console.error("Cannot init: missing URL or anon key");
+      return false;
+    }
+
+    if (!window.supabase || typeof window.supabase.createClient !== "function") {
+      statusEl.textContent = "Supabase SDK not loaded!";
+      statusEl.className = "status-box status-err";
+      console.error("Supabase SDK not found on window.supabase");
+      return false;
+    }
+
+    try {
+      sb = window.supabase.createClient(url, key, {
+        auth: {
+          flowType: "implicit",
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true,
+          storageKey: "maitribe-auth",
+          lock: false
+        }
+      });
+
+      statusEl.textContent = "Initialized OK (" + url.substring(0, 40) + "...)";
+      statusEl.className = "status-box status-ok";
+      console.log("Supabase client created with lock:false, flowType:implicit, storageKey:maitribe-auth");
+
+      // Register auth state listener
+      sb.auth.onAuthStateChange(function(event, session) {
+        console.log("AUTH STATE CHANGE: " + event, session ? "session exists" : "no session");
+        var eventsEl = document.getElementById("auth-events");
+        var div = document.createElement("div");
+        div.className = "auth-event";
+        div.style.color = event === "SIGNED_IN" ? "#0f0" : event === "SIGNED_OUT" ? "#f55" : "#ff0";
+        div.textContent = new Date().toISOString().split("T")[1].replace("Z","") +
+          " " + event +
+          (session ? " (user: " + (session.user && session.user.email || "?") + ")" : "");
+        eventsEl.appendChild(div);
+        eventsEl.scrollTop = eventsEl.scrollHeight;
+
+        if (session && session.user) {
+          displayUser(session.user);
+          displaySession(session);
+        } else if (event === "SIGNED_OUT") {
+          document.getElementById("user-object").textContent = "No user (signed out)";
+          document.getElementById("session-display").textContent = "No session (signed out)";
+        }
+      });
+
+      console.log("Auth state listener registered");
+      return true;
+
+    } catch(e) {
+      statusEl.textContent = "Init error: " + e.message;
+      statusEl.className = "status-box status-err";
+      console.error("Supabase init failed:", e);
+      return false;
+    }
+  }
+
+  function displayUser(user) {
+    var safe = {
+      id: user.id,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+      last_sign_in_at: user.last_sign_in_at,
+      app_metadata: user.app_metadata,
+      user_metadata: user.user_metadata,
+      aud: user.aud,
+      confirmed_at: user.confirmed_at,
+      email_confirmed_at: user.email_confirmed_at
+    };
+    document.getElementById("user-object").textContent = JSON.stringify(safe, null, 2);
+  }
+
+  function displaySession(session) {
+    var info = {
+      access_token: session.access_token ? session.access_token.substring(0, 30) + "..." + session.access_token.substring(session.access_token.length - 10) : null,
+      refresh_token: session.refresh_token ? session.refresh_token.substring(0, 15) + "..." : null,
+      token_type: session.token_type,
+      expires_in: session.expires_in,
+      expires_at: session.expires_at,
+      expires_at_date: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
+      user_email: session.user ? session.user.email : null
+    };
+    document.getElementById("session-display").textContent = JSON.stringify(info, null, 2);
+  }
+
+  // ============ AUTH ACTIONS ============
+
+  async function sendMagicLink() {
+    if (!sb) { setActionStatus("Initialize Supabase first!", "err"); return; }
+    var email = document.getElementById("auth-email").value.trim();
+    if (!email) { setActionStatus("Enter an email address", "err"); return; }
+
+    setActionStatus("Sending magic link to " + email + "...", "none");
+    console.log("Sending magic link to:", email);
+
+    try {
+      var redirectUrl = getAuthRedirectUrl();
+      console.log("Redirect URL:", redirectUrl);
+
+      var result = await sb.auth.signInWithOtp({
+        email: email,
+        options: { emailRedirectTo: redirectUrl }
+      });
+
+      if (result.error) {
+        setActionStatus("Error: " + result.error.message, "err");
+        console.error("Magic link error:", result.error);
+      } else {
+        setActionStatus("Magic link sent! Check your email.", "ok");
+        console.log("Magic link sent successfully", result.data);
+      }
+    } catch(e) {
+      setActionStatus("Exception: " + e.message, "err");
+      console.error("Magic link exception:", e);
+    }
+  }
+
+  async function checkSession() {
+    if (!sb) { setActionStatus("Initialize Supabase first!", "err"); return; }
+
+    setActionStatus("Checking session...", "none");
+    console.log("Calling sb.auth.getSession()...");
+
+    try {
+      var result = await sb.auth.getSession();
+      console.log("getSession result:", result);
+
+      if (result.error) {
+        setActionStatus("getSession error: " + result.error.message, "err");
+        console.error("getSession error:", result.error);
+      } else if (result.data && result.data.session) {
+        setActionStatus("Session active! User: " + result.data.session.user.email, "ok");
+        displayUser(result.data.session.user);
+        displaySession(result.data.session);
+      } else {
+        setActionStatus("No active session", "none");
+        document.getElementById("user-object").textContent = "No user (no session)";
+        document.getElementById("session-display").textContent = "No session";
+      }
+    } catch(e) {
+      setActionStatus("getSession exception: " + e.message, "err");
+      console.error("getSession exception:", e);
+    }
+  }
+
+  async function refreshSession() {
+    if (!sb) { setActionStatus("Initialize Supabase first!", "err"); return; }
+
+    setActionStatus("Refreshing session...", "none");
+    console.log("Calling sb.auth.refreshSession()...");
+
+    try {
+      var result = await sb.auth.refreshSession();
+      console.log("refreshSession result:", result);
+
+      if (result.error) {
+        setActionStatus("Refresh error: " + result.error.message, "err");
+      } else if (result.data && result.data.session) {
+        setActionStatus("Session refreshed! Expires: " + new Date(result.data.session.expires_at * 1000).toISOString(), "ok");
+        displayUser(result.data.session.user);
+        displaySession(result.data.session);
+      } else {
+        setActionStatus("No session to refresh", "none");
+      }
+    } catch(e) {
+      setActionStatus("Refresh exception: " + e.message, "err");
+      console.error("refreshSession exception:", e);
+    }
+  }
+
+  async function signOut() {
+    if (!sb) { setActionStatus("Initialize Supabase first!", "err"); return; }
+
+    setActionStatus("Signing out...", "none");
+    console.log("Calling sb.auth.signOut()...");
+
+    try {
+      var result = await sb.auth.signOut();
+      if (result.error) {
+        setActionStatus("Sign out error: " + result.error.message, "err");
+        console.error("Sign out error:", result.error);
+      } else {
+        setActionStatus("Signed out", "ok");
+        document.getElementById("user-object").textContent = "No user (signed out)";
+        document.getElementById("session-display").textContent = "No session (signed out)";
+        console.log("Signed out successfully");
+      }
+    } catch(e) {
+      setActionStatus("Sign out exception: " + e.message, "err");
+      console.error("signOut exception:", e);
+    }
+  }
+
+  // ============ AUTH REDIRECT PROCESSING ============
+
+  function getAuthRedirectUrl() {
+    var url = new URL(window.location.href);
+    url.hash = "";
+    url.searchParams.set("no_sw", "1");
+    url.searchParams.set("auth", "1");
+    return url.toString();
+  }
+
+  function parseHashParams() {
+    var raw = _capturedHash || window.location.hash || "";
+    if (raw.startsWith("#")) raw = raw.slice(1);
+    if (!raw) return {};
+    var result = {};
+    raw.split("&").forEach(function(pair) {
+      var parts = pair.split("=");
+      if (parts[0]) result[decodeURIComponent(parts[0])] = decodeURIComponent(parts[1] || "");
+    });
+    return result;
+  }
+
+  function cleanupAuthUrl() {
+    var url = new URL(window.location.href);
+    ["code","token_hash","type","access_token","refresh_token","expires_in","expires_at",
+     "provider_token","provider_refresh_token","auth","error","error_description","error_code","no_sw"
+    ].forEach(function(param) { url.searchParams.delete(param); });
+    url.hash = "";
+    window.history.replaceState({}, "", url.toString());
+    _capturedHash = "";
+    console.log("Auth URL cleaned up");
+  }
+
+  async function processRedirect() {
+    if (!sb) { setActionStatus("Initialize Supabase first!", "err"); return; }
+
+    setActionStatus("Processing auth redirect...", "none");
+    console.log("Processing auth redirect...");
+    console.log("Captured hash:", _capturedHash);
+
+    var url = new URL(window.location.href);
+    var code = url.searchParams.get("code");
+    var tokenHash = url.searchParams.get("token_hash");
+    var type = url.searchParams.get("type");
+    var hashParams = parseHashParams();
+
+    console.log("URL params:", { code: code, tokenHash: tokenHash, type: type });
+    console.log("Hash params:", hashParams);
+
+    var accessToken = hashParams["access_token"] || null;
+    var refreshToken = hashParams["refresh_token"] || null;
+    var hashError = hashParams["error"] || null;
+    var hashErrorDesc = hashParams["error_description"] || null;
+
+    // Check for errors
+    if (hashError) {
+      setActionStatus("Hash error: " + (hashErrorDesc || hashError), "err");
+      console.error("Auth hash error:", hashError, hashErrorDesc);
+      cleanupAuthUrl();
+      return;
+    }
+
+    var queryError = url.searchParams.get("error");
+    var queryErrorDesc = url.searchParams.get("error_description");
+    if (queryError) {
+      setActionStatus("Query error: " + (queryErrorDesc || queryError), "err");
+      console.error("Auth query error:", queryError, queryErrorDesc);
+      cleanupAuthUrl();
+      return;
+    }
+
+    // PKCE flow
+    if (code) {
+      console.log("PKCE flow: exchanging code for session...");
+      try {
+        var codeResult = await sb.auth.exchangeCodeForSession(code);
+        if (codeResult.error) {
+          setActionStatus("Code exchange error: " + codeResult.error.message, "err");
+          console.error("Code exchange error:", codeResult.error);
+        } else {
+          setActionStatus("Code exchange successful!", "ok");
+          console.log("Code exchange result:", codeResult.data);
+          cleanupAuthUrl();
+        }
+      } catch(e) {
+        setActionStatus("Code exchange exception: " + e.message, "err");
+        console.error("Code exchange exception:", e);
+      }
+      return;
+    }
+
+    // Hash tokens (magic link implicit)
+    if (accessToken && refreshToken) {
+      console.log("Hash tokens found, calling setSession...");
+      try {
+        var tokenResult = await sb.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        });
+        if (tokenResult.error) {
+          setActionStatus("setSession error: " + tokenResult.error.message, "err");
+          console.error("setSession error:", tokenResult.error);
+        } else {
+          setActionStatus("setSession successful!", "ok");
+          console.log("setSession result:", tokenResult.data);
+          cleanupAuthUrl();
+        }
+      } catch(e) {
+        setActionStatus("setSession exception: " + e.message, "err");
+        console.error("setSession exception:", e);
+      }
+      return;
+    }
+
+    // Hash OTP
+    var hashTokenHash = hashParams["token_hash"] || null;
+    var hashType = hashParams["type"] || null;
+    if (hashTokenHash && hashType) {
+      console.log("Hash OTP flow: verifying...");
+      try {
+        var otpResult = await sb.auth.verifyOtp({ type: hashType, token_hash: hashTokenHash });
+        if (otpResult.error) {
+          setActionStatus("Hash OTP error: " + otpResult.error.message, "err");
+          console.error("Hash OTP error:", otpResult.error);
+        } else {
+          setActionStatus("Hash OTP verified!", "ok");
+          cleanupAuthUrl();
+        }
+      } catch(e) {
+        setActionStatus("Hash OTP exception: " + e.message, "err");
+      }
+      return;
+    }
+
+    // Query OTP
+    if (tokenHash && type) {
+      console.log("Query OTP flow: verifying...");
+      try {
+        var otpResult2 = await sb.auth.verifyOtp({ type: type, token_hash: tokenHash });
+        if (otpResult2.error) {
+          setActionStatus("Query OTP error: " + otpResult2.error.message, "err");
+          console.error("Query OTP error:", otpResult2.error);
+        } else {
+          setActionStatus("Query OTP verified!", "ok");
+          cleanupAuthUrl();
+        }
+      } catch(e) {
+        setActionStatus("Query OTP exception: " + e.message, "err");
+      }
+      return;
+    }
+
+    setActionStatus("No auth params found in URL", "none");
+    console.log("No auth redirect params detected");
+  }
+
+  // ============ AUTO-INIT ON LOAD ============
+  (function() {
+    console.log("=== MaiTribe Auth Debugger loaded ===");
+    console.log("User-Agent:", navigator.userAgent);
+    console.log("URL:", window.location.href);
+    console.log("Captured hash:", _capturedHash || "(empty)");
+    console.log("navigator.locks available:", !!navigator.locks);
+    console.log("Supabase SDK loaded:", !!(window.supabase && window.supabase.createClient));
+
+    // Load saved config
+    var config = loadConfig();
+
+    // Auto-init if config exists
+    if (config.url && config.key) {
+      console.log("Found saved config, auto-initializing...");
+      var ok = initSupabase();
+      if (ok) {
+        // Auto-process redirect if auth params present
+        var hashParams = parseHashParams();
+        var url = new URL(window.location.href);
+        var hasAuthParams = url.searchParams.get("code") ||
+          url.searchParams.get("token_hash") ||
+          hashParams["access_token"] ||
+          hashParams["token_hash"] ||
+          hashParams["error"] ||
+          url.searchParams.get("error");
+
+        if (hasAuthParams) {
+          console.log("Auth params detected, auto-processing redirect...");
+          // First try letting Supabase handle hash tokens natively via getSession
+          if (hashParams["access_token"]) {
+            console.log("Hash access_token found, trying getSession first...");
+            sb.auth.getSession().then(function(result) {
+              console.log("Initial getSession after hash token:", result);
+              if (result.data && result.data.session) {
+                setActionStatus("Session restored from hash token!", "ok");
+                displayUser(result.data.session.user);
+                displaySession(result.data.session);
+                window.history.replaceState({}, "", window.location.origin + window.location.pathname);
+                _capturedHash = "";
+              } else {
+                console.log("getSession didn't pick up hash, falling back to manual processing...");
+                processRedirect();
+              }
+            }).catch(function(e) {
+              console.error("getSession failed:", e);
+              processRedirect();
+            });
+          } else {
+            processRedirect();
+          }
+        } else {
+          // Just check existing session
+          checkSession();
+        }
+      }
+    } else {
+      console.log("No saved config found. Enter Supabase URL and anon key above.");
+    }
+  })();
+</script>
+
+</body>
+</html>

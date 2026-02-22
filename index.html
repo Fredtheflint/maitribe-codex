@@ -1,0 +1,3319 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#131814" />
+  <title>MaiTribe</title>
+  <meta name="description" content="Your holistic AI companion for body, mind and soul" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --forest: #131814;
+      --sage: #a8c5a0;
+      --cream: #e8e4df;
+      --gold: #c9b88c;
+      --card: rgba(232, 228, 223, 0.08);
+      --card-strong: rgba(232, 228, 223, 0.14);
+      --line: rgba(232, 228, 223, 0.22);
+      --muted: rgba(232, 228, 223, 0.68);
+      --warn: #c67f7f;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 10px 32px rgba(0, 0, 0, 0.28);
+      --ease: all 380ms ease;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      font-family: "DM Sans", sans-serif;
+      background: radial-gradient(circle at 20% -10%, rgba(168, 197, 160, 0.16), transparent 48%),
+                  radial-gradient(circle at 84% 20%, rgba(201, 184, 140, 0.12), transparent 44%),
+                  var(--forest);
+      color: var(--cream);
+      overflow: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: linear-gradient(130deg, rgba(232, 228, 223, 0.03) 0%, transparent 32%, rgba(168, 197, 160, 0.03) 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .app {
+      position: relative;
+      width: 100%;
+      min-height: 100dvh;
+      max-width: 860px;
+      margin: 0 auto;
+      padding-bottom: calc(env(safe-area-inset-bottom) + 76px);
+      z-index: 1;
+    }
+
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: none;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: var(--ease);
+      padding: 22px 18px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .screen.active {
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .glass {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      backdrop-filter: blur(8px);
+      box-shadow: var(--shadow);
+    }
+
+    .logo {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(3.2rem, 11vw, 4.8rem);
+      letter-spacing: 0.3px;
+      margin: 0;
+      font-weight: 300;
+      line-height: 0.95;
+    }
+
+    .logo-mai { color: var(--sage); }
+    .logo-tribe { color: var(--cream); }
+
+    .subtitle {
+      margin-top: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.13em;
+      text-transform: lowercase;
+      font-size: 0.78rem;
+    }
+
+    .splash-wrap {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      animation: fadeIn 1s ease;
+    }
+
+    .panel {
+      padding: 18px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: var(--card);
+      margin-top: 14px;
+    }
+
+    .screen-title {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(2rem, 7vw, 2.8rem);
+      line-height: 1.08;
+      margin: 0;
+      font-weight: 400;
+    }
+
+    .muted {
+      color: var(--muted);
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .row.spread {
+      justify-content: space-between;
+    }
+
+    label {
+      font-size: 0.9rem;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    input, select, textarea, button {
+      font: inherit;
+      color: inherit;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: rgba(20, 24, 21, 0.76);
+      border-radius: var(--radius-sm);
+      color: var(--cream);
+      padding: 11px 12px;
+      transition: var(--ease);
+    }
+
+    textarea { min-height: 110px; resize: vertical; }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--sage);
+      box-shadow: 0 0 0 2px rgba(168, 197, 160, 0.25);
+    }
+
+    button {
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      transition: var(--ease);
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn {
+      background: rgba(232, 228, 223, 0.09);
+      border: 1px solid var(--line);
+      color: var(--cream);
+    }
+
+    .btn:hover { background: rgba(232, 228, 223, 0.15); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, rgba(168, 197, 160, 0.26), rgba(201, 184, 140, 0.2));
+      border: 1px solid rgba(168, 197, 160, 0.5);
+      color: var(--cream);
+      font-weight: 500;
+    }
+
+    .btn-primary:hover { filter: brightness(1.08); }
+
+    .btn-inline {
+      padding: 8px 10px;
+      font-size: 0.86rem;
+    }
+
+    .helper {
+      font-size: 0.83rem;
+      color: var(--muted);
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    .status {
+      min-height: 21px;
+      font-size: 0.84rem;
+      color: var(--gold);
+      margin-top: 6px;
+    }
+
+    .error { color: var(--warn); }
+
+    .auth-head {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .tiny-logo {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 2.2rem;
+      margin: 0 0 0.45rem;
+      font-weight: 400;
+    }
+
+    .onboard-step { display: none; }
+    .onboard-step.active { display: block; }
+
+    .onboard-progress {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .onboard-copy {
+      line-height: 1.6;
+      color: var(--cream);
+      white-space: pre-line;
+    }
+
+    .slider-wrap { margin-bottom: 14px; }
+
+    .slider-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      margin-bottom: 5px;
+      color: var(--muted);
+    }
+
+    input[type="range"] {
+      appearance: none;
+      padding: 0;
+      border: none;
+      background: transparent;
+      width: 100%;
+      height: 24px;
+      --track-color: var(--sage);
+      --track-bg: rgba(232, 228, 223, 0.3);
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 3px;
+      background: linear-gradient(to right, var(--track-color), var(--track-bg));
+      border-radius: 6px;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      margin-top: -7px;
+      border-radius: 50%;
+      border: 1px solid rgba(232, 228, 223, 0.75);
+      background: var(--cream);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.26);
+      cursor: pointer;
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 3px;
+      background: linear-gradient(to right, var(--track-color), var(--track-bg));
+      border-radius: 6px;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border: 1px solid rgba(232, 228, 223, 0.75);
+      border-radius: 50%;
+      background: var(--cream);
+      cursor: pointer;
+    }
+
+    .toggle {
+      position: relative;
+      width: 48px;
+      height: 28px;
+      display: inline-block;
+    }
+
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .toggle span {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: rgba(232, 228, 223, 0.18);
+      border: 1px solid var(--line);
+      transition: var(--ease);
+    }
+
+    .toggle span::before {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      left: 4px;
+      top: 3px;
+      border-radius: 50%;
+      background: var(--cream);
+      transition: var(--ease);
+    }
+
+    .toggle input:checked + span {
+      background: rgba(168, 197, 160, 0.3);
+      border-color: rgba(168, 197, 160, 0.55);
+    }
+
+    .toggle input:checked + span::before {
+      transform: translateX(19px);
+      background: var(--sage);
+    }
+
+    .home-top {
+      margin-bottom: 12px;
+    }
+
+    .greeting {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(1.7rem, 6vw, 2.4rem);
+      margin: 4px 0 0;
+      font-weight: 400;
+    }
+
+    .identity-card {
+      padding: 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: linear-gradient(145deg, rgba(168, 197, 160, 0.14), rgba(232, 228, 223, 0.06));
+      margin-bottom: 14px;
+      cursor: pointer;
+      transition: var(--ease);
+    }
+
+    .identity-card:hover { transform: translateY(-2px); }
+
+    .identity-quote {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.24rem;
+      line-height: 1.4;
+      margin: 4px 0 0;
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .action-tile {
+      padding: 16px;
+      min-height: 92px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--card);
+      display: grid;
+      place-content: center;
+      text-align: center;
+      gap: 4px;
+      font-weight: 500;
+    }
+
+    .action-tile small {
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    .chat-shell {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      height: calc(100dvh - 20px - env(safe-area-inset-bottom));
+      gap: 12px;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .chat-title {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.6rem;
+      margin: 0;
+      font-weight: 400;
+    }
+
+    .chat-area {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(19, 24, 20, 0.58);
+      padding: 12px;
+      overflow-y: auto;
+      display: grid;
+      align-content: start;
+      gap: 10px;
+    }
+
+    .chat-empty-state {
+      color: var(--muted);
+      text-align: center;
+      margin-top: 36%;
+      line-height: 1.6;
+    }
+
+    .bubble {
+      max-width: 82%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .bubble.assistant {
+      justify-self: start;
+      background: rgba(168, 197, 160, 0.18);
+      border: 1px solid rgba(168, 197, 160, 0.34);
+    }
+
+    .bubble.user {
+      justify-self: end;
+      background: rgba(232, 228, 223, 0.15);
+      border: 1px solid rgba(232, 228, 223, 0.32);
+    }
+
+    .typing {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .typing i {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--sage);
+      opacity: 0.45;
+      animation: pulse 1.1s infinite;
+    }
+
+    .typing i:nth-child(2) { animation-delay: 0.2s; }
+    .typing i:nth-child(3) { animation-delay: 0.4s; }
+
+    .chat-input-wrap {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 8px;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .chat-input-wrap button {
+      width: 44px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      font-size: 1.05rem;
+    }
+
+    .identity-view {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(140deg, rgba(232, 228, 223, 0.09), rgba(168, 197, 160, 0.07));
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(1.22rem, 4.2vw, 1.62rem);
+      line-height: 1.62;
+      min-height: 220px;
+      white-space: pre-wrap;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(env(safe-area-inset-bottom) + 8px);
+      width: min(96%, 520px);
+      padding: 8px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(19, 24, 20, 0.9);
+      backdrop-filter: blur(12px);
+      display: none;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      z-index: 20;
+    }
+
+    .bottom-nav button {
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      color: var(--muted);
+      padding: 10px 8px;
+      font-size: 0.87rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .bottom-nav button.active {
+      color: var(--cream);
+      border-color: rgba(168, 197, 160, 0.45);
+      background: rgba(168, 197, 160, 0.12);
+    }
+
+    .nav-ico {
+      font-size: 0.92rem;
+      opacity: 0.9;
+    }
+
+    .nav-label {
+      font-size: 0.83rem;
+    }
+
+    .hidden { display: none !important; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes pulse {
+      0%, 80%, 100% { opacity: 0.4; transform: translateY(0); }
+      40% { opacity: 1; transform: translateY(-2px); }
+    }
+
+    @media (min-width: 760px) {
+      .app { padding-top: 10px; }
+      .screen { padding: 26px 28px; }
+      .chat-shell { height: calc(100dvh - 20px - env(safe-area-inset-bottom)); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section id="screen-splash" class="screen active">
+      <div class="splash-wrap">
+        <div>
+          <h1 class="logo"><span class="logo-mai">mai</span><span class="logo-tribe">tribe</span></h1>
+          <p id="splash-subtitle" class="subtitle">holistic · body · mind · soul</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="screen-auth" class="screen">
+      <div class="auth-head">
+        <p class="tiny-logo"><span class="logo-mai">mai</span><span class="logo-tribe">tribe</span></p>
+        <p id="auth-subtitle" class="muted">Your space. Your truth. Always private.</p>
+      </div>
+
+      <div class="panel stack">
+        <div>
+          <label id="auth-email-label" for="auth-email">Email</label>
+          <input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" />
+        </div>
+        <button id="btn-magic-link" class="btn-primary" type="button">Continue with Email</button>
+        <button id="btn-google" class="btn" type="button">Continue with Google</button>
+        <p id="auth-status" class="status"></p>
+      </div>
+
+      <details class="panel" style="margin-top: 14px;">
+        <summary id="auth-project-keys-summary" style="cursor: pointer; color: var(--muted);">Project keys</summary>
+        <div class="stack" style="margin-top: 12px;">
+          <div>
+            <label for="cfg-supabase-url">SUPABASE_URL</label>
+            <input id="cfg-supabase-url" type="url" placeholder="https://xxxx.supabase.co" />
+          </div>
+          <div>
+            <label for="cfg-supabase-key">SUPABASE_ANON_KEY</label>
+            <input id="cfg-supabase-key" type="text" placeholder="eyJ..." />
+          </div>
+          <div>
+            <label for="cfg-gemini-key">GEMINI_API_KEY</label>
+            <input id="cfg-gemini-key" type="text" placeholder="AIza..." />
+          </div>
+          <div>
+            <label for="cfg-vapid-key">VAPID_PUBLIC_KEY (optional)</label>
+            <input id="cfg-vapid-key" type="text" placeholder="BL..." />
+          </div>
+          <button id="btn-save-config" class="btn" type="button">Save keys</button>
+          <p id="auth-keys-helper" class="helper">Keys are stored in localStorage for this device.</p>
+          <p id="config-status" class="status"></p>
+        </div>
+      </details>
+    </section>
+
+    <section id="screen-onboarding" class="screen">
+      <p id="onboard-progress" class="onboard-progress">Step 1 of 5</p>
+
+      <div id="onboard-step-1" class="onboard-step active">
+        <h2 id="onboard-welcome-title" class="screen-title">Welcome.</h2>
+        <p id="onboard-welcome-text" class="onboard-copy">I am Mai - your companion for body, mind, and soul.
+
+I am not a chatbot. I am not a coach. I am a quiet presence.
+
+Let us start by getting to know each other.</p>
+        <button id="btn-onboard-begin" class="btn-primary" type="button" style="margin-top: 10px;">Let's begin</button>
+      </div>
+
+      <div id="onboard-step-2" class="onboard-step">
+        <h2 id="onboard-step2-title" class="screen-title">Tell me about you</h2>
+        <div class="panel stack">
+          <div>
+            <label id="onboard-name-label" for="onboard-name">What should I call you?</label>
+            <input id="onboard-name" type="text" autocomplete="name" />
+          </div>
+          <div>
+            <label id="onboard-language-label" for="onboard-language">Language</label>
+            <select id="onboard-language">
+              <option value="en">English</option>
+              <option value="de">Deutsch</option>
+              <option value="es">Espanol</option>
+              <option value="fr">Francais</option>
+              <option value="pt">Portugues</option>
+              <option value="it">Italiano</option>
+              <option value="nl">Nederlands</option>
+            </select>
+          </div>
+          <div>
+            <label id="onboard-timezone-label" for="onboard-timezone">Timezone</label>
+            <input id="onboard-timezone" type="text" />
+          </div>
+          <button id="btn-onboard-step2" class="btn-primary" type="button">Continue</button>
+        </div>
+      </div>
+
+      <div id="onboard-step-3" class="onboard-step">
+        <h2 id="onboard-checkin-title" class="screen-title">How are you right now?</h2>
+        <p id="onboard-checkin-sub" class="muted">Not how you think you should be. How you actually are.</p>
+        <div class="panel" style="margin-top: 12px;">
+          <div class="slider-wrap">
+            <div class="slider-row"><span id="onboard-label-body">Body</span><strong id="onboard-body-val">5</strong></div>
+            <input id="onboard-body" type="range" min="1" max="10" value="5" />
+          </div>
+          <div class="slider-wrap">
+            <div class="slider-row"><span id="onboard-label-mind">Mind</span><strong id="onboard-mind-val">5</strong></div>
+            <input id="onboard-mind" type="range" min="1" max="10" value="5" />
+          </div>
+          <div class="slider-wrap">
+            <div class="slider-row"><span id="onboard-label-soul">Soul</span><strong id="onboard-soul-val">5</strong></div>
+            <input id="onboard-soul" type="range" min="1" max="10" value="5" />
+          </div>
+          <div class="slider-wrap">
+            <div class="slider-row"><span id="onboard-label-energy">Energy</span><strong id="onboard-energy-val">5</strong></div>
+            <input id="onboard-energy" type="range" min="1" max="10" value="5" />
+          </div>
+          <label id="onboard-checkin-note-label" for="onboard-note">Anything on your mind? (optional)</label>
+          <textarea id="onboard-note" placeholder="Share what feels true right now..."></textarea>
+          <button id="btn-onboard-checkin" class="btn-primary" type="button">How does this feel today?</button>
+          <p id="onboard-checkin-status" class="status"></p>
+        </div>
+        <div id="onboard-checkin-response" class="panel hidden" style="margin-top: 12px;"></div>
+        <button id="btn-onboard-step3-next" class="btn" type="button" style="margin-top: 12px;">Continue</button>
+      </div>
+
+      <div id="onboard-step-4" class="onboard-step">
+        <h2 id="onboard-identity-title" class="screen-title">Your Identity</h2>
+        <p id="onboard-identity-sub" class="muted">I will ask you four short questions. There are no wrong answers.</p>
+
+        <div class="panel stack" style="margin-top: 12px;">
+          <p id="identity-question" class="onboard-copy"></p>
+          <textarea id="identity-answer" placeholder="Write what feels true..."></textarea>
+          <button id="btn-identity-next" class="btn-primary" type="button"></button>
+          <p id="identity-status" class="status"></p>
+        </div>
+
+        <div id="identity-generated-wrap" class="panel hidden" style="margin-top: 12px;">
+          <label id="onboard-identity-generated-label" for="identity-generated">Your generated identity (editable)</label>
+          <textarea id="identity-generated"></textarea>
+          <button id="btn-identity-accept" class="btn-primary" type="button">This feels right</button>
+        </div>
+      </div>
+
+      <div id="onboard-step-5" class="onboard-step">
+        <h2 id="onboard-reminders-title" class="screen-title">Gentle reminders</h2>
+        <div class="panel stack">
+          <div>
+            <label id="onboard-wake-label" for="onboard-wake-time">When do you wake up?</label>
+            <input id="onboard-wake-time" type="time" value="07:00" />
+          </div>
+          <div class="row spread">
+            <div>
+              <strong id="onboard-morning-label">Morning Identity reminder</strong>
+              <p id="onboard-morning-help" class="helper">One calm reminder each morning.</p>
+            </div>
+            <label class="toggle"><input id="onboard-morning-toggle" type="checkbox" checked /><span></span></label>
+          </div>
+          <div class="row spread">
+            <div>
+              <strong id="onboard-mindful-label">Mindful reminders</strong>
+              <p id="onboard-mindful-help" class="helper">Small grounding nudges during the day.</p>
+            </div>
+            <label class="toggle"><input id="onboard-mindful-toggle" type="checkbox" checked /><span></span></label>
+          </div>
+          <div>
+            <label id="onboard-mindful-count-label" for="onboard-reminder-count">Mindful reminders per day</label>
+            <select id="onboard-reminder-count">
+              <option value="1">1</option>
+            <option value="2" selected>2</option>
+            <option value="3">3</option>
+          </select>
+          </div>
+          <button id="btn-request-notifications" class="btn" type="button">Enable notifications</button>
+          <button id="btn-onboard-finish" class="btn-primary" type="button">I'm ready</button>
+          <p id="onboard-finish-status" class="status"></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="screen-home" class="screen">
+      <div class="home-top">
+        <p id="home-today-label" class="helper">Today</p>
+        <h2 id="home-greeting" class="greeting">Welcome</h2>
+      </div>
+
+      <article id="home-identity-card" class="identity-card" role="button" tabindex="0" aria-label="Open your identity">
+        <p id="home-identity-title" class="helper">🌿 Your identity</p>
+        <p id="home-identity-sentence" class="identity-quote">Your truth will appear here once onboarding is complete.</p>
+      </article>
+
+      <div class="quick-grid">
+        <button id="btn-home-checkin" class="action-tile" type="button">
+          Check-in
+          <small>Body · Mind · Soul</small>
+        </button>
+        <button id="btn-home-chat" class="action-tile" type="button">
+          Talk to Mai
+          <small>Quiet support</small>
+        </button>
+      </div>
+
+      <div class="panel">
+        <p id="home-recent-label" class="helper">Recent insight</p>
+        <p id="home-recent-insight" class="muted">No reflections yet.</p>
+      </div>
+    </section>
+
+    <section id="screen-chat" class="screen">
+      <div class="chat-shell">
+        <header class="chat-header">
+          <button id="btn-chat-back" class="btn btn-inline" type="button">Back</button>
+          <h2 class="chat-title">Mai 🌿</h2>
+          <button id="btn-chat-refresh" class="btn btn-inline" type="button">Refresh</button>
+        </header>
+
+        <div id="chat-messages" class="chat-area"></div>
+
+        <form id="chat-form" class="chat-input-wrap" autocomplete="off">
+          <input id="chat-input" type="text" placeholder="Share what's on your mind..." />
+          <button id="btn-chat-voice" class="btn" type="button" title="Voice input">Mic</button>
+          <button id="btn-chat-send" class="btn-primary" type="submit" title="Send">Send</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="screen-checkin" class="screen">
+      <div class="row spread">
+        <h2 id="checkin-screen-title" class="screen-title">How are you - really?</h2>
+        <button id="btn-checkin-back" class="btn btn-inline" type="button">Back</button>
+      </div>
+
+      <div class="panel">
+        <div class="slider-wrap">
+          <div class="slider-row"><span id="checkin-label-body">Body</span><strong id="checkin-body-val">5</strong></div>
+          <input id="checkin-body" type="range" min="1" max="10" value="5" />
+        </div>
+        <div class="slider-wrap">
+          <div class="slider-row"><span id="checkin-label-mind">Mind</span><strong id="checkin-mind-val">5</strong></div>
+          <input id="checkin-mind" type="range" min="1" max="10" value="5" />
+        </div>
+        <div class="slider-wrap">
+          <div class="slider-row"><span id="checkin-label-soul">Soul</span><strong id="checkin-soul-val">5</strong></div>
+          <input id="checkin-soul" type="range" min="1" max="10" value="5" />
+        </div>
+        <div class="slider-wrap">
+          <div class="slider-row"><span id="checkin-label-energy">Energy</span><strong id="checkin-energy-val">5</strong></div>
+          <input id="checkin-energy" type="range" min="1" max="10" value="5" />
+        </div>
+
+        <label id="checkin-note-label" for="checkin-note">Anything on your mind? (optional)</label>
+        <textarea id="checkin-note" placeholder="You can keep this short."></textarea>
+
+        <button id="btn-checkin-submit" class="btn-primary" type="button">Submit check-in</button>
+        <p id="checkin-status" class="status"></p>
+      </div>
+
+      <div id="checkin-response" class="panel hidden" style="margin-top: 12px;"></div>
+    </section>
+
+    <section id="screen-identity" class="screen">
+      <div class="row spread">
+        <h2 id="identity-screen-title" class="screen-title">Your Identity</h2>
+        <div class="row">
+          <button id="btn-identity-back" class="btn btn-inline" type="button">Back</button>
+          <button id="btn-identity-edit" class="btn btn-inline" type="button">Edit</button>
+        </div>
+      </div>
+
+      <div id="identity-view" class="identity-view">No identity found yet.</div>
+
+      <div id="identity-edit-wrap" class="panel hidden" style="margin-top: 12px;">
+        <label id="identity-edit-label" for="identity-edit-text">Edit identity</label>
+        <textarea id="identity-edit-text"></textarea>
+        <div class="row" style="justify-content: flex-end; margin-top: 10px;">
+          <button id="btn-identity-cancel" class="btn" type="button">Cancel</button>
+          <button id="btn-identity-save" class="btn-primary" type="button">Save</button>
+        </div>
+        <p id="identity-edit-status" class="status"></p>
+      </div>
+    </section>
+
+    <section id="screen-settings" class="screen">
+      <div class="row spread">
+        <h2 id="settings-title" class="screen-title">Settings</h2>
+        <button id="btn-logout" class="btn btn-inline" type="button">Logout</button>
+      </div>
+
+      <div class="panel stack">
+        <h3 id="settings-profile-title" style="margin: 0; font-family: 'Cormorant Garamond', serif; font-weight: 400;">Profile</h3>
+        <div>
+          <label id="settings-name-label" for="settings-name">Name</label>
+          <input id="settings-name" type="text" />
+        </div>
+        <div>
+          <label id="settings-language-label" for="settings-language">Language</label>
+          <select id="settings-language">
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Espanol</option>
+            <option value="fr">Francais</option>
+            <option value="pt">Portugues</option>
+            <option value="it">Italiano</option>
+            <option value="nl">Nederlands</option>
+          </select>
+        </div>
+        <div>
+          <label id="settings-timezone-label" for="settings-timezone">Timezone</label>
+          <input id="settings-timezone" type="text" />
+        </div>
+      </div>
+
+      <div class="panel stack">
+        <h3 id="settings-reminders-title" style="margin: 0; font-family: 'Cormorant Garamond', serif; font-weight: 400;">Reminders</h3>
+        <div>
+          <label id="settings-morning-time-label" for="settings-morning-time">Morning reminder time</label>
+          <input id="settings-morning-time" type="time" value="07:00" />
+        </div>
+        <div class="row spread">
+          <span id="settings-morning-enabled-label">Morning reminder enabled</span>
+          <label class="toggle"><input id="settings-morning-enabled" type="checkbox" /><span></span></label>
+        </div>
+        <div class="row spread">
+          <span id="settings-mindful-enabled-label">Mindful reminders enabled</span>
+          <label class="toggle"><input id="settings-mindful-enabled" type="checkbox" /><span></span></label>
+        </div>
+        <div>
+          <label id="settings-mindful-count-label" for="settings-mindful-count">Mindful reminders per day</label>
+          <select id="settings-mindful-count">
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+          </select>
+        </div>
+        <div class="row spread">
+          <span id="settings-event-enabled-label">Event follow-up reminders</span>
+          <label class="toggle"><input id="settings-event-enabled" type="checkbox" /><span></span></label>
+        </div>
+      </div>
+
+      <div class="panel stack">
+        <h3 id="settings-keys-title" style="margin: 0; font-family: 'Cormorant Garamond', serif; font-weight: 400;">Project keys</h3>
+        <div>
+          <label id="settings-gemini-label" for="settings-gemini">Gemini API key</label>
+          <input id="settings-gemini" type="text" placeholder="AIza..." />
+        </div>
+        <div>
+          <label id="settings-vapid-label" for="settings-vapid">VAPID public key (optional)</label>
+          <input id="settings-vapid" type="text" placeholder="BL..." />
+        </div>
+        <button id="btn-settings-save" class="btn-primary" type="button">Save settings</button>
+        <button id="btn-settings-push" class="btn" type="button">Register push notifications</button>
+        <p id="settings-status" class="status"></p>
+      </div>
+    </section>
+
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Main navigation">
+      <button data-target="screen-home" class="active" type="button"><span class="nav-ico">⌂</span><span id="nav-home-label" class="nav-label">Home</span></button>
+      <button data-target="screen-chat" type="button"><span class="nav-ico">◎</span><span id="nav-chat-label" class="nav-label">Chat</span></button>
+      <button data-target="screen-settings" type="button"><span class="nav-ico">◒</span><span id="nav-profile-label" class="nav-label">Profile</span></button>
+    </nav>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1"></script>
+  <script>
+    // Apply LockManager bypass immediately after Supabase SDK load.
+    (function () {
+      if (window.__maitribeLockBypassApplied) return;
+      window.__maitribeLockBypassApplied = true;
+
+      if (!navigator.locks) return;
+
+      navigator.locks.request = async function (name, optionsOrCallback, maybeCallback) {
+        const callback = typeof optionsOrCallback === "function" ? optionsOrCallback : maybeCallback;
+        if (callback) return callback();
+      };
+    })();
+  </script>
+  <script>
+    (function () {
+      const screens = [
+        "screen-splash",
+        "screen-auth",
+        "screen-onboarding",
+        "screen-home",
+        "screen-chat",
+        "screen-checkin",
+        "screen-identity",
+        "screen-settings"
+      ];
+
+      const languageMap = {
+        en: "English",
+        de: "German",
+        es: "Spanish",
+        fr: "French",
+        pt: "Portuguese",
+        it: "Italian",
+        nl: "Dutch"
+      };
+
+      const i18n = {
+        en: {
+          auth_subtitle: "Your space. Your truth. Always private.",
+          auth_continue_email: "Continue with Email",
+          auth_continue_google: "Continue with Google",
+          onboard_welcome_title: "Welcome.",
+          onboard_welcome_text: "I am Mai \u2014 your companion for body, mind, and soul.\n\nI am not a chatbot. I am not a coach. I am not an app that tells you what to do.\n\nI am a quiet presence. I listen. I remember. I walk next to you.\n\nLet's start by getting to know each other.",
+          onboard_begin: "Let's begin",
+          onboard_name_label: "What should I call you?",
+          onboard_language_label: "Language",
+          onboard_timezone_label: "Timezone",
+          onboard_continue: "Continue",
+          onboard_checkin_title: "How are you right now?",
+          onboard_checkin_sub: "Not how you think you should be. How you actually are.",
+          onboard_checkin_note_label: "Anything on your mind? (optional)",
+          onboard_checkin_note_placeholder: "Share what feels true right now...",
+          onboard_checkin_btn: "How does this feel today?",
+          onboard_identity_title: "Your Identity",
+          onboard_identity_sub: "I'll ask you four short questions. There are no wrong answers.",
+          onboard_identity_placeholder: "Write what feels true...",
+          onboard_identity_save_answer: "Save answer",
+          onboard_identity_generate: "Generate identity",
+          onboard_identity_generated_label: "Your generated identity (editable)",
+          onboard_reminders_title: "Gentle reminders",
+          onboard_wake_label: "When do you wake up?",
+          onboard_morning_label: "Morning Identity reminder",
+          onboard_morning_help: "One calm reminder each morning.",
+          onboard_mindful_label: "Mindful reminders",
+          onboard_mindful_help: "Small grounding nudges during the day.",
+          onboard_mindful_count_label: "Mindful reminders per day",
+          onboard_notify: "Enable notifications",
+          onboard_ready: "I'm ready",
+          identity_q1: "Imagine you wake up tomorrow living your absolute dream life. Where are you? What are you doing? How does your body feel? Describe it as concretely as you can.",
+          identity_q2: "What matters most to you in life? Not what should matter \u2014 what truly does, deep down.",
+          identity_q3: "What feeling do you want more of in your daily life? Not what you want to do \u2014 how you want to feel.",
+          identity_q4: "Is there a dream you carry inside that you rarely say out loud? One that feels almost too big?",
+          identity_save_answer: "Save & Next",
+          identity_generate: "Generate my Identity",
+          identity_accept: "This feels right",
+          identity_generating: "Generating your identity...",
+          identity_skip: "Skip \u2014 I\u2019ll edit later",
+          identity_timeout_msg: "It\u2019s taking longer than expected. You can skip and edit your identity later.",
+          home_today: "Today",
+          home_identity_label: "\uD83C\uDF3F Your identity",
+          home_checkin: "Check-in",
+          home_checkin_sub: "Body \u00B7 Mind \u00B7 Soul",
+          home_chat: "Talk to Mai",
+          home_chat_sub: "Quiet support",
+          home_recent: "Recent insight",
+          home_no_insight: "No reflections yet.",
+          greeting_night: "Still up, {name}?",
+          greeting_morning: "Good morning, {name}",
+          greeting_afternoon: "Good afternoon, {name}",
+          greeting_evening: "Good evening, {name}",
+          greeting_late: "Good night, {name}",
+          chat_placeholder: "Share what's on your mind...",
+          chat_back: "Back",
+          chat_refresh: "Refresh",
+          chat_mic: "Mic",
+          chat_send: "Send",
+          chat_mai_resting: "Mai is resting for a moment. Try again in a minute. \uD83C\uDF3F",
+          chat_no_key: "Please add your Gemini API key in Settings.",
+          chat_fallback_opening: "Hey. I am here. What feels most present right now?",
+          chat_empty: "\uD83C\uDF3F\nMai is loading...\nPlease give it a moment.",
+          checkin_title: "How are you \u2014 really?",
+          checkin_back: "Back",
+          checkin_note_label: "Anything on your mind? (optional)",
+          checkin_note_placeholder: "You can keep this short.",
+          checkin_submit: "Submit check-in",
+          checkin_saving: "Saving...",
+          checkin_saved: "Saved.",
+          identity_title: "Your Identity",
+          identity_back: "Back",
+          identity_edit: "Edit",
+          identity_cancel: "Cancel",
+          identity_save: "Save",
+          identity_empty: "No identity found yet.",
+          identity_edit_label: "Edit identity",
+          settings_title: "Settings",
+          settings_logout: "Logout",
+          settings_profile: "Profile",
+          settings_name_label: "Name",
+          settings_language_label: "Language",
+          settings_timezone_label: "Timezone",
+          settings_reminders: "Reminders",
+          settings_morning_time: "Morning reminder time",
+          settings_morning_enabled: "Morning reminder enabled",
+          settings_mindful_enabled: "Mindful reminders enabled",
+          settings_mindful_count: "Mindful reminders per day",
+          settings_event_enabled: "Event follow-up reminders",
+          settings_keys: "Project keys",
+          settings_save: "Save settings",
+          settings_push: "Register push notifications",
+          settings_saved: "Saved.",
+          nav_home: "Home",
+          nav_chat: "Chat",
+          nav_profile: "Profile",
+          slider_body: "Body",
+          slider_mind: "Mind",
+          slider_soul: "Soul",
+          slider_energy: "Energy",
+          err_no_key: "Please add your Gemini API key in Settings.",
+          err_api: "I am here. Let us try again in a moment.",
+          err_timeout: "Mai can't respond right now. Please try again later.",
+          err_rate_limit: "Mai needs a moment. Try again in a minute.",
+          err_invalid_key: "Your API Key is invalid. Please check it in Settings.",
+          status_api_key_validating: "Validating API key...",
+          status_api_key_valid: "API Key is valid and saved.",
+          status_api_key_invalid: "This API Key is invalid. Check it at aistudio.google.com/apikey",
+          status_api_key_rate_limited: "Key saved, but currently rate-limited. Try again in a minute.",
+          splash_subtitle: "holistic \u00B7 body \u00B7 mind \u00B7 soul",
+          auth_email_label: "Email",
+          auth_project_keys: "Project keys",
+          auth_save_keys: "Save keys",
+          auth_keys_helper: "Keys are stored in localStorage for this device.",
+          onboard_step2_title: "Tell me about you",
+          onboard_step_progress: "Step {step} of 5",
+          home_identity_placeholder: "Your truth will appear here once onboarding is complete.",
+          settings_gemini_label: "Gemini API key",
+          settings_vapid_label: "VAPID public key (optional)",
+          status_sending_magic: "Sending magic link...",
+          status_check_inbox: "Check your inbox for the login link.",
+          status_enter_email: "Enter your email.",
+          status_configure_supabase: "Configure Supabase first.",
+          status_could_not_load_profile: "Could not load your profile.",
+          status_saved: "Saved.",
+          status_saved_locally: "Saved locally.",
+          status_reflecting: "Reflecting...",
+          status_saving_checkin: "Saving check-in...",
+          status_could_not_save_checkin: "Could not save your check-in.",
+          status_reflection_ready: "Reflection ready.",
+          status_checkin_ai_unavailable: "Mai couldn\u2019t reflect right now, but your check-in is saved. You can always come back.",
+          status_identity_empty: "Identity cannot be empty.",
+          status_could_not_save_identity: "Could not save identity.",
+          status_identity_saved: "Identity saved.",
+          status_push_not_supported: "Push notifications are not supported on this browser.",
+          status_add_vapid: "Add VAPID public key in settings first.",
+          status_push_enabled: "Push notifications enabled.",
+          status_voice_not_supported: "Voice input is not supported in this browser.",
+          status_could_not_capture_voice: "Could not capture voice input.",
+          status_add_name: "Please add your name.",
+          status_generate_identity: "Please generate or write your identity first.",
+          status_saved_continue: "Saved. You can continue with login.",
+          status_missing_supabase: "Missing Supabase values.",
+          status_google_failed: "Google sign-in failed.",
+          status_add_answer: "Please add an answer before continuing.",
+          status_identity_text_empty: "Identity text cannot be empty.",
+          status_generating_identity: "Generating your identity...",
+          status_review_identity: "Review and edit your identity before saving.",
+          status_fallback_generated: "Fallback text was generated.",
+          status_could_not_save_settings: "Could not save settings.",
+          status_could_not_send_magic: "Could not send magic link.",
+          status_magic_expired: "Magic link expired or already used. Please request a new one.",
+          status_share_name: "Please share your name first.",
+          status_add_supabase: "Add your Supabase URL and anon key to continue.",
+          status_supabase_sdk_fail: "Supabase SDK could not be loaded. Please reload the page.",
+          status_start_failed: "Start failed. Please reload the page.",
+          status_app_start_fail: "App did not start cleanly. Please reload the page.",
+          status_local_mode: "Continuing in local mode."
+        },
+        de: {
+          onboard_welcome_title: "Willkommen.",
+          onboard_welcome_text: "Ich bin Mai \u2014 deine Begleiterin f\u00FCr K\u00F6rper, Geist und Seele.\n\nIch bin kein Chatbot. Kein Coach. Keine App, die dir sagt, was du tun sollst.\n\nIch bin eine stille Pr\u00E4senz. Ich h\u00F6re zu. Ich erinnere mich. Ich gehe neben dir.\n\nLass uns damit anfangen, uns kennenzulernen.",
+          onboard_begin: "Los geht\u2019s",
+          onboard_name_label: "Wie soll ich dich nennen?",
+          onboard_language_label: "Sprache",
+          onboard_timezone_label: "Zeitzone",
+          onboard_continue: "Weiter",
+          onboard_checkin_title: "Wie geht es dir gerade?",
+          onboard_checkin_sub: "Nicht wie du denkst, dass es dir gehen sollte. Wie es dir wirklich geht.",
+          onboard_checkin_note_label: "Was bewegt dich gerade? (optional)",
+          onboard_checkin_note_placeholder: "Teile, was sich gerade wahr anf\u00FChlt...",
+          onboard_checkin_btn: "Wie f\u00FChlt sich das heute an?",
+          onboard_identity_title: "Deine Identit\u00E4t",
+          onboard_identity_sub: "Ich stelle dir vier kurze Fragen. Es gibt keine falschen Antworten.",
+          onboard_identity_placeholder: "Schreib, was sich wahr anf\u00FChlt...",
+          onboard_identity_save_answer: "Antwort speichern",
+          onboard_identity_generate: "Identit\u00E4t erstellen",
+          onboard_identity_generated_label: "Deine erstellte Identit\u00E4t (du kannst sie bearbeiten)",
+          onboard_reminders_title: "Sanfte Erinnerungen",
+          onboard_wake_label: "Wann wachst du auf?",
+          onboard_morning_label: "Morgen-Identit\u00E4ts-Erinnerung",
+          onboard_morning_help: "Eine ruhige Erinnerung jeden Morgen.",
+          onboard_mindful_label: "Achtsame Erinnerungen",
+          onboard_mindful_help: "Kleine erdende Impulse durch den Tag.",
+          onboard_mindful_count_label: "Achtsame Erinnerungen pro Tag",
+          onboard_notify: "Benachrichtigungen aktivieren",
+          onboard_ready: "Ich bin bereit",
+          identity_q1: "Stell dir vor, du wachst morgen auf und lebst dein absolutes Traumleben. Wo bist du? Was tust du? Wie f\u00FChlt sich dein K\u00F6rper an? Beschreib es so konkret wie m\u00F6glich.",
+          identity_q2: "Was ist dir im Leben am wichtigsten? Nicht was wichtig sein sollte \u2014 was es wirklich ist, tief in dir drin.",
+          identity_q3: "Welches Gef\u00FChl w\u00FCnschst du dir mehr in deinem Alltag? Nicht was du tun willst \u2014 wie du dich f\u00FChlen willst.",
+          identity_q4: "Gibt es einen Traum, den du in dir tr\u00E4gst, den du selten laut aussprichst? Einen, der sich fast zu gro\u00DF anf\u00FChlt?",
+          identity_save_answer: "Speichern & Weiter",
+          identity_generate: "Meine Identit\u00E4t erstellen",
+          identity_accept: "Das f\u00FChlt sich richtig an",
+          identity_generating: "Deine Identit\u00E4t wird erstellt...",
+          identity_skip: "\u00DCberspringen \u2014 ich bearbeite sp\u00E4ter",
+          identity_timeout_msg: "Es dauert l\u00E4nger als erwartet. Du kannst \u00FCberspringen und deine Identit\u00E4t sp\u00E4ter bearbeiten.",
+          home_today: "Heute",
+          home_identity_label: "\uD83C\uDF3F Deine Identit\u00E4t",
+          home_checkin: "Check-in",
+          home_checkin_sub: "K\u00F6rper \u00B7 Geist \u00B7 Seele",
+          home_chat: "Mit Mai sprechen",
+          home_chat_sub: "Stille Begleitung",
+          home_recent: "Letzter Impuls",
+          home_no_insight: "Noch keine Reflexionen.",
+          greeting_night: "Noch wach, {name}?",
+          greeting_morning: "Guten Morgen, {name}",
+          greeting_afternoon: "Guten Nachmittag, {name}",
+          greeting_evening: "Guten Abend, {name}",
+          greeting_late: "Gute Nacht, {name}",
+          chat_placeholder: "Teile, was dich bewegt...",
+          chat_back: "Zur\u00FCck",
+          chat_refresh: "Neu laden",
+          chat_mic: "Mikro",
+          chat_send: "Senden",
+          chat_mai_resting: "Mai ruht sich gerade kurz aus. Versuch es in einer Minute noch einmal. \uD83C\uDF3F",
+          chat_no_key: "Bitte trage deinen Gemini API Key in den Einstellungen ein.",
+          chat_fallback_opening: "Hey. Ich bin da. Was bewegt dich gerade am meisten?",
+          chat_empty: "\uD83C\uDF3F\nMai l\u00E4dt...\nEinen Moment noch.",
+          checkin_title: "Wie geht es dir \u2014 wirklich?",
+          checkin_back: "Zur\u00FCck",
+          checkin_note_label: "Was bewegt dich gerade? (optional)",
+          checkin_note_placeholder: "Du kannst es kurz halten.",
+          checkin_submit: "Check-in abschicken",
+          checkin_saving: "Speichere...",
+          checkin_saved: "Gespeichert.",
+          identity_title: "Deine Identit\u00E4t",
+          identity_back: "Zur\u00FCck",
+          identity_edit: "Bearbeiten",
+          identity_cancel: "Abbrechen",
+          identity_save: "Speichern",
+          identity_empty: "Noch keine Identit\u00E4t erstellt.",
+          identity_edit_label: "Identit\u00E4t bearbeiten",
+          settings_title: "Einstellungen",
+          settings_logout: "Abmelden",
+          settings_profile: "Profil",
+          settings_name_label: "Name",
+          settings_language_label: "Sprache",
+          settings_timezone_label: "Zeitzone",
+          settings_reminders: "Erinnerungen",
+          settings_morning_time: "Zeit der Morgen-Erinnerung",
+          settings_morning_enabled: "Morgen-Erinnerung aktiv",
+          settings_mindful_enabled: "Achtsame Erinnerungen aktiv",
+          settings_mindful_count: "Achtsame Erinnerungen pro Tag",
+          settings_event_enabled: "Event-Nachfragen aktiv",
+          settings_keys: "Projekt-Schl\u00FCssel",
+          settings_save: "Einstellungen speichern",
+          settings_push: "Push-Benachrichtigungen aktivieren",
+          settings_saved: "Gespeichert.",
+          nav_home: "Home",
+          nav_chat: "Chat",
+          nav_profile: "Profil",
+          slider_body: "K\u00F6rper",
+          slider_mind: "Geist",
+          slider_soul: "Seele",
+          slider_energy: "Energie",
+          err_no_key: "Bitte trage deinen Gemini API Key in den Einstellungen ein.",
+          err_api: "Ich bin hier. Lass es uns in einem Moment noch einmal versuchen.",
+          err_timeout: "Mai kann gerade nicht antworten. Bitte versuche es sp\u00E4ter.",
+          err_rate_limit: "Mai braucht einen Moment. Versuch es in einer Minute nochmal.",
+          err_invalid_key: "Dein API Key ist ung\u00FCltig. Bitte \u00FCberpr\u00FCfe ihn in den Einstellungen.",
+          status_api_key_validating: "API Key wird \u00FCberpr\u00FCft...",
+          status_api_key_valid: "API Key ist g\u00FCltig und gespeichert.",
+          status_api_key_invalid: "Dieser API Key ist ung\u00FCltig. Pr\u00FCfe ihn auf aistudio.google.com/apikey",
+          status_api_key_rate_limited: "Key gespeichert, aber gerade rate-limited. Versuch es in einer Minute.",
+          auth_subtitle: "Dein Raum. Deine Wahrheit. Immer privat.",
+          auth_continue_email: "Weiter mit E-Mail",
+          auth_continue_google: "Weiter mit Google",
+          splash_subtitle: "ganzheitlich \u00B7 K\u00F6rper \u00B7 Geist \u00B7 Seele",
+          auth_email_label: "E-Mail",
+          auth_project_keys: "Projekt-Schl\u00FCssel",
+          auth_save_keys: "Schl\u00FCssel speichern",
+          auth_keys_helper: "Schl\u00FCssel werden im localStorage dieses Ger\u00E4ts gespeichert.",
+          onboard_step2_title: "Erz\u00E4hl mir von dir",
+          onboard_step_progress: "Schritt {step} von 5",
+          home_identity_placeholder: "Deine Wahrheit erscheint hier, sobald das Onboarding abgeschlossen ist.",
+          settings_gemini_label: "Gemini API-Schl\u00FCssel",
+          settings_vapid_label: "VAPID Public Key (optional)",
+          status_sending_magic: "Magic Link wird gesendet...",
+          status_check_inbox: "Pr\u00FCfe dein Postfach f\u00FCr den Login-Link.",
+          status_enter_email: "Bitte gib deine E-Mail ein.",
+          status_configure_supabase: "Bitte zuerst Supabase konfigurieren.",
+          status_could_not_load_profile: "Profil konnte nicht geladen werden.",
+          status_saved: "Gespeichert.",
+          status_saved_locally: "Lokal gespeichert.",
+          status_reflecting: "Reflektiere...",
+          status_saving_checkin: "Check-in wird gespeichert...",
+          status_could_not_save_checkin: "Check-in konnte nicht gespeichert werden.",
+          status_reflection_ready: "Reflexion bereit.",
+          status_checkin_ai_unavailable: "Mai konnte gerade nicht reflektieren, aber dein Check-in ist gespeichert. Du kannst jederzeit zur\u00FCckkommen.",
+          status_identity_empty: "Identit\u00E4t darf nicht leer sein.",
+          status_could_not_save_identity: "Identit\u00E4t konnte nicht gespeichert werden.",
+          status_identity_saved: "Identit\u00E4t gespeichert.",
+          status_push_not_supported: "Push-Benachrichtigungen werden in diesem Browser nicht unterst\u00FCtzt.",
+          status_add_vapid: "VAPID Public Key in den Einstellungen hinzuf\u00FCgen.",
+          status_push_enabled: "Push-Benachrichtigungen aktiviert.",
+          status_voice_not_supported: "Spracheingabe wird in diesem Browser nicht unterst\u00FCtzt.",
+          status_could_not_capture_voice: "Spracheingabe konnte nicht erfasst werden.",
+          status_add_name: "Bitte gib deinen Namen ein.",
+          status_generate_identity: "Bitte erstelle oder schreibe zuerst deine Identit\u00E4t.",
+          status_saved_continue: "Gespeichert. Du kannst dich jetzt anmelden.",
+          status_missing_supabase: "Supabase-Werte fehlen.",
+          status_google_failed: "Google-Anmeldung fehlgeschlagen.",
+          status_add_answer: "Bitte gib eine Antwort ein, bevor du fortf\u00E4hrst.",
+          status_identity_text_empty: "Identit\u00E4tstext darf nicht leer sein.",
+          status_generating_identity: "Deine Identit\u00E4t wird erstellt...",
+          status_review_identity: "Pr\u00FCfe deine Identit\u00E4t und passe sie an, wenn du m\u00F6chtest.",
+          status_fallback_generated: "Fallback-Text wurde erstellt.",
+          status_could_not_save_settings: "Einstellungen konnten nicht gespeichert werden.",
+          status_could_not_send_magic: "Magic Link konnte nicht gesendet werden.",
+          status_magic_expired: "Magic Link ist abgelaufen oder bereits genutzt. Bitte neuen Link anfordern.",
+          status_share_name: "Bitte teile zuerst deinen Namen mit.",
+          status_add_supabase: "Bitte Supabase-URL und Anon-Key eingeben.",
+          status_supabase_sdk_fail: "Supabase SDK konnte nicht geladen werden. Seite neu laden.",
+          status_start_failed: "Start fehlgeschlagen. Bitte Seite neu laden.",
+          status_app_start_fail: "App startete nicht sauber. Bitte Seite neu laden.",
+          status_local_mode: "Weiter im lokalen Modus."
+        }
+      };
+
+      const appState = {
+        supabase: null,
+        session: null,
+        currentUser: null,
+        currentConversationId: null,
+        lastInputWasVoice: false,
+        profile: null,
+        activeIdentity: null,
+        onboarding: {
+          step: 1,
+          answers: [],
+          checkin: null,
+          checkinResponse: "",
+          generatedIdentity: ""
+        },
+        config: loadConfig()
+      };
+
+      function loadConfig() {
+        return {
+          supabaseUrl: localStorage.getItem("maitribe.supabase.url") || (window.MAITRIBE_CONFIG && window.MAITRIBE_CONFIG.SUPABASE_URL) || "",
+          supabaseAnonKey: localStorage.getItem("maitribe.supabase.anon") || (window.MAITRIBE_CONFIG && window.MAITRIBE_CONFIG.SUPABASE_ANON_KEY) || "",
+          geminiApiKey: localStorage.getItem("maitribe.gemini.key") || (window.MAITRIBE_CONFIG && window.MAITRIBE_CONFIG.GEMINI_API_KEY) || "",
+          vapidPublicKey: localStorage.getItem("maitribe.vapid.public") || (window.MAITRIBE_CONFIG && window.MAITRIBE_CONFIG.VAPID_PUBLIC_KEY) || ""
+        };
+      }
+
+      function saveConfig(config) {
+        localStorage.setItem("maitribe.supabase.url", config.supabaseUrl || "");
+        localStorage.setItem("maitribe.supabase.anon", config.supabaseAnonKey || "");
+        localStorage.setItem("maitribe.gemini.key", config.geminiApiKey || "");
+        localStorage.setItem("maitribe.vapid.public", config.vapidPublicKey || "");
+        appState.config = loadConfig();
+      }
+
+      function getEl(id) {
+        return document.getElementById(id);
+      }
+
+      function setStatus(id, message, isError) {
+        const node = getEl(id);
+        if (!node) return;
+        node.textContent = message || "";
+        node.classList.toggle("error", Boolean(isError));
+      }
+
+      function showScreen(id) {
+        screens.forEach((screenId) => {
+          const node = getEl(screenId);
+          if (!node) return;
+          node.classList.toggle("active", screenId === id);
+        });
+
+        updateBottomNavVisibility(id);
+        if (["screen-home", "screen-chat", "screen-settings"].includes(id)) {
+          setActiveBottomTab(id);
+        }
+        applyI18n();
+      }
+
+      function updateBottomNavVisibility(screenId) {
+        const nav = getEl("bottom-nav");
+        const shouldShow = Boolean(appState.session && appState.profile && appState.profile.onboarding_completed) && ["screen-home", "screen-chat", "screen-settings"].includes(screenId);
+        nav.style.display = shouldShow ? "grid" : "none";
+      }
+
+      function setActiveBottomTab(screenId) {
+        const nav = getEl("bottom-nav");
+        nav.querySelectorAll("button").forEach((button) => {
+          button.classList.toggle("active", button.getAttribute("data-target") === screenId);
+        });
+      }
+
+      function detectDefaultLanguage() {
+        const base = (navigator.language || "en").slice(0, 2).toLowerCase();
+        return languageMap[base] ? base : "en";
+      }
+
+      function detectTimezone() {
+        try {
+          return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+        } catch (_) {
+          return "UTC";
+        }
+      }
+
+      function getLanguageName(code) {
+        return languageMap[code] || "English";
+      }
+
+      function getCurrentLanguage() {
+        const onboardingSelect = getEl("onboard-language");
+        const onboardingScreen = getEl("screen-onboarding");
+        const inOnboarding = onboardingScreen && onboardingScreen.classList.contains("active");
+        if (inOnboarding && onboardingSelect && onboardingSelect.value) return onboardingSelect.value;
+        return (appState.profile && appState.profile.language) || (onboardingSelect && onboardingSelect.value) || "en";
+      }
+
+      function t(key) {
+        const lang = getCurrentLanguage();
+        return (i18n[lang] && i18n[lang][key]) || (i18n.en && i18n.en[key]) || key;
+      }
+
+      function getIdentityQuestions() {
+        return [t("identity_q1"), t("identity_q2"), t("identity_q3"), t("identity_q4")];
+      }
+
+      function getGreeting(name, hour) {
+        var key;
+        if (hour < 5) key = "greeting_night";
+        else if (hour < 12) key = "greeting_morning";
+        else if (hour < 17) key = "greeting_afternoon";
+        else if (hour < 21) key = "greeting_evening";
+        else key = "greeting_late";
+
+        var template = t(key);
+        if (!name) return template.replace(", {name}", "").replace(" {name}", "");
+        return template.replace("{name}", name);
+      }
+
+      function setText(id, text) {
+        const node = getEl(id);
+        if (node) node.textContent = text;
+      }
+
+      function applyI18n() {
+        var splashSub = getEl("splash-subtitle");
+        if (splashSub) splashSub.textContent = t("splash_subtitle");
+
+        setText("auth-subtitle", t("auth_subtitle"));
+        setText("auth-email-label", t("auth_email_label"));
+        setText("btn-magic-link", t("auth_continue_email"));
+        setText("btn-google", t("auth_continue_google"));
+        setText("auth-project-keys-summary", t("auth_project_keys"));
+        setText("btn-save-config", t("auth_save_keys"));
+        setText("auth-keys-helper", t("auth_keys_helper"));
+
+        setText("onboard-welcome-title", t("onboard_welcome_title"));
+        setText("onboard-welcome-text", t("onboard_welcome_text"));
+        setText("btn-onboard-begin", t("onboard_begin"));
+        setText("onboard-step2-title", t("onboard_step2_title"));
+        setText("onboard-name-label", t("onboard_name_label"));
+        setText("onboard-language-label", t("onboard_language_label"));
+        setText("onboard-timezone-label", t("onboard_timezone_label"));
+        setText("btn-onboard-step2", t("onboard_continue"));
+        setText("onboard-checkin-title", t("onboard_checkin_title"));
+        setText("onboard-checkin-sub", t("onboard_checkin_sub"));
+        setText("onboard-checkin-note-label", t("onboard_checkin_note_label"));
+        setText("btn-onboard-checkin", t("onboard_checkin_btn"));
+        setText("btn-onboard-step3-next", t("onboard_continue"));
+        setText("onboard-label-body", t("slider_body"));
+        setText("onboard-label-mind", t("slider_mind"));
+        setText("onboard-label-soul", t("slider_soul"));
+        setText("onboard-label-energy", t("slider_energy"));
+        setText("onboard-identity-title", t("onboard_identity_title"));
+        setText("onboard-identity-sub", t("onboard_identity_sub"));
+        setText("onboard-identity-generated-label", t("onboard_identity_generated_label"));
+        var identityIdx = appState.onboarding.answers ? appState.onboarding.answers.length : 0;
+        setText("btn-identity-next", identityIdx >= getIdentityQuestions().length - 1 ? t("identity_generate") : t("identity_save_answer"));
+        setText("onboard-reminders-title", t("onboard_reminders_title"));
+        setText("onboard-wake-label", t("onboard_wake_label"));
+        setText("onboard-morning-label", t("onboard_morning_label"));
+        setText("onboard-morning-help", t("onboard_morning_help"));
+        setText("onboard-mindful-label", t("onboard_mindful_label"));
+        setText("onboard-mindful-help", t("onboard_mindful_help"));
+        setText("onboard-mindful-count-label", t("onboard_mindful_count_label"));
+        setText("btn-request-notifications", t("onboard_notify"));
+        setText("btn-onboard-finish", t("onboard_ready"));
+
+        setText("home-today-label", t("home_today"));
+        setText("home-identity-title", t("home_identity_label"));
+        setText("home-recent-label", t("home_recent"));
+        var idSentence = getEl("home-identity-sentence");
+        if (idSentence && (idSentence.textContent === "Your truth will appear here once onboarding is complete." || idSentence.textContent === i18n.de.home_identity_placeholder)) {
+          setText("home-identity-sentence", t("home_identity_placeholder"));
+        }
+
+        const checkinBtn = getEl("btn-home-checkin");
+        if (checkinBtn) checkinBtn.innerHTML = t("home_checkin") + "<small>" + t("home_checkin_sub") + "</small>";
+        const chatBtn = getEl("btn-home-chat");
+        if (chatBtn) chatBtn.innerHTML = t("home_chat") + "<small>" + t("home_chat_sub") + "</small>";
+
+        setText("btn-chat-back", t("chat_back"));
+        setText("btn-chat-refresh", t("chat_refresh"));
+        setText("btn-chat-voice", t("chat_mic"));
+        setText("btn-chat-send", t("chat_send"));
+        setText("checkin-screen-title", t("checkin_title"));
+        setText("btn-checkin-back", t("checkin_back"));
+        setText("checkin-note-label", t("checkin_note_label"));
+        setText("btn-checkin-submit", t("checkin_submit"));
+        setText("checkin-label-body", t("slider_body"));
+        setText("checkin-label-mind", t("slider_mind"));
+        setText("checkin-label-soul", t("slider_soul"));
+        setText("checkin-label-energy", t("slider_energy"));
+
+        setText("identity-screen-title", t("identity_title"));
+        setText("btn-identity-back", t("identity_back"));
+        setText("btn-identity-edit", t("identity_edit"));
+        setText("btn-identity-cancel", t("identity_cancel"));
+        setText("btn-identity-save", t("identity_save"));
+        setText("identity-edit-label", t("identity_edit_label"));
+        var idView = getEl("identity-view");
+        if (idView && (idView.textContent === "No identity found yet." || idView.textContent === "Noch keine Identit\u00E4t erstellt.")) {
+          setText("identity-view", t("identity_empty"));
+        }
+
+        setText("settings-title", t("settings_title"));
+        setText("btn-logout", t("settings_logout"));
+        setText("settings-profile-title", t("settings_profile"));
+        setText("settings-name-label", t("settings_name_label"));
+        setText("settings-language-label", t("settings_language_label"));
+        setText("settings-timezone-label", t("settings_timezone_label"));
+        setText("settings-reminders-title", t("settings_reminders"));
+        setText("settings-morning-time-label", t("settings_morning_time"));
+        setText("settings-morning-enabled-label", t("settings_morning_enabled"));
+        setText("settings-mindful-enabled-label", t("settings_mindful_enabled"));
+        setText("settings-mindful-count-label", t("settings_mindful_count"));
+        setText("settings-event-enabled-label", t("settings_event_enabled"));
+        setText("settings-keys-title", t("settings_keys"));
+        setText("settings-gemini-label", t("settings_gemini_label"));
+        setText("settings-vapid-label", t("settings_vapid_label"));
+        setText("btn-settings-save", t("settings_save"));
+        setText("btn-settings-push", t("settings_push"));
+
+        setText("nav-home-label", t("nav_home"));
+        setText("nav-chat-label", t("nav_chat"));
+        setText("nav-profile-label", t("nav_profile"));
+
+        const chatInput = getEl("chat-input");
+        if (chatInput) chatInput.placeholder = t("chat_placeholder");
+        const onboardNote = getEl("onboard-note");
+        if (onboardNote) onboardNote.placeholder = t("onboard_checkin_note_placeholder");
+        const identityAnswer = getEl("identity-answer");
+        if (identityAnswer) identityAnswer.placeholder = t("onboard_identity_placeholder");
+        const checkinNote = getEl("checkin-note");
+        if (checkinNote) checkinNote.placeholder = t("checkin_note_placeholder");
+
+        if (appState.profile) {
+          const name = appState.profile.display_name || appState.profile.name || "";
+          setText("home-greeting", getGreeting(name, new Date().getHours()));
+        }
+
+        const emptyState = getEl("chat-empty-state");
+        if (emptyState) {
+          emptyState.innerHTML = t("chat_empty").replace(/\n/g, "<br>");
+        }
+
+        if (appState.onboarding.step === 4) {
+          renderIdentityQuestion();
+        }
+      }
+
+      function safeJsonParse(text, fallback) {
+        try {
+          return JSON.parse(text);
+        } catch (_) {
+          return fallback;
+        }
+      }
+
+      function splitIdentitySentences(identityText) {
+        return identityText
+          .split(/(?<=[.!?])\s+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+
+      function updateRangeOutputs(prefix) {
+        ["body", "mind", "soul", "energy"].forEach((key) => {
+          const slider = getEl(prefix + "-" + key);
+          const output = getEl(prefix + "-" + key + "-val");
+          if (!slider || !output) return;
+          output.textContent = slider.value;
+          styleSlider(slider, output);
+          slider.addEventListener("input", () => {
+            output.textContent = slider.value;
+            styleSlider(slider, output);
+          });
+        });
+      }
+
+      function styleSlider(slider, output) {
+        const value = Number(slider.value || 5);
+        let color = "#a8c5a0";
+        if (value <= 3) color = "#c67f7f";
+        else if (value <= 6) color = "#c9b88c";
+
+        slider.style.setProperty("--track-color", color);
+        output.style.color = color;
+      }
+
+      function softGeminiErrorMessage(code, status) {
+        if (code === "no_key") return t("err_no_key");
+        if (code === "timeout") return t("err_timeout");
+        if (status === 429) return t("err_rate_limit");
+        if (status === 400 || status === 403) return t("err_invalid_key");
+        return t("err_api");
+      }
+
+      function buildLocalCheckinFallback(args) {
+        const langCode = (args && args.context && args.context.user && args.context.user.language) || getCurrentLanguage() || "en";
+        const body = Number(args.body || 5);
+        const mind = Number(args.mind || 5);
+        const soul = Number(args.soul || 5);
+        const energy = Number(args.energy || 5);
+        const avg = (body + mind + soul + energy) / 4;
+        const lowState = avg <= 4.5 || Math.min(body, mind, soul, energy) <= 3;
+
+        if (langCode === "de") {
+          if (lowState) {
+            return "Danke, dass du das so ehrlich teilst. Wenn sich alles nach Nullpunkt anf\u00FChlt, ist schon dieses Einchecken ein mutiger Schritt. Was w\u00FCrde dir in den n\u00E4chsten 10 Minuten ein kleines Gef\u00FChl von Halt geben?";
+          }
+          return "Danke f\u00FCr deinen ehrlichen Check-in. Ich sehe, dass gerade vieles gleichzeitig da ist. Was w\u00E4re jetzt ein kleiner, sanfter Schritt, der dir wirklich gut tun w\u00FCrde?";
+        }
+
+        if (lowState) {
+          return "Thank you for being this honest. When everything feels close to zero, this check-in is already a brave step. What could give you even a small sense of steadiness in the next 10 minutes?";
+        }
+        return "Thank you for checking in so honestly. I can feel there is a lot here at once. What is one gentle next step that would truly support you right now?";
+      }
+
+      async function withTimeout(promise, ms, label) {
+        let timeoutId = null;
+        const timeoutPromise = new Promise((_, reject) => {
+          timeoutId = setTimeout(() => {
+            reject(new Error((label || "Request") + " timed out"));
+          }, ms);
+        });
+
+        try {
+          return await Promise.race([promise, timeoutPromise]);
+        } finally {
+          if (timeoutId) clearTimeout(timeoutId);
+        }
+      }
+
+      function fillConfigInputs() {
+        getEl("cfg-supabase-url").value = appState.config.supabaseUrl;
+        getEl("cfg-supabase-key").value = appState.config.supabaseAnonKey;
+        getEl("cfg-gemini-key").value = appState.config.geminiApiKey;
+        getEl("cfg-vapid-key").value = appState.config.vapidPublicKey;
+        getEl("settings-gemini").value = appState.config.geminiApiKey;
+        getEl("settings-vapid").value = appState.config.vapidPublicKey;
+      }
+
+      async function initializeSupabase() {
+        if (!appState.config.supabaseUrl || !appState.config.supabaseAnonKey) {
+          console.warn("[MaiTribe] initializeSupabase: missing config", { url: !!appState.config.supabaseUrl, key: !!appState.config.supabaseAnonKey });
+          appState.supabase = null;
+          return false;
+        }
+        if (!window.supabase || typeof window.supabase.createClient !== "function") {
+          console.error("[MaiTribe] initializeSupabase: Supabase SDK not found on window");
+          appState.supabase = null;
+          setStatus("config-status", t("status_supabase_sdk_fail"), true);
+          return false;
+        }
+        try {
+          appState.supabase = window.supabase.createClient(appState.config.supabaseUrl, appState.config.supabaseAnonKey, {
+            auth: {
+              flowType: 'implicit',
+              autoRefreshToken: true,
+              persistSession: true,
+              detectSessionInUrl: true,
+              storageKey: 'maitribe-auth',
+              lock: false
+            }
+          });
+          console.log("[MaiTribe] Supabase client created OK");
+          return true;
+        } catch (err) {
+          console.error("[MaiTribe] createClient threw:", err);
+          appState.supabase = null;
+          return false;
+        }
+      }
+
+      // Capture hash fragment immediately before anything can consume it
+      var _capturedHash = window.location.hash || "";
+
+      function getAuthRedirectUrl() {
+        const url = new URL(window.location.href);
+        url.hash = "";
+        url.searchParams.set("no_sw", "1");
+        url.searchParams.set("auth", "1");
+        return url.toString();
+      }
+
+      function cleanupAuthUrl() {
+        const url = new URL(window.location.href);
+        [
+          "code",
+          "token_hash",
+          "type",
+          "access_token",
+          "refresh_token",
+          "expires_in",
+          "expires_at",
+          "provider_token",
+          "provider_refresh_token",
+          "auth",
+          "error",
+          "error_description",
+          "error_code"
+        ].forEach((param) => url.searchParams.delete(param));
+        url.hash = "";
+        window.history.replaceState({}, "", url.toString());
+        _capturedHash = "";
+      }
+
+      function parseHashParams() {
+        var raw = _capturedHash || window.location.hash || "";
+        if (raw.startsWith("#")) raw = raw.slice(1);
+        if (!raw) return {};
+        var result = {};
+        raw.split("&").forEach(function (pair) {
+          var parts = pair.split("=");
+          if (parts[0]) result[decodeURIComponent(parts[0])] = decodeURIComponent(parts[1] || "");
+        });
+        return result;
+      }
+
+      async function processAuthRedirect() {
+        var url = new URL(window.location.href);
+        var code = url.searchParams.get("code");
+        var tokenHash = url.searchParams.get("token_hash");
+        var type = url.searchParams.get("type");
+        var hashParams = parseHashParams();
+        var accessToken = hashParams["access_token"] || null;
+        var refreshToken = hashParams["refresh_token"] || null;
+        var hashError = hashParams["error"] || null;
+        var hashErrorDesc = hashParams["error_description"] || null;
+
+        // Check for auth errors in hash (e.g. expired magic link)
+        if (hashError) {
+          cleanupAuthUrl();
+          return { error: { message: hashErrorDesc || hashError } };
+        }
+
+        // Check for auth errors in query params
+        var queryError = url.searchParams.get("error");
+        var queryErrorDesc = url.searchParams.get("error_description");
+        if (queryError) {
+          cleanupAuthUrl();
+          return { error: { message: queryErrorDesc || queryError } };
+        }
+
+        // PKCE flow: exchange code for session
+        if (code) {
+          var codeResult = await appState.supabase.auth.exchangeCodeForSession(code);
+          if (!codeResult.error) cleanupAuthUrl();
+          return { error: codeResult.error || null };
+        }
+
+        // Magic link hash tokens: access_token + refresh_token in fragment
+        if (accessToken && refreshToken) {
+          var tokenResult = await appState.supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+          if (!tokenResult.error) cleanupAuthUrl();
+          return { error: tokenResult.error || null };
+        }
+
+        // Hash may also contain token_hash + type (email OTP verification)
+        var hashTokenHash = hashParams["token_hash"] || null;
+        var hashType = hashParams["type"] || null;
+        if (hashTokenHash && hashType) {
+          var otpResult = await appState.supabase.auth.verifyOtp({
+            type: hashType,
+            token_hash: hashTokenHash
+          });
+          if (!otpResult.error) cleanupAuthUrl();
+          return { error: otpResult.error || null };
+        }
+
+        // Query param token_hash + type (alternative OTP flow)
+        if (tokenHash && type) {
+          var otpResult2 = await appState.supabase.auth.verifyOtp({
+            type: type,
+            token_hash: tokenHash
+          });
+          if (!otpResult2.error) cleanupAuthUrl();
+          return { error: otpResult2.error || null };
+        }
+
+        // No auth params found — not a redirect callback
+        return { error: null };
+      }
+
+      async function routeAfterSplash() {
+        try {
+          const hasSupabase = await initializeSupabase();
+          if (!hasSupabase) {
+            _bootRouteComplete = true;
+            showScreen("screen-auth");
+            if (!getEl("config-status").textContent) {
+              setStatus("config-status", t("status_add_supabase"), true);
+            }
+            return;
+          }
+
+          // Ensure auth listener is attached now that Supabase is ready
+          registerAuthListener();
+
+          // Hash token: let Supabase process it natively via getSession, then clean URL
+          const hashParams = parseHashParams();
+          if (hashParams['access_token']) {
+            const { data } = await appState.supabase.auth.getSession();
+            window.history.replaceState({}, '', window.location.origin + window.location.pathname);
+            _capturedHash = '';
+            if (data && data.session) {
+              _bootRouteComplete = true;
+              await handleSession(data.session);
+              return;
+            }
+          }
+
+          const callbackResult = await processAuthRedirect();
+          if (callbackResult.error) {
+            _bootRouteComplete = true;
+            showScreen("screen-auth");
+            var errMsg = (callbackResult.error && callbackResult.error.message) || "";
+            setStatus("auth-status", errMsg || t("status_magic_expired"), true);
+            return;
+          }
+
+          const { data } = await appState.supabase.auth.getSession();
+          const session = data ? data.session : null;
+          console.log("[MaiTribe] getSession result:", session ? session.user.email : "no session");
+
+          _bootRouteComplete = true;
+          if (session) {
+            await handleSession(session);
+          } else {
+            showScreen("screen-auth");
+          }
+        } catch (error) {
+          console.error("[MaiTribe] routeAfterSplash error:", error);
+          _bootRouteComplete = true;
+          showScreen("screen-auth");
+          setStatus("config-status", t("status_start_failed"), true);
+        }
+      }
+
+      async function handleSession(session) {
+        console.log("[MaiTribe] handleSession for:", session.user.email);
+        appState.session = session;
+        appState.currentUser = session.user;
+
+        // Degraded-mode approach: each DB step is best-effort.
+        // If any fails, we still have auth data and can show the app.
+        try { await ensureUserProfile(session.user); } catch (e) { console.error("[MaiTribe] ensureUserProfile failed:", e); }
+        try { await loadProfile(); } catch (e) { console.error("[MaiTribe] loadProfile failed:", e); }
+
+        // Build a minimal profile from auth data if DB profile unavailable
+        if (!appState.profile) {
+          console.warn("[MaiTribe] Using degraded profile from auth session");
+          var meta = session.user.user_metadata || {};
+          appState.profile = {
+            id: session.user.id,
+            email: session.user.email,
+            name: meta.name || meta.full_name || (session.user.email ? session.user.email.split("@")[0] : ""),
+            display_name: meta.name || meta.full_name || (session.user.email ? session.user.email.split("@")[0] : ""),
+            language: detectDefaultLanguage(),
+            timezone: detectTimezone(),
+            onboarding_completed: false
+          };
+        }
+
+        applyI18n();
+
+        if (!appState.profile.onboarding_completed) {
+          prepareOnboardingFromProfile();
+          showScreen("screen-onboarding");
+          return;
+        }
+
+        try { await loadHomeScreen(); } catch (e) { console.error("[MaiTribe] loadHomeScreen failed:", e); }
+        try { await loadIdentityScreen(); } catch (e) { console.error("[MaiTribe] loadIdentityScreen failed:", e); }
+        try { populateSettingsFromProfile(); } catch (e) { console.error("[MaiTribe] populateSettings failed:", e); }
+        showScreen("screen-home");
+      }
+
+      async function ensureUserProfile(user) {
+        if (!appState.supabase || !user) return;
+
+        const guessedName = (user.user_metadata && (user.user_metadata.name || user.user_metadata.full_name)) ||
+          (user.email ? user.email.split("@")[0] : "");
+
+        const { error } = await appState.supabase.from("users").upsert({
+          id: user.id,
+          email: user.email,
+          name: guessedName || null,
+          display_name: guessedName || null,
+          language: detectDefaultLanguage(),
+          timezone: detectTimezone(),
+          last_active_at: new Date().toISOString()
+        }, { onConflict: "id" });
+        if (error) console.error("[MaiTribe] ensureUserProfile upsert error:", error);
+      }
+
+      async function loadProfile() {
+        if (!appState.supabase || !appState.currentUser) return;
+        const { data, error } = await appState.supabase
+          .from("users")
+          .select("*")
+          .eq("id", appState.currentUser.id)
+          .single();
+
+        if (error) {
+          setStatus("auth-status", t("status_could_not_load_profile"), true);
+          return;
+        }
+
+        appState.profile = data;
+      }
+
+      function prepareOnboardingFromProfile() {
+        appState.onboarding.step = Math.max(1, (appState.profile && appState.profile.onboarding_step ? appState.profile.onboarding_step + 1 : 1));
+        appState.onboarding.answers = [];
+        appState.onboarding.generatedIdentity = "";
+
+        getEl("onboard-name").value = (appState.profile && (appState.profile.display_name || appState.profile.name)) || "";
+        getEl("onboard-language").value = (appState.profile && appState.profile.language) || detectDefaultLanguage();
+        getEl("onboard-timezone").value = (appState.profile && appState.profile.timezone) || detectTimezone();
+        applyI18n();
+        setOnboardingStep(appState.onboarding.step);
+      }
+
+      function setOnboardingStep(step) {
+        appState.onboarding.step = step;
+        const lang = (getEl("onboard-language") && getEl("onboard-language").value) || (appState.profile && appState.profile.language) || "en";
+        getEl("onboard-progress").textContent = t("onboard_step_progress").replace("{step}", step);
+        [1, 2, 3, 4, 5].forEach((idx) => {
+          getEl("onboard-step-" + idx).classList.toggle("active", idx === step);
+        });
+        if (step === 4) {
+          renderIdentityQuestion();
+        }
+      }
+
+      function renderIdentityQuestion() {
+        const index = appState.onboarding.answers.length;
+        const promptNode = getEl("identity-question");
+        const questions = getIdentityQuestions();
+
+        if (index < questions.length) {
+          promptNode.textContent = questions[index];
+          getEl("identity-answer").value = "";
+          getEl("btn-identity-next").textContent = index === questions.length - 1 ? t("identity_generate") : t("identity_save_answer");
+          getEl("identity-generated-wrap").classList.add("hidden");
+        } else {
+          promptNode.textContent = t("identity_generating");
+        }
+      }
+
+      async function generateIdentityFromAnswers() {
+        const answers = appState.onboarding.answers;
+        const languageCode = getEl("onboard-language").value;
+        const lang = getLanguageName(languageCode);
+        const prompt = `You are Mai. You just had a deep onboarding conversation.
+
+Their answers about their life:
+- Dream life (where, what, how it feels): ${answers[0]}
+- What matters most: ${answers[1]}
+- Feeling they want more of: ${answers[2]}
+- Secret dream: ${answers[3]}
+
+Write their personal Identity statement. Rules:
+- 6-8 sentences in first person ("I am...", "I choose...", "I trust...")
+- Make it feel TRUE, not aspirational-fake. Grounded, not fluffy.
+- Include: their body, their mind, their relationships, their purpose, their dream.
+- Use THEIR specific words and details — don't generalize.
+- If they mentioned a place, include it specifically.
+- If they mentioned a feeling, anchor it in a concrete image.
+- End with something grounding — quiet power, not hype.
+- Do NOT use phrases like "I am worthy" or "I deserve" — too generic.
+- Write like a poet, not a life coach.
+
+Write in ${lang}.`;
+
+        var skipShown = false;
+        var timeoutId = setTimeout(function() {
+          if (!skipShown) {
+            skipShown = true;
+            showIdentitySkipButton();
+            setStatus("identity-status", t("identity_timeout_msg"), false);
+          }
+        }, 30000);
+
+        try {
+          const responseResult = await callGeminiRaw(prompt, 500);
+          clearTimeout(timeoutId);
+          const identity = responseResult.text || fallbackIdentity(answers, languageCode);
+          appState.onboarding.generatedIdentity = identity;
+
+          getEl("identity-generated").value = identity;
+          getEl("identity-generated-wrap").classList.remove("hidden");
+          hideIdentitySkipButton();
+          if (responseResult.error) {
+            showIdentitySkipButton();
+            setStatus("identity-status", responseResult.error.message + " " + t("status_fallback_generated"), false);
+            return;
+          }
+          setStatus("identity-status", t("status_review_identity"), false);
+        } catch (e) {
+          console.error("[MaiTribe] generateIdentityFromAnswers error:", e);
+          clearTimeout(timeoutId);
+          var identity = fallbackIdentity(answers, languageCode);
+          appState.onboarding.generatedIdentity = identity;
+          getEl("identity-generated").value = identity;
+          getEl("identity-generated-wrap").classList.remove("hidden");
+          showIdentitySkipButton();
+          setStatus("identity-status", t("identity_timeout_msg"), false);
+        }
+      }
+
+      function showIdentitySkipButton() {
+        var existing = document.getElementById("btn-identity-skip");
+        if (existing) { existing.classList.remove("hidden"); return; }
+        var btn = document.createElement("button");
+        btn.id = "btn-identity-skip";
+        btn.className = "btn";
+        btn.type = "button";
+        btn.style.marginTop = "8px";
+        btn.textContent = t("identity_skip");
+        btn.addEventListener("click", function() {
+          var answers = appState.onboarding.answers;
+          var languageCode = getEl("onboard-language").value;
+          if (!appState.onboarding.generatedIdentity) {
+            appState.onboarding.generatedIdentity = fallbackIdentity(answers, languageCode);
+          }
+          getEl("identity-generated").value = appState.onboarding.generatedIdentity;
+          getEl("identity-generated-wrap").classList.remove("hidden");
+          hideIdentitySkipButton();
+          setStatus("identity-status", t("status_review_identity"), false);
+        });
+        var statusEl = getEl("identity-status");
+        statusEl.parentNode.insertBefore(btn, statusEl.nextSibling);
+      }
+
+      function hideIdentitySkipButton() {
+        var btn = document.getElementById("btn-identity-skip");
+        if (btn) btn.classList.add("hidden");
+      }
+
+      function fallbackIdentity(answers, languageCode) {
+        if (languageCode === "de") {
+          return "Ich lebe ein Leben, das sich echt anf\u00FChlt \u2014 " +
+            "in meinem K\u00F6rper zuhause, in meinem Kopf klar, in meinem Herzen offen. " +
+            "Ich richte meine Tage nach dem aus, was mir wirklich wichtig ist. " +
+            "Ich w\u00E4hle Beziehungen, in denen Vertrauen und echte N\u00E4he wachsen k\u00F6nnen. " +
+            "Ich nehme mir Raum f\u00FCr das, was mich lebendig macht. " +
+            "Mein Traum darf sichtbar werden \u2014 Schritt f\u00FCr Schritt. " +
+            "Ich gehe meinen Weg mit Ruhe, Mut und einem offenen Herzen.";
+        }
+
+        return "I live a life that feels real \u2014 " +
+          "at home in my body, clear in my mind, open in my heart. " +
+          "I align my days with what truly matters to me. " +
+          "I choose relationships where trust and closeness can grow. " +
+          "I make space for what makes me feel alive. " +
+          "My dream is allowed to become visible \u2014 step by step. " +
+          "I walk my path with calm, courage, and an open heart.";
+      }
+
+      async function completeOnboarding() {
+        if (!appState.supabase || !appState.currentUser) return;
+
+        const finishButton = getEl("btn-onboard-finish");
+        const userId = appState.currentUser.id;
+        const name = getEl("onboard-name").value.trim();
+        const language = getEl("onboard-language").value;
+        const timezone = getEl("onboard-timezone").value.trim() || detectTimezone();
+        const wakeTime = getEl("onboard-wake-time").value || "07:00";
+        const morningEnabled = getEl("onboard-morning-toggle").checked;
+        const mindfulEnabled = getEl("onboard-mindful-toggle").checked;
+        const mindfulCount = Number(getEl("onboard-reminder-count").value || 2);
+        const identityText = getEl("identity-generated").value.trim();
+        const localComplete = (message) => {
+          const sentences = splitIdentitySentences(identityText);
+          appState.profile = {
+            ...(appState.profile || {}),
+            id: userId,
+            email: (appState.currentUser && appState.currentUser.email) || null,
+            name: name,
+            display_name: name,
+            language: language,
+            timezone: timezone,
+            morning_reminder_time: wakeTime,
+            morning_reminder_enabled: morningEnabled,
+            mindful_reminders_enabled: mindfulEnabled,
+            mindful_reminder_count: mindfulCount,
+            onboarding_completed: true,
+            onboarding_step: 5
+          };
+          appState.activeIdentity = {
+            full_text: identityText,
+            one_liner: sentences[0] || identityText,
+            sentences: sentences
+          };
+          applyI18n();
+          getEl("home-greeting").textContent = getGreeting(name || "", new Date().getHours());
+          getEl("home-identity-sentence").textContent = appState.activeIdentity.one_liner;
+          getEl("home-recent-insight").textContent = appState.onboarding.checkinResponse || t("status_saved_locally");
+          getEl("identity-view").textContent = identityText;
+          getEl("identity-edit-text").value = identityText;
+          populateSettingsFromProfile();
+          setStatus("onboard-finish-status", message || t("status_local_mode"), false);
+          showScreen("screen-home");
+        };
+
+        if (!name) {
+          setStatus("onboard-finish-status", t("status_add_name"), true);
+          setOnboardingStep(2);
+          return;
+        }
+
+        if (!identityText) {
+          setStatus("onboard-finish-status", t("status_generate_identity"), true);
+          setOnboardingStep(4);
+          return;
+        }
+
+        finishButton.disabled = true;
+        localComplete(t("status_local_mode"));
+        finishButton.disabled = false;
+
+        const syncPayload = {
+          userId: userId,
+          profile: {
+            id: userId,
+            email: appState.currentUser.email || null,
+            name: name,
+            display_name: name,
+            language: language,
+            timezone: timezone,
+            morning_reminder_time: wakeTime,
+            morning_reminder_enabled: morningEnabled,
+            mindful_reminders_enabled: mindfulEnabled,
+            mindful_reminder_count: mindfulCount,
+            onboarding_completed: true,
+            onboarding_step: 5,
+            last_active_at: new Date().toISOString()
+          },
+          identityText: identityText,
+          checkin: appState.onboarding.checkin ? {
+            ...appState.onboarding.checkin,
+            mai_response: appState.onboarding.checkinResponse || null
+          } : null
+        };
+
+        syncOnboardingInBackground(syncPayload);
+      }
+
+      async function syncOnboardingInBackground(payload) {
+        if (!appState.supabase || !payload || !payload.userId) return;
+        try {
+          await withTimeout(
+            appState.supabase.from("users").upsert(payload.profile, { onConflict: "id" }),
+            45000,
+            "Profile save"
+          );
+
+          const previousIdentityResult = await withTimeout(
+            appState.supabase
+              .from("identities")
+              .select("id, version")
+              .eq("user_id", payload.userId)
+              .eq("is_active", true)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+            30000,
+            "Identity lookup"
+          );
+          const previousIdentity = previousIdentityResult && previousIdentityResult.data;
+          const nextVersion = previousIdentity && previousIdentity.version ? Number(previousIdentity.version) + 1 : 1;
+
+          await withTimeout(
+            appState.supabase
+              .from("identities")
+              .update({ is_active: false })
+              .eq("user_id", payload.userId)
+              .eq("is_active", true),
+            30000,
+            "Identity archive"
+          );
+
+          const sentences = splitIdentitySentences(payload.identityText);
+          await withTimeout(
+            appState.supabase.from("identities").insert({
+              user_id: payload.userId,
+              full_text: payload.identityText,
+              one_liner: sentences[0] || payload.identityText,
+              sentences: sentences,
+              language: payload.profile.language || "en",
+              is_active: true,
+              version: nextVersion
+            }),
+            30000,
+            "Identity save"
+          );
+
+          if (payload.checkin) {
+            await withTimeout(
+              appState.supabase.from("checkins").insert({
+                user_id: payload.userId,
+                body: payload.checkin.body,
+                mind: payload.checkin.mind,
+                soul: payload.checkin.soul,
+                energy: payload.checkin.energy,
+                note: payload.checkin.note || null,
+                mai_response: payload.checkin.mai_response || null
+              }),
+              30000,
+              "Check-in save"
+            );
+          }
+
+          Promise.allSettled([loadProfile(), loadHomeScreen(), loadIdentityScreen()]).then(() => {
+            if (appState.profile) populateSettingsFromProfile();
+          });
+        } catch (err) {
+          console.error("[MaiTribe] syncOnboardingInBackground error:", err);
+        }
+      }
+
+      async function loadHomeScreen() {
+        if (!appState.profile) return;
+
+        const name = appState.profile.display_name || appState.profile.name || "";
+        const greeting = getGreeting(name, new Date().getHours());
+        getEl("home-greeting").textContent = greeting;
+
+        const { data: identity } = await appState.supabase
+          .from("identities")
+          .select("*")
+          .eq("user_id", appState.currentUser.id)
+          .eq("is_active", true)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        appState.activeIdentity = identity || null;
+
+        if (identity && identity.sentences && identity.sentences.length) {
+          const seed = Number(new Date().toISOString().slice(8, 10));
+          const idx = seed % identity.sentences.length;
+          getEl("home-identity-sentence").textContent = identity.sentences[idx];
+        } else if (identity && identity.full_text) {
+          getEl("home-identity-sentence").textContent = identity.full_text;
+        } else {
+          getEl("home-identity-sentence").textContent = t("identity_empty");
+        }
+
+        const [latestCheckin, latestAssistantMessage] = await Promise.all([
+          appState.supabase.from("checkins").select("mai_response, created_at").eq("user_id", appState.currentUser.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          appState.supabase.from("messages").select("content, created_at").eq("user_id", appState.currentUser.id).eq("role", "assistant").order("created_at", { ascending: false }).limit(1).maybeSingle()
+        ]);
+
+        const checkinInsight = latestCheckin.data && latestCheckin.data.mai_response;
+        const messageInsight = latestAssistantMessage.data && latestAssistantMessage.data.content;
+
+        getEl("home-recent-insight").textContent = checkinInsight || messageInsight || t("home_no_insight");
+      }
+
+      async function loadIdentityScreen() {
+        const { data } = await appState.supabase
+          .from("identities")
+          .select("*")
+          .eq("user_id", appState.currentUser.id)
+          .eq("is_active", true)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        appState.activeIdentity = data || null;
+        getEl("identity-view").textContent = (data && data.full_text) || t("identity_empty");
+        getEl("identity-edit-text").value = (data && data.full_text) || "";
+      }
+
+      function populateSettingsFromProfile() {
+        if (!appState.profile) return;
+        getEl("settings-name").value = appState.profile.display_name || appState.profile.name || "";
+        getEl("settings-language").value = appState.profile.language || "en";
+        getEl("settings-timezone").value = appState.profile.timezone || detectTimezone();
+        getEl("settings-morning-time").value = appState.profile.morning_reminder_time || "07:00";
+        getEl("settings-morning-enabled").checked = appState.profile.morning_reminder_enabled !== false;
+        getEl("settings-mindful-enabled").checked = appState.profile.mindful_reminders_enabled !== false;
+        getEl("settings-mindful-count").value = String(appState.profile.mindful_reminder_count || 2);
+        getEl("settings-event-enabled").checked = appState.profile.event_followup_enabled !== false;
+      }
+
+      async function saveSettings() {
+        if (!appState.supabase || !appState.currentUser) return;
+
+        var newKey = getEl("settings-gemini").value.trim();
+        var oldKey = appState.config.geminiApiKey;
+
+        // Validate API key if changed
+        if (newKey && newKey !== oldKey) {
+          setStatus("settings-status", t("status_api_key_validating"));
+          try {
+            var testResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + encodeURIComponent(newKey), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ contents: [{ parts: [{ text: "Hi" }] }] })
+            });
+            if (testResponse.status === 400 || testResponse.status === 403) {
+              setStatus("settings-status", t("status_api_key_invalid"), true);
+              return;
+            }
+            if (testResponse.status === 429) {
+              // Key is valid but rate-limited — save it anyway
+              setStatus("settings-status", t("status_api_key_rate_limited"), false);
+            }
+          } catch (e) {
+            console.error("[MaiTribe] API key validation failed:", e);
+          }
+        }
+
+        // Save API key to localStorage before DB update (so it's saved even if DB fails)
+        var config = {
+          ...appState.config,
+          geminiApiKey: newKey,
+          vapidPublicKey: getEl("settings-vapid").value.trim()
+        };
+        saveConfig(config);
+
+        var updates = {
+          name: getEl("settings-name").value.trim() || null,
+          display_name: getEl("settings-name").value.trim() || null,
+          language: getEl("settings-language").value,
+          timezone: getEl("settings-timezone").value.trim() || detectTimezone(),
+          morning_reminder_time: getEl("settings-morning-time").value || "07:00",
+          morning_reminder_enabled: getEl("settings-morning-enabled").checked,
+          mindful_reminders_enabled: getEl("settings-mindful-enabled").checked,
+          mindful_reminder_count: Number(getEl("settings-mindful-count").value || 2),
+          event_followup_enabled: getEl("settings-event-enabled").checked,
+          last_active_at: new Date().toISOString()
+        };
+
+        var { error } = await appState.supabase.from("users").update(updates).eq("id", appState.currentUser.id);
+        if (error) {
+          setStatus("settings-status", error.message || t("status_could_not_save_settings"), true);
+          return;
+        }
+
+        await loadProfile();
+        applyI18n();
+        await loadHomeScreen();
+
+        if (newKey && newKey !== oldKey) {
+          setStatus("settings-status", t("status_api_key_valid"));
+        } else {
+          setStatus("settings-status", t("status_saved"));
+        }
+      }
+
+      async function initChat() {
+        if (!appState.currentUser) return;
+        const nowMinus30 = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+
+        const { data: activeConversation } = await appState.supabase
+          .from("conversations")
+          .select("*")
+          .eq("user_id", appState.currentUser.id)
+          .eq("is_active", true)
+          .gte("updated_at", nowMinus30)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (activeConversation) {
+          appState.currentConversationId = activeConversation.id;
+          await loadMessages(activeConversation.id);
+          return;
+        }
+
+        const { data: newConversation, error } = await appState.supabase
+          .from("conversations")
+          .insert({ user_id: appState.currentUser.id, is_active: true })
+          .select("*")
+          .single();
+
+        if (error || !newConversation) {
+          appendMessageBubble("assistant", "I could not open our chat right now. Please try again.");
+          return;
+        }
+
+        appState.currentConversationId = newConversation.id;
+        clearMessages();
+
+        const context = await getUserContext(appState.currentUser.id);
+        const openingPrompt = "Start this conversation with one warm, personal opening.\n" +
+          "You know this person. Their name is " + (context.user && (context.user.display_name || context.user.name) ? (context.user.display_name || context.user.name) : "friend") + ".\n" +
+          (context.identity && context.identity.one_liner ? ("Their identity: " + context.identity.one_liner + "\n") : "") +
+          (context.recent_checkins && context.recent_checkins[0]
+            ? ("Recent check-in: Body " + context.recent_checkins[0].body + "/10, Energy " + context.recent_checkins[0].energy + "/10\n")
+            : "") +
+          "Don't ask \"how are you\". Be specific and personal based on context.\n" +
+          "One or two sentences max. Warm, not cheery.";
+        const openingResult = await callGeminiChat(context, [], openingPrompt);
+        if (!openingResult.text) {
+          appendMessageBubble("assistant", t("chat_fallback_opening"));
+          return;
+        }
+        await saveMessage("assistant", openingResult.text, "text");
+        appendMessageBubble("assistant", openingResult.text);
+      }
+
+      async function loadMessages(conversationId) {
+        clearMessages();
+        const { data } = await appState.supabase
+          .from("messages")
+          .select("role, content")
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: true })
+          .limit(200);
+
+        if (data && data.length) {
+          data.forEach((msg) => appendMessageBubble(msg.role, msg.content));
+        } else {
+          appendMessageBubble("assistant", t("chat_fallback_opening"));
+        }
+      }
+
+      async function saveMessage(role, content, inputType) {
+        if (!appState.currentConversationId) return;
+
+        await appState.supabase.from("messages").insert({
+          conversation_id: appState.currentConversationId,
+          user_id: appState.currentUser.id,
+          role: role,
+          content: content,
+          input_type: inputType || "text"
+        });
+
+        await appState.supabase
+          .from("conversations")
+          .update({ updated_at: new Date().toISOString() })
+          .eq("id", appState.currentConversationId);
+      }
+
+      function clearMessages() {
+        const area = getEl("chat-messages");
+        area.innerHTML = '<div id="chat-empty-state" class="chat-empty-state">' + t("chat_empty").replace(/\n/g, "<br>") + '</div>';
+      }
+
+      function appendMessageBubble(role, text, isTyping) {
+        const area = getEl("chat-messages");
+        const emptyState = getEl("chat-empty-state");
+        if (emptyState) emptyState.remove();
+        const bubble = document.createElement("div");
+        bubble.className = "bubble " + (role === "assistant" ? "assistant" : "user");
+
+        if (isTyping) {
+          bubble.innerHTML = '<span class="typing"><i></i><i></i><i></i></span>';
+        } else {
+          bubble.textContent = role === "assistant" ? ("🌿 " + text) : text;
+        }
+
+        area.appendChild(bubble);
+        area.scrollTop = area.scrollHeight;
+        return bubble;
+      }
+
+      async function sendMessage(userText) {
+        if (!userText.trim() || !appState.currentConversationId) return;
+
+        appendMessageBubble("user", userText.trim());
+        await saveMessage("user", userText.trim(), appState.lastInputWasVoice ? "voice" : "text");
+
+        var typingBubble = appendMessageBubble("assistant", "", true);
+
+        try {
+          var context = await getUserContext(appState.currentUser.id);
+
+          var { data: historyData } = await appState.supabase
+            .from("messages")
+            .select("role, content")
+            .eq("conversation_id", appState.currentConversationId)
+            .order("created_at", { ascending: true })
+            .limit(20);
+
+          var history = historyData || [];
+          var responseResult = await callGeminiChat(context, history, userText.trim());
+          typingBubble.remove();
+
+          if (!responseResult.text) {
+            var errCode = responseResult.error && responseResult.error.error;
+            var errStatus = responseResult.error && responseResult.error.status;
+            appendMessageBubble("assistant", softGeminiErrorMessage(errCode, errStatus));
+            return;
+          }
+          appendMessageBubble("assistant", responseResult.text);
+          await saveMessage("assistant", responseResult.text, "text");
+
+          extractEventsFromMessage(userText.trim()).catch(function(err) { console.error("[MaiTribe] extractEvents error:", err); });
+        } catch (err) {
+          typingBubble.remove();
+          console.error("[MaiTribe] sendMessage error:", err);
+          appendMessageBubble("assistant", t("err_api"));
+        }
+      }
+
+      async function getUserContext(userId) {
+        const today = new Date().toISOString().slice(0, 10);
+
+        var settled = await Promise.allSettled([
+          appState.supabase.from("users").select("*").eq("id", userId).single(),
+          appState.supabase.from("identities").select("*").eq("user_id", userId).eq("is_active", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          appState.supabase.from("checkins").select("body,mind,soul,energy,note,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(3),
+          appState.supabase.from("events").select("title,description,event_time").eq("user_id", userId).eq("status", "upcoming").gt("event_time", new Date().toISOString()).order("event_time", { ascending: true }).limit(5),
+          appState.supabase.from("conversations").select("topics,summary").eq("user_id", userId).order("created_at", { ascending: false }).limit(5),
+          appState.supabase.from("astro_transits").select("daily_insight,hd_daily_gate,hd_gate_description").eq("user_id", userId).eq("transit_date", today).limit(1).maybeSingle()
+        ]);
+
+        function val(i) {
+          if (settled[i].status === "rejected") {
+            console.error("[MaiTribe] getUserContext query " + i + " failed:", settled[i].reason);
+            return { data: null };
+          }
+          var r = settled[i].value;
+          if (r && r.error) console.warn("[MaiTribe] getUserContext query " + i + " error:", r.error.message);
+          return r || { data: null };
+        }
+
+        return {
+          user: val(0).data || appState.profile || {},
+          identity: val(1).data || null,
+          recent_checkins: val(2).data || [],
+          upcoming_events: val(3).data || [],
+          recent_topics: val(4).data || [],
+          today_transits: val(5).data || null
+        };
+      }
+
+      function buildSystemPrompt(context) {
+        const user = context.user || {};
+        const identity = context.identity || {};
+        const checkins = context.recent_checkins || [];
+        const events = context.upcoming_events || [];
+        const topics = context.recent_topics || [];
+        const transits = context.today_transits || null;
+        const lang = getLanguageName(user.language || "en");
+
+        let prompt = `You are Mai — a calm, emotionally intelligent companion inside MaiTribe.
+
+You are not a chatbot. Not a therapist. Not a productivity assistant. Not a life coach.
+You are a quiet, caring presence walking next to the user every day.
+You are the friend who truly sees them. Who remembers. Who asks the question they didn't know they needed to hear. Who sits with them in not-knowing and says: that's okay.
+
+## YOUR INVISIBLE WISDOM
+
+You hold deep expertise across psychology, neuroscience, somatic therapy, breathwork, nutrition, sleep science, habit design, nervous system regulation, mindfulness, coaching, and trauma-informed care. You know the teachings of the great wisdom traditions. But you never lecture. You never sound academic. You translate this vast knowledge into the one small thing that matters most right now. The user should feel "that was exactly what I needed" without knowing why.
+
+Your wisdom rests on three pillars. You NEVER name these sources unless the user brings them up. You live them.
+
+PILLAR 1 — THE OBSERVER:
+You are not your thoughts. Not your emotions. Not your body. You are the one observing all of it. When something triggers contraction — fear, anger, sadness — the practice is: notice it, stay open, let the energy flow through. Don't fight it. Don't fix it. Don't run. The voice inside your head is a narrator, not you. Keeping your heart open even when it hurts is the deepest act of courage.
+
+PILLAR 2 — PRESENCE:
+Anxiety lives in the future. Regret lives in the past. Peace lives in now. The Pain Body — accumulated old emotional pain — activates periodically. When it does, recognize it: "This is old pain moving through me. It is not who I am." You don't have to understand life to live it. You don't have to solve it to feel it. The present moment is the only place where you have real power.
+
+PILLAR 3 — MEANING:
+Between stimulus and response, there is a space. In that space lies your freedom and your power to choose. You can't always choose what happens to you. You can always choose how you respond. Meaning isn't found by thinking about it — it's found by living toward something that matters. The destination defines the journey.
+
+How to apply these: Use Pillar 1 when someone is stuck in thought loops or emotional contraction. Use Pillar 2 when someone has future anxiety or is trapped in past pain. Use Pillar 3 when someone feels lost, purposeless, or overwhelmed. The deepest response often combines all three: Notice (Pillar 1) → Be here (Pillar 2) → Choose meaning (Pillar 3).
+
+## RESPONSE ORDER — ALWAYS follow this sequence:
+1. ACKNOWLEDGE what they're feeling first. Never skip this. Never.
+2. CLARIFY with a gentle question if needed (not always necessary).
+3. GUIDE with one small, doable step — never a list.
+4. EMPOWER — give agency back. "What feels right for you?"
+
+## TONE & STYLE:
+- Calm, grounded, warm. Like a thoughtful friend texting.
+- Short paragraphs with breathing space between thoughts.
+- NEVER bullet points. NEVER "here are 5 tips." NEVER clinical language.
+- NEVER overly enthusiastic ("You got this!!! 💪") or overly spiritual ("the universe has a plan").
+- NEVER start with instructions or advice before acknowledging.
+- NEVER imply failure ("you didn't", "you should have", "why didn't you").
+- Simple, real words. No therapy jargon. No self-help clichés.
+
+## LENGTH:
+Under 80 words by default. Only longer when the moment truly needs depth.
+When in doubt: shorter is better. One sentence that lands > a paragraph that overwhelms.
+
+## EMOTIONAL ADAPTATION:
+Read their emotional state and adapt automatically:
+- Anxious → Slow down, grounding questions, smaller steps
+- Tired → Reduce expectations, normalize rest
+- Energized → Gentle structure, soft challenge
+- Sad → Presence first, no fixing
+- Stuck → Micro-steps only
+- Overwhelmed → Simplify everything to just this moment
+- Celebrating → Genuine warmth without hype
+- Numb/disconnected → Very gentle, no pushing at all
+- In crisis → Full presence, no advice, suggest professional support if appropriate
+
+## CORE PRINCIPLES:
+- Energy before productivity. Regulation before execution. Always.
+- One thing, not everything.
+- Questions over answers. A powerful question > ten tips.
+- The body knows. When stuck in head, bring back to body.
+- Celebrate invisible wins.
+- Never compare. Never reference other users or norms.
+- Respect the pace. Some people need weeks to process.
+
+## WHAT YOU NEVER DO:
+- Give medical diagnoses or replace professional help
+- Use bullet points or numbered lists in conversation
+- Start with advice before acknowledging feelings
+- Say "I understand" without demonstrating understanding
+- Use corporate wellness speak
+- Make the user feel tracked or monitored
+- Sound like an AI assistant
+- Use excessive exclamation marks
+- Reference other users or statistics
+- Promise outcomes
+- Judge lifestyle choices
+- Minimize pain ("it could be worse", "at least...")
+- Push when someone needs space
+- Forget what the user shared previously
+
+## NORTH STAR TEST:
+Before every response, ask yourself: "Would this feel like a thoughtful human who truly cares — who sees me and walks next to me? Or does it feel like software?" If it feels like software — rewrite it.`;
+
+        prompt += `\n\n## CONTEXT FOR THIS USER:`;
+        prompt += `\nName: ${user.display_name || user.name || "friend"}`;
+
+        if (identity && identity.one_liner) {
+          prompt += `\nPersonal Identity: ${identity.one_liner}`;
+        }
+        if (identity && identity.full_text) {
+          prompt += `\nFull Identity: ${identity.full_text}`;
+        }
+
+        if (checkins.length) {
+          const latest = checkins[0];
+          prompt += `\nLatest check-in: Body ${latest.body}/10, Mind ${latest.mind}/10, Soul ${latest.soul}/10, Energy ${latest.energy}/10`;
+          if (latest.note) prompt += ` — Note: "${latest.note}"`;
+          if (checkins.length > 1) {
+            prompt += `\nPrevious check-in: Body ${checkins[1].body}/10, Mind ${checkins[1].mind}/10, Soul ${checkins[1].soul}/10, Energy ${checkins[1].energy}/10`;
+          }
+        }
+
+        if (events.length) {
+          const eventList = events.map((e) => `"${e.title}" at ${new Date(e.event_time).toLocaleString()}`).join(", ");
+          prompt += `\nUpcoming events: ${eventList}`;
+        }
+
+        if (topics.length) {
+          const merged = topics.flatMap((topic) => Array.isArray(topic.topics) ? topic.topics : []).slice(0, 8);
+          if (merged.length) prompt += `\nRecent conversation themes: ${merged.join(", ")}`;
+        }
+
+        if (transits && transits.daily_insight) {
+          prompt += `\nToday's cosmic insight for them: ${transits.daily_insight}`;
+          if (transits.hd_gate_description) {
+            prompt += `\nHuman Design daily gate: ${transits.hd_gate_description}`;
+          }
+        }
+
+        prompt += `\n\nUse this context naturally — like a friend who remembers. Never like a system that tracks.`;
+        prompt += `\nALWAYS respond in ${lang}.`;
+        return prompt;
+      }
+
+      async function callGeminiChat(context, history, userMessage) {
+        const systemPrompt = buildSystemPrompt(context);
+        const payloadHistory = (history || []).map((msg) => ({
+          role: msg.role === "assistant" ? "model" : "user",
+          parts: [{ text: msg.content }]
+        }));
+
+        payloadHistory.push({ role: "user", parts: [{ text: userMessage }] });
+
+        const data = await callAI({
+          systemPrompt: systemPrompt,
+          contents: payloadHistory,
+          maxOutputTokens: 320,
+          temperature: 0.8,
+          topP: 0.9
+        });
+
+        return parseGeminiResult(data);
+      }
+
+      async function callGeminiForCheckin(promptText) {
+        const data = await callAI({
+          systemPrompt: "You are Mai - calm, warm, grounded.",
+          contents: [{ role: "user", parts: [{ text: promptText }] }],
+          maxOutputTokens: 260,
+          temperature: 0.75,
+          topP: 0.9
+        });
+
+        return parseGeminiResult(data);
+      }
+
+      async function callGeminiRaw(promptText, maxOutputTokens) {
+        const data = await callAI({
+          systemPrompt: "You are Mai.",
+          contents: [{ role: "user", parts: [{ text: promptText }] }],
+          maxOutputTokens: maxOutputTokens || 320,
+          temperature: 0.75,
+          topP: 0.9
+        });
+
+        return parseGeminiResult(data);
+      }
+
+      async function callAI(options, retryCount) {
+        if (retryCount == null) retryCount = 0;
+        var key = appState.config.geminiApiKey;
+        if (!key) return { error: "no_key" };
+
+        var model = options.model || (retryCount === 0 ? "gemini-2.5-flash" : "gemini-2.0-flash-lite");
+        var apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(key);
+        var timeout = options.timeout || 20000;
+
+        var controller = new AbortController();
+        var timer = setTimeout(function() { controller.abort(); }, timeout);
+
+        try {
+          var response = await fetch(apiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
+            body: JSON.stringify({
+              system_instruction: { parts: [{ text: options.systemPrompt || "" }] },
+              contents: options.contents || [],
+              generationConfig: {
+                temperature: options.temperature == null ? 0.8 : options.temperature,
+                topP: options.topP == null ? 0.9 : options.topP,
+                maxOutputTokens: options.maxOutputTokens == null ? 320 : options.maxOutputTokens
+              }
+            })
+          });
+          clearTimeout(timer);
+
+          if (response.status === 429 && retryCount < 2) {
+            var retryAfter = 15 + (retryCount * 15);
+            console.log("Gemini " + model + " rate limited, retrying in " + retryAfter + "s...");
+            await new Promise(function(resolve) { setTimeout(resolve, retryAfter * 1000); });
+            return callAI(options, retryCount + 1);
+          }
+
+          if (!response.ok) {
+            var errorText = await response.text();
+            console.error("Gemini error (" + model + "):", errorText);
+            return { error: "api_error", status: response.status };
+          }
+
+          return await response.json();
+        } catch (error) {
+          clearTimeout(timer);
+          if (error.name === "AbortError") {
+            console.error("Gemini timeout (" + model + ") after " + timeout + "ms");
+            return { error: "timeout", status: 408 };
+          }
+          console.error("Gemini request failed (" + model + ")", error);
+          return { error: "network_error" };
+        }
+      }
+
+      function parseGeminiResult(data) {
+        if (!data) {
+          return { text: null, error: { error: "api_error", status: 0 } };
+        }
+        if (data.error) {
+          return { text: null, error: { error: data.error, status: data.status || 0 } };
+        }
+        var text = extractGeminiText(data);
+        if (!text) {
+          return { text: null, error: { error: "empty", status: 0 } };
+        }
+        return { text: text, error: null };
+      }
+
+      function extractGeminiText(data) {
+        if (!data || !data.candidates || !data.candidates.length) return null;
+        const parts = data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+        if (!parts || !parts.length) return null;
+        return parts.map((part) => part.text || "").join("\n").trim() || null;
+      }
+
+      async function extractEventsFromMessage(text) {
+        const patterns = /\b(tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next week|at\s+\d{1,2}(:\d{2})?\s*(am|pm)?)\b/i;
+        if (!patterns.test(text)) return;
+
+        const profile = appState.profile || {};
+        const prompt = "Extract any scheduled event from this message. Return JSON only.\\n" +
+          "Format: {\"title\":\"...\",\"datetime\":\"ISO8601\",\"found\":true/false}\\n" +
+          "If no event found, return {\"found\":false}.\\n" +
+          "Current datetime: " + new Date().toISOString() + "\\n" +
+          "User timezone: " + (profile.timezone || "UTC") + "\\n" +
+          "Message: \"" + text.replace(/"/g, "\\\\\"") + "\"";
+
+        const rawResult = await callGeminiRaw(prompt, 180);
+        if (!rawResult.text) return;
+
+        const event = safeJsonParse(rawResult.text, { found: false });
+        if (!event.found || !event.title || !event.datetime) return;
+
+        await appState.supabase.from("events").insert({
+          user_id: appState.currentUser.id,
+          title: event.title,
+          event_time: event.datetime,
+          source: "chat"
+        });
+      }
+
+      async function submitCheckinFromScreen(prefix) {
+        const body = Number(getEl(prefix + "-body").value);
+        const mind = Number(getEl(prefix + "-mind").value);
+        const soul = Number(getEl(prefix + "-soul").value);
+        const energy = Number(getEl(prefix + "-energy").value);
+        const noteId = prefix === "onboard" ? "onboard-note" : "checkin-note";
+        const note = getEl(noteId).value.trim();
+
+        if (prefix === "onboard") {
+          appState.onboarding.checkin = { body, mind, soul, energy, note };
+          setStatus("onboard-checkin-status", t("status_reflecting"));
+        } else {
+          setStatus("checkin-status", t("status_saving_checkin"));
+        }
+
+        if (prefix !== "onboard") {
+          const { data: inserted, error } = await appState.supabase.from("checkins").insert({
+            user_id: appState.currentUser.id,
+            body: body,
+            mind: mind,
+            soul: soul,
+            energy: energy,
+            note: note || null
+          }).select("*").single();
+
+          if (error || !inserted) {
+            setStatus("checkin-status", t("status_could_not_save_checkin"), true);
+            return;
+          }
+
+          setStatus("checkin-status", t("status_saved"));
+
+          var safeReflection;
+          try {
+            var reflectionPromise = (async function() {
+              var ctx = await getUserContext(appState.currentUser.id);
+              var prompt = buildCheckinPrompt({ body: body, mind: mind, soul: soul, energy: energy, note: note, context: ctx });
+              return await callGeminiForCheckin(prompt);
+            })();
+
+            var timeoutPromise = new Promise(function(_, reject) {
+              setTimeout(function() { reject(new Error("timeout")); }, 15000);
+            });
+
+            var reflectionResult = await Promise.race([reflectionPromise, timeoutPromise]);
+            safeReflection = reflectionResult.text || buildLocalCheckinFallback({ body: body, mind: mind, soul: soul, energy: energy, note: note, context: {} });
+          } catch (e) {
+            console.error("[MaiTribe] checkin reflection error:", e);
+            safeReflection = buildLocalCheckinFallback({ body: body, mind: mind, soul: soul, energy: energy, note: note, context: {} });
+          }
+
+          if (safeReflection) {
+            await appState.supabase.from("checkins").update({ mai_response: safeReflection }).eq("id", inserted.id);
+            var responseNode = getEl("checkin-response");
+            responseNode.textContent = safeReflection;
+            responseNode.classList.remove("hidden");
+          }
+
+          await loadHomeScreen();
+          return;
+        }
+
+        const context = {
+          user: { language: getEl("onboard-language").value },
+          identity: null,
+          recent_checkins: []
+        };
+        try {
+          const prompt = buildCheckinPrompt({ body, mind, soul, energy, note, context });
+          const reflectionResult = await callGeminiForCheckin(prompt);
+          appState.onboarding.checkinResponse = reflectionResult.text || buildLocalCheckinFallback({ body, mind, soul, energy, note, context });
+        } catch (e) {
+          console.error("[MaiTribe] onboarding checkin reflection error:", e);
+          appState.onboarding.checkinResponse = buildLocalCheckinFallback({ body, mind, soul, energy, note, context });
+        }
+
+        getEl("onboard-checkin-response").textContent = appState.onboarding.checkinResponse;
+        getEl("onboard-checkin-response").classList.remove("hidden");
+        if (appState.onboarding.checkinResponse) {
+          setStatus("onboard-checkin-status", t("status_reflection_ready"));
+        } else {
+          setStatus("onboard-checkin-status", t("status_checkin_ai_unavailable"), false);
+        }
+      }
+
+      function buildCheckinPrompt(args) {
+        const lang = getLanguageName(args.context && args.context.user && args.context.user.language ? args.context.user.language : "en");
+        const identity = args.context && args.context.identity && args.context.identity.one_liner ? args.context.identity.one_liner : "Not set yet";
+        const recent = JSON.stringify((args.context && args.context.recent_checkins ? args.context.recent_checkins : []).slice(0, 2));
+
+        return `You are Mai — a calm, emotionally intelligent companion.
+
+The user just shared how they are doing:
+- Body: ${args.body}/10
+- Mind: ${args.mind}/10
+- Soul: ${args.soul}/10
+- Energy: ${args.energy}/10
+${args.note ? `They also said: "${args.note}"` : ""}
+
+Their Identity: ${identity}
+Recent patterns: ${recent}
+
+Look at their scores and respond like a friend who truly sees them.
+
+Rules:
+- Do NOT list all four scores back to them. Notice what stands out.
+- What's low? What's surprising? What does the gap between scores mean for THIS person?
+- Give a short, honest reflection (2-3 sentences). Be concrete, not generic.
+- End with ONE gentle question to go deeper.
+- No tips unless they specifically ask.
+- Short paragraphs with breathing space.
+- Under 80 words. Calm, warm, grounded.
+- If everything is low: presence first. No fixing. "I see you. That takes honesty."
+- If energy is much lower than the rest: address it specifically. The body is speaking.
+- ALWAYS respond in ${lang}.`;
+      }
+
+      async function saveIdentityEdit() {
+        const newText = getEl("identity-edit-text").value.trim();
+        if (!newText) {
+          setStatus("identity-edit-status", t("status_identity_empty"), true);
+          return;
+        }
+
+        const userId = appState.currentUser.id;
+
+        let version = 1;
+        if (appState.activeIdentity && appState.activeIdentity.version) {
+          version = Number(appState.activeIdentity.version) + 1;
+        }
+
+        await appState.supabase.from("identities").update({ is_active: false }).eq("user_id", userId).eq("is_active", true);
+        const sentences = splitIdentitySentences(newText);
+        const { error } = await appState.supabase.from("identities").insert({
+          user_id: userId,
+          full_text: newText,
+          one_liner: sentences[0] || newText,
+          sentences: sentences,
+          language: appState.profile.language || "en",
+          is_active: true,
+          version: version
+        });
+
+        if (error) {
+          setStatus("identity-edit-status", error.message || t("status_could_not_save_identity"), true);
+          return;
+        }
+
+        setStatus("identity-edit-status", t("status_identity_saved"));
+        getEl("identity-edit-wrap").classList.add("hidden");
+        await loadIdentityScreen();
+        await loadHomeScreen();
+      }
+
+      async function registerPushNotifications() {
+        if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+          return { ok: false, message: t("status_push_not_supported") };
+        }
+
+        if (!appState.config.vapidPublicKey) {
+          return { ok: false, message: t("status_add_vapid") };
+        }
+
+        try {
+          const registration = await navigator.serviceWorker.register("/sw.js");
+          const permission = await Notification.requestPermission();
+          if (permission !== "granted") {
+            return { ok: false, message: t("status_push_not_supported") };
+          }
+
+          const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(appState.config.vapidPublicKey)
+          });
+
+          if (appState.currentUser && appState.supabase) {
+            await appState.supabase.from("users").update({
+              push_token: JSON.stringify(subscription)
+            }).eq("id", appState.currentUser.id);
+          }
+
+          return { ok: true, message: t("status_push_enabled") };
+        } catch (error) {
+          console.error("[MaiTribe] registerPushNotifications error:", error);
+          return { ok: false, message: t("status_push_not_supported") };
+        }
+      }
+
+      function urlBase64ToUint8Array(base64String) {
+        const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const rawData = atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; i += 1) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+      }
+
+      function startVoiceInput() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          setStatus("auth-status", t("status_voice_not_supported"), true);
+          return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = appState.profile && appState.profile.language === "de" ? "de-DE" : "en-US";
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onresult = function (event) {
+          const transcript = event.results[0][0].transcript;
+          appState.lastInputWasVoice = true;
+          getEl("chat-input").value = transcript;
+        };
+
+        recognition.onerror = function () {
+          setStatus("auth-status", t("status_could_not_capture_voice"), true);
+        };
+
+        recognition.start();
+      }
+
+      function bindEvents() {
+        updateRangeOutputs("onboard");
+        updateRangeOutputs("checkin");
+        getEl("onboard-language").addEventListener("change", () => {
+          applyI18n();
+        });
+
+        getEl("btn-save-config").addEventListener("click", async () => {
+          const config = {
+            supabaseUrl: getEl("cfg-supabase-url").value.trim(),
+            supabaseAnonKey: getEl("cfg-supabase-key").value.trim(),
+            geminiApiKey: getEl("cfg-gemini-key").value.trim(),
+            vapidPublicKey: getEl("cfg-vapid-key").value.trim()
+          };
+
+          saveConfig(config);
+          const ok = await initializeSupabase();
+          if (ok) {
+            setStatus("config-status", t("status_saved_continue"));
+          } else {
+            setStatus("config-status", t("status_missing_supabase"), true);
+          }
+        });
+
+        getEl("btn-magic-link").addEventListener("click", async () => {
+          if (!appState.supabase) {
+            setStatus("auth-status", t("status_configure_supabase"), true);
+            return;
+          }
+
+          const email = getEl("auth-email").value.trim();
+          if (!email) {
+            setStatus("auth-status", t("status_enter_email"), true);
+            return;
+          }
+
+          setStatus("auth-status", t("status_sending_magic"));
+          const { error } = await appState.supabase.auth.signInWithOtp({
+            email: email,
+            options: { emailRedirectTo: window.location.origin + window.location.pathname }
+          });
+
+          if (error) {
+            setStatus("auth-status", error.message || t("status_could_not_send_magic"), true);
+            return;
+          }
+
+          setStatus("auth-status", t("status_check_inbox"));
+        });
+
+        getEl("btn-google").addEventListener("click", async () => {
+          if (!appState.supabase) {
+            setStatus("auth-status", t("status_configure_supabase"), true);
+            return;
+          }
+
+          const { error } = await appState.supabase.auth.signInWithOAuth({
+            provider: "google",
+            options: { redirectTo: window.location.origin + window.location.pathname }
+          });
+
+          if (error) {
+            setStatus("auth-status", error.message || t("status_google_failed"), true);
+          }
+        });
+
+        getEl("btn-onboard-begin").addEventListener("click", () => setOnboardingStep(2));
+
+        getEl("btn-onboard-step2").addEventListener("click", () => {
+          const name = getEl("onboard-name").value.trim();
+          if (!name) {
+            setStatus("auth-status", t("status_share_name"), true);
+            return;
+          }
+          setOnboardingStep(3);
+        });
+
+        getEl("btn-onboard-checkin").addEventListener("click", async () => {
+          await submitCheckinFromScreen("onboard");
+        });
+
+        getEl("btn-onboard-step3-next").addEventListener("click", () => {
+          setOnboardingStep(4);
+        });
+
+        getEl("btn-identity-next").addEventListener("click", async () => {
+          const answer = getEl("identity-answer").value.trim();
+          if (!answer) {
+            setStatus("identity-status", t("status_add_answer"), true);
+            return;
+          }
+
+          appState.onboarding.answers.push(answer);
+          setStatus("identity-status", "", false);
+
+          if (appState.onboarding.answers.length < getIdentityQuestions().length) {
+            renderIdentityQuestion();
+            return;
+          }
+
+          setStatus("identity-status", t("status_generating_identity"));
+          await generateIdentityFromAnswers();
+        });
+
+        getEl("btn-identity-accept").addEventListener("click", () => {
+          if (!getEl("identity-generated").value.trim()) {
+            setStatus("identity-status", t("status_identity_text_empty"), true);
+            return;
+          }
+          setOnboardingStep(5);
+        });
+
+        getEl("btn-request-notifications").addEventListener("click", async () => {
+          const result = await registerPushNotifications();
+          setStatus("onboard-finish-status", result.message, !result.ok);
+        });
+
+        getEl("btn-onboard-finish").addEventListener("click", async () => {
+          await completeOnboarding();
+        });
+
+        getEl("btn-home-checkin").addEventListener("click", () => showScreen("screen-checkin"));
+        getEl("btn-home-chat").addEventListener("click", async () => {
+          showScreen("screen-chat");
+          await initChat();
+        });
+
+        getEl("home-identity-card").addEventListener("click", async () => {
+          await loadIdentityScreen();
+          showScreen("screen-identity");
+        });
+        getEl("home-identity-card").addEventListener("keypress", async (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            await loadIdentityScreen();
+            showScreen("screen-identity");
+          }
+        });
+
+        getEl("btn-chat-back").addEventListener("click", () => showScreen("screen-home"));
+        getEl("btn-chat-refresh").addEventListener("click", async () => {
+          if (appState.currentConversationId) {
+            await loadMessages(appState.currentConversationId);
+          } else {
+            await initChat();
+          }
+        });
+
+        getEl("chat-form").addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const input = getEl("chat-input");
+          const text = input.value;
+          input.value = "";
+          await sendMessage(text);
+          appState.lastInputWasVoice = false;
+        });
+
+        getEl("btn-chat-voice").addEventListener("click", startVoiceInput);
+
+        getEl("btn-checkin-back").addEventListener("click", () => showScreen("screen-home"));
+        getEl("btn-checkin-submit").addEventListener("click", async () => {
+          await submitCheckinFromScreen("checkin");
+        });
+
+        getEl("btn-identity-back").addEventListener("click", () => showScreen("screen-home"));
+        getEl("btn-identity-edit").addEventListener("click", () => {
+          getEl("identity-edit-wrap").classList.remove("hidden");
+          getEl("identity-edit-text").focus();
+        });
+        getEl("btn-identity-cancel").addEventListener("click", () => {
+          getEl("identity-edit-wrap").classList.add("hidden");
+          setStatus("identity-edit-status", "", false);
+        });
+        getEl("btn-identity-save").addEventListener("click", saveIdentityEdit);
+
+        getEl("btn-settings-save").addEventListener("click", saveSettings);
+        getEl("btn-settings-push").addEventListener("click", async () => {
+          const result = await registerPushNotifications();
+          setStatus("settings-status", result.message, !result.ok);
+        });
+
+        getEl("btn-logout").addEventListener("click", async () => {
+          if (!appState.supabase) return;
+          await appState.supabase.auth.signOut();
+          appState.session = null;
+          appState.currentUser = null;
+          appState.currentConversationId = null;
+          appState.profile = null;
+          showScreen("screen-auth");
+        });
+
+        getEl("bottom-nav").querySelectorAll("button").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const target = button.getAttribute("data-target");
+            if (target === "screen-chat") {
+              showScreen("screen-chat");
+              await initChat();
+              return;
+            }
+            if (target === "screen-home") {
+              await loadHomeScreen();
+            }
+            if (target === "screen-settings") {
+              await loadProfile();
+              populateSettingsFromProfile();
+            }
+            showScreen(target);
+          });
+        });
+      }
+
+      var _authListenerRegistered = false;
+      var _bootRouteComplete = false;
+
+      function registerAuthListener() {
+        if (!appState.supabase) return;
+        if (_authListenerRegistered) return;
+        _authListenerRegistered = true;
+        appState.supabase.auth.onAuthStateChange(async (event, session) => {
+          console.log("[MaiTribe] onAuthStateChange:", event, session ? session.user.email : "no session");
+          // During boot, let routeAfterSplash handle the initial session check.
+          // Only react to auth changes AFTER boot routing is complete.
+          if (!_bootRouteComplete) return;
+          if (session) {
+            await handleSession(session);
+          } else {
+            appState.session = null;
+            appState.currentUser = null;
+            appState.profile = null;
+            showScreen("screen-auth");
+          }
+        });
+      }
+
+      async function boot() {
+        fillConfigInputs();
+        bindEvents();
+
+        getEl("onboard-language").value = detectDefaultLanguage();
+        getEl("onboard-timezone").value = detectTimezone();
+        applyI18n();
+
+        const params = new URLSearchParams(window.location.search);
+        const disableSw = params.get("no_sw") === "1";
+
+        if ("serviceWorker" in navigator) {
+          if (disableSw) {
+            navigator.serviceWorker.getRegistrations()
+              .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+              .catch(() => {});
+          } else {
+            navigator.serviceWorker.register("/sw.js").catch(() => {});
+          }
+        }
+
+        setTimeout(routeAfterSplash, 2000);
+        setTimeout(() => {
+          const splash = getEl("screen-splash");
+          if (splash && splash.classList.contains("active")) {
+            showScreen("screen-auth");
+            setStatus("config-status", t("status_app_start_fail"), true);
+          }
+        }, 6000);
+      }
+
+      boot();
+    })();
+  </script>
+</body>
+</html>
