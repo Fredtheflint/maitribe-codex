@@ -7,6 +7,9 @@
   <title>MaiTribe</title>
   <meta name="description" content="Your holistic AI companion for body, mind and soul" />
   <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.svg" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
@@ -578,6 +581,30 @@
       40% { opacity: 1; transform: translateY(-2px); }
     }
 
+    .a2hs-banner {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--card-strong);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--line);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 100;
+      transform: translateY(100%);
+      transition: transform 0.4s ease;
+    }
+    .a2hs-banner.visible { transform: translateY(0); }
+    .a2hs-banner .a2hs-text { flex: 1; font-size: 0.88rem; color: var(--cream); }
+    .a2hs-banner .a2hs-install { white-space: nowrap; }
+    .a2hs-banner .a2hs-close {
+      background: none; border: none; color: var(--muted); font-size: 1.2rem;
+      cursor: pointer; padding: 4px;
+    }
+
     @media (min-width: 760px) {
       .app { padding-top: 10px; }
       .screen { padding: 26px 28px; }
@@ -948,6 +975,12 @@ Let us start by getting to know each other.</p>
     </nav>
   </main>
 
+  <div id="a2hs-banner" class="a2hs-banner" role="alert">
+    <span class="a2hs-text" id="a2hs-text">Install MaiTribe for the best experience</span>
+    <button id="a2hs-install" class="btn-primary a2hs-install" type="button">Install</button>
+    <button id="a2hs-close" class="a2hs-close" type="button" aria-label="Close">&times;</button>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1"></script>
   <script>
     // Apply LockManager bypass immediately after Supabase SDK load.
@@ -1148,7 +1181,9 @@ Let us start by getting to know each other.</p>
           status_supabase_sdk_fail: "Supabase SDK could not be loaded. Please reload the page.",
           status_start_failed: "Start failed. Please reload the page.",
           status_app_start_fail: "App did not start cleanly. Please reload the page.",
-          status_local_mode: "Continuing in local mode."
+          status_local_mode: "Continuing in local mode.",
+          a2hs_text: "Install MaiTribe for the best experience",
+          a2hs_install: "Install"
         },
         de: {
           onboard_welcome_title: "Willkommen.",
@@ -1311,7 +1346,9 @@ Let us start by getting to know each other.</p>
           status_supabase_sdk_fail: "Supabase SDK konnte nicht geladen werden. Seite neu laden.",
           status_start_failed: "Start fehlgeschlagen. Bitte Seite neu laden.",
           status_app_start_fail: "App startete nicht sauber. Bitte Seite neu laden.",
-          status_local_mode: "Weiter im lokalen Modus."
+          status_local_mode: "Weiter im lokalen Modus.",
+          a2hs_text: "Installiere MaiTribe f\u00FCr das beste Erlebnis",
+          a2hs_install: "Installieren"
         }
       };
 
@@ -3335,6 +3372,44 @@ Rules:
             appState.profile = null;
             showScreen("screen-auth");
           }
+        });
+      }
+
+      // --- Add to Homescreen prompt ---
+      var _deferredA2hsPrompt = null;
+
+      window.addEventListener("beforeinstallprompt", function(e) {
+        e.preventDefault();
+        _deferredA2hsPrompt = e;
+        // Don't show during onboarding — wait until user is on home screen
+        if (localStorage.getItem("maitribe.a2hs.dismissed")) return;
+        setTimeout(function() {
+          var banner = getEl("a2hs-banner");
+          var textEl = getEl("a2hs-text");
+          var installBtn = getEl("a2hs-install");
+          if (textEl) textEl.textContent = t("a2hs_text");
+          if (installBtn) installBtn.textContent = t("a2hs_install");
+          if (banner) banner.classList.add("visible");
+        }, 3000);
+      });
+
+      if (getEl("a2hs-install")) {
+        getEl("a2hs-install").addEventListener("click", async function() {
+          if (!_deferredA2hsPrompt) return;
+          _deferredA2hsPrompt.prompt();
+          var result = await _deferredA2hsPrompt.userChoice;
+          _deferredA2hsPrompt = null;
+          getEl("a2hs-banner").classList.remove("visible");
+          if (result.outcome === "accepted") {
+            localStorage.setItem("maitribe.a2hs.dismissed", "installed");
+          }
+        });
+      }
+
+      if (getEl("a2hs-close")) {
+        getEl("a2hs-close").addEventListener("click", function() {
+          getEl("a2hs-banner").classList.remove("visible");
+          localStorage.setItem("maitribe.a2hs.dismissed", "1");
         });
       }
 

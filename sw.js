@@ -1,15 +1,18 @@
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 const CACHE_NAME = "maitribe-cache-v" + CACHE_VERSION;
 const OFFLINE_FALLBACK = "/offline.html";
 
 const CORE_ASSETS = [
   "/",
   "/index.html",
-  "/landing.html",
   "/offline.html",
+  "/manifest.json",
   "/manifest.webmanifest",
   "/icon.svg",
-  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1"
+  "/icons/icon-192x192.svg",
+  "/icons/icon-512x512.svg",
+  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1",
+  "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:wght@400;500;700&display=swap"
 ];
 
 // Static asset extensions for cache-first strategy
