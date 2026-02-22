@@ -936,6 +936,7 @@ Let us start by getting to know each other.</p>
         </div>
         <button id="btn-settings-save" class="btn-primary" type="button">Save settings</button>
         <button id="btn-settings-push" class="btn" type="button">Register push notifications</button>
+        <button id="btn-settings-test-push" class="btn" type="button">Test notification</button>
         <p id="settings-status" class="status"></p>
       </div>
     </section>
@@ -1078,6 +1079,10 @@ Let us start by getting to know each other.</p>
           settings_keys: "Project keys",
           settings_save: "Save settings",
           settings_push: "Register push notifications",
+          settings_test_push: "Test notification",
+          status_test_push_sent: "Test notification sent.",
+          status_test_push_failed: "Could not send test notification. Register push first.",
+          status_push_permission_denied: "Notification permission was denied. Please allow notifications in your browser settings.",
           settings_saved: "Saved.",
           nav_home: "Home",
           nav_chat: "Chat",
@@ -1234,6 +1239,10 @@ Let us start by getting to know each other.</p>
           settings_keys: "Projekt-Schl\u00FCssel",
           settings_save: "Einstellungen speichern",
           settings_push: "Push-Benachrichtigungen aktivieren",
+          settings_test_push: "Test-Benachrichtigung",
+          status_test_push_sent: "Test-Benachrichtigung gesendet.",
+          status_test_push_failed: "Konnte keine Test-Benachrichtigung senden. Bitte zuerst Push registrieren.",
+          status_push_permission_denied: "Benachrichtigungen wurden abgelehnt. Bitte erlaube Benachrichtigungen in den Browser-Einstellungen.",
           settings_saved: "Gespeichert.",
           nav_home: "Home",
           nav_chat: "Chat",
@@ -1529,6 +1538,7 @@ Let us start by getting to know each other.</p>
         setText("settings-vapid-label", t("settings_vapid_label"));
         setText("btn-settings-save", t("settings_save"));
         setText("btn-settings-push", t("settings_push"));
+        setText("btn-settings-test-push", t("settings_test_push"));
 
         setText("nav-home-label", t("nav_home"));
         setText("nav-chat-label", t("nav_chat"));
@@ -3005,6 +3015,9 @@ Rules:
         try {
           const registration = await navigator.serviceWorker.register("/sw.js");
           const permission = await Notification.requestPermission();
+          if (permission === "denied") {
+            return { ok: false, message: t("status_push_permission_denied") };
+          }
           if (permission !== "granted") {
             return { ok: false, message: t("status_push_not_supported") };
           }
@@ -3024,6 +3037,29 @@ Rules:
         } catch (error) {
           console.error("[MaiTribe] registerPushNotifications error:", error);
           return { ok: false, message: t("status_push_not_supported") };
+        }
+      }
+
+      async function sendTestNotification() {
+        try {
+          var registration = await navigator.serviceWorker.ready;
+          if (!registration || !registration.active) {
+            return { ok: false, message: t("status_test_push_failed") };
+          }
+          var lang = getCurrentLanguage();
+          var title = "Mai";
+          var body = lang === "de" ? "Ich bin hier. Alles gut bei dir?" : "I am here. How are you doing?";
+          await registration.showNotification(title, {
+            body: body,
+            icon: "/icon.svg",
+            badge: "/icon.svg",
+            tag: "maitribe-test",
+            data: { url: "/" }
+          });
+          return { ok: true, message: t("status_test_push_sent") };
+        } catch (error) {
+          console.error("[MaiTribe] sendTestNotification error:", error);
+          return { ok: false, message: t("status_test_push_failed") };
         }
       }
 
@@ -3241,6 +3277,11 @@ Rules:
         getEl("btn-settings-save").addEventListener("click", saveSettings);
         getEl("btn-settings-push").addEventListener("click", async () => {
           const result = await registerPushNotifications();
+          setStatus("settings-status", result.message, !result.ok);
+        });
+
+        getEl("btn-settings-test-push").addEventListener("click", async () => {
+          const result = await sendTestNotification();
           setStatus("settings-status", result.message, !result.ok);
         });
 
