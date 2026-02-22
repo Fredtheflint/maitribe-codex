@@ -3121,7 +3121,7 @@ Rules:
 
           const { error } = await appState.supabase.auth.signInWithOAuth({
             provider: "google",
-            options: { redirectTo: window.location.origin + window.location.pathname }
+            options: { redirectTo: getAuthRedirectUrl() }
           });
 
           if (error) {
