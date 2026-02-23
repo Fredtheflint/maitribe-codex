@@ -1474,6 +1474,42 @@ Let us start by getting to know each other.</p>
         return template.replace("{name}", name);
       }
 
+      function getFallbackOpening() {
+        var name = (appState.profile && (appState.profile.display_name || appState.profile.name)) || "";
+        var lang = getCurrentLanguage();
+        var openings;
+        if (lang === "de") {
+          openings = name
+            ? [
+              "Hey " + name + ", sch\u00F6n dass du da bist. Was besch\u00E4ftigt dich gerade?",
+              "Hey " + name + ", ich bin da. Was bewegt dich heute?",
+              "Hey " + name + ", erz\u00E4hl mal \u2014 wie geht\u2019s dir gerade wirklich?",
+              "Hey " + name + ", was brauchst du gerade? Reden, Tipp, oder einfach Stille?"
+            ]
+            : [
+              "Hey, sch\u00F6n dass du da bist. Was besch\u00E4ftigt dich gerade?",
+              "Hey, ich bin da. Was bewegt dich heute?",
+              "Hey, erz\u00E4hl mal \u2014 wie geht\u2019s dir gerade wirklich?",
+              "Hey, was brauchst du gerade? Reden, Tipp, oder einfach Stille?"
+            ];
+        } else {
+          openings = name
+            ? [
+              "Hey " + name + ", good to see you. What\u2019s on your mind?",
+              "Hey " + name + ", I\u2019m here. What\u2019s going on today?",
+              "Hey " + name + ", tell me \u2014 how are you really doing right now?",
+              "Hey " + name + ", what do you need right now? Talk, a tip, or just quiet?"
+            ]
+            : [
+              "Hey, good to see you. What\u2019s on your mind?",
+              "Hey, I\u2019m here. What\u2019s going on today?",
+              "Hey, tell me \u2014 how are you really doing right now?",
+              "Hey, what do you need right now? Talk, a tip, or just quiet?"
+            ];
+        }
+        return openings[Math.floor(Math.random() * openings.length)];
+      }
+
       function setText(id, text) {
         const node = getEl(id);
         if (node) node.textContent = text;
@@ -2512,7 +2548,7 @@ Write in ${lang}.`;
               "One or two sentences max. Warm, not cheery."));
         const openingResult = await callGeminiChat(context, [], openingPrompt);
         if (!openingResult.text) {
-          appendMessageBubble("assistant", t("chat_fallback_opening"));
+          appendMessageBubble("assistant", getFallbackOpening());
           return;
         }
         await saveMessage("assistant", openingResult.text, "text");
@@ -2531,7 +2567,7 @@ Write in ${lang}.`;
         if (data && data.length) {
           data.forEach((msg) => appendMessageBubble(msg.role, msg.content));
         } else {
-          appendMessageBubble("assistant", t("chat_fallback_opening"));
+          appendMessageBubble("assistant", getFallbackOpening());
         }
       }
 
