@@ -2893,7 +2893,7 @@ ALWAYS respond in ${lang}.`;
         const data = await callAI({
           systemPrompt: sysPrompt,
           contents: [{ role: "user", parts: [{ text: promptText }] }],
-          maxOutputTokens: maxOutputTokens || 320,
+          maxOutputTokens: maxOutputTokens || 1024,
           temperature: 0.75,
           topP: 0.9
         });
@@ -3170,21 +3170,28 @@ ALWAYS respond in ${lang}.`;
         }
 
         const userId = appState.currentUser.id;
+        console.log("[MaiTribe] saveIdentityEdit: userId =", userId, "textLength =", newText.length);
 
-        await appState.supabase.from("identities").update({ is_active: false }).eq("user_id", userId).eq("is_active", true);
+        var archiveResult = await appState.supabase.from("identities").update({ is_active: false }).eq("user_id", userId).eq("is_active", true);
+        if (archiveResult.error) console.warn("[MaiTribe] identity archive error:", archiveResult.error);
+
         const sentences = splitIdentitySentences(newText);
-        const { error } = await appState.supabase.from("identities").insert({
+        const insertPayload = {
           user_id: userId,
           full_text: newText,
           one_liner: sentences[0] || newText,
           sentences: sentences,
           is_active: true
-        });
+        };
+        console.log("[MaiTribe] inserting identity:", JSON.stringify(insertPayload));
+        const { data, error } = await appState.supabase.from("identities").insert(insertPayload).select();
 
         if (error) {
+          console.error("[MaiTribe] identity insert error:", error);
           setStatus("identity-edit-status", error.message || t("status_could_not_save_identity"), true);
           return;
         }
+        console.log("[MaiTribe] identity saved:", data);
 
         setStatus("identity-edit-status", t("status_identity_saved"));
         getEl("identity-edit-wrap").classList.add("hidden");
