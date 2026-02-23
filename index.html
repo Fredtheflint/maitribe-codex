@@ -1691,6 +1691,63 @@ Let us start by getting to know each other.</p>
         }
       }
 
+      function extractMissingColumnName(error) {
+        var raw = [error && error.message, error && error.details, error && error.hint].filter(Boolean).join(" ");
+        if (!raw) return null;
+        var patterns = [
+          /Could not find the ['"]([a-zA-Z0-9_]+)['"] column/i,
+          /column ['"]?([a-zA-Z0-9_]+)['"]? does not exist/i,
+          /record ["']?[a-zA-Z0-9_]+["']? has no field ["']([a-zA-Z0-9_]+)["']/i
+        ];
+        for (var i = 0; i < patterns.length; i += 1) {
+          var match = raw.match(patterns[i]);
+          if (match && match[1]) return match[1];
+        }
+        return null;
+      }
+
+      function removeColumnIfPresent(payload, columnName) {
+        if (!payload || !columnName || !Object.prototype.hasOwnProperty.call(payload, columnName)) return false;
+        delete payload[columnName];
+        return true;
+      }
+
+      async function upsertUsersSafe(payload, options) {
+        if (!appState.supabase) return { data: null, error: { message: "Supabase not initialized." } };
+        var nextPayload = { ...(payload || {}) };
+        for (var attempt = 0; attempt < 8; attempt += 1) {
+          var result = await appState.supabase.from("users").upsert(nextPayload, options || { onConflict: "id" });
+          if (!result.error) return result;
+
+          var missingColumn = extractMissingColumnName(result.error);
+          var removed = removeColumnIfPresent(nextPayload, missingColumn);
+          if (removed) {
+            console.warn("[MaiTribe] users upsert dropped unknown column:", missingColumn);
+            continue;
+          }
+          return result;
+        }
+        return { data: null, error: { message: "Users upsert failed after schema retries." } };
+      }
+
+      async function updateUsersSafe(userId, payload) {
+        if (!appState.supabase) return { data: null, error: { message: "Supabase not initialized." } };
+        var nextPayload = { ...(payload || {}) };
+        for (var attempt = 0; attempt < 8; attempt += 1) {
+          var result = await appState.supabase.from("users").update(nextPayload).eq("id", userId);
+          if (!result.error) return result;
+
+          var missingColumn = extractMissingColumnName(result.error);
+          var removed = removeColumnIfPresent(nextPayload, missingColumn);
+          if (removed) {
+            console.warn("[MaiTribe] users update dropped unknown column:", missingColumn);
+            continue;
+          }
+          return result;
+        }
+        return { data: null, error: { message: "Users update failed after schema retries." } };
+      }
+
       function fillConfigInputs() {
         getEl("cfg-supabase-url").value = appState.config.supabaseUrl;
         getEl("cfg-supabase-key").value = appState.config.supabaseAnonKey;
@@ -1945,7 +2002,7 @@ Let us start by getting to know each other.</p>
         var guessedName = (user.user_metadata && (user.user_metadata.name || user.user_metadata.full_name)) || "";
 
         // Insert only if user row doesn't exist yet — never overwrite existing name/display_name
-        var { error: insertError } = await appState.supabase.from("users").upsert({
+        var { error: insertError } = await upsertUsersSafe({
           id: user.id,
           email: user.email,
           name: guessedName || null,
@@ -1957,9 +2014,7 @@ Let us start by getting to know each other.</p>
         if (insertError) console.error("[MaiTribe] ensureUserProfile insert error:", insertError);
 
         // Always update last_active_at for returning users (without touching name)
-        var { error: updateError } = await appState.supabase.from("users")
-          .update({ last_active_at: new Date().toISOString() })
-          .eq("id", user.id);
+        var { error: updateError } = await updateUsersSafe(user.id, { last_active_at: new Date().toISOString() });
         if (updateError) console.error("[MaiTribe] ensureUserProfile update error:", updateError);
       }
 
@@ -2220,11 +2275,8 @@ Write in ${lang}.`;
       async function syncOnboardingInBackground(payload) {
         if (!appState.supabase || !payload || !payload.userId) return;
         try {
-          await withTimeout(
-            appState.supabase.from("users").upsert(payload.profile, { onConflict: "id" }),
-            45000,
-            "Profile save"
-          );
+          var profileResult = await withTimeout(upsertUsersSafe(payload.profile, { onConflict: "id" }), 45000, "Profile save");
+          if (profileResult && profileResult.error) throw profileResult.error;
 
           await withTimeout(
             appState.supabase
@@ -2388,7 +2440,7 @@ Write in ${lang}.`;
           last_active_at: new Date().toISOString()
         };
 
-        var { error } = await appState.supabase.from("users").update(updates).eq("id", appState.currentUser.id);
+        var { error } = await updateUsersSafe(appState.currentUser.id, updates);
         if (error) {
           setStatus("settings-status", error.message || t("status_could_not_save_settings"), true);
           return;
@@ -2432,7 +2484,7 @@ Write in ${lang}.`;
           .single();
 
         if (error || !newConversation) {
-          appendMessageBubble("assistant", "I could not open our chat right now. Please try again.");
+          appendMessageBubble("assistant", t("err_api"));
           return;
         }
 
@@ -2440,14 +2492,24 @@ Write in ${lang}.`;
         clearMessages();
 
         const context = await getUserContext(appState.currentUser.id);
-        const openingPrompt = "Start this conversation with one warm, personal opening.\n" +
-          "You know this person. Their name is " + (context.user && (context.user.display_name || context.user.name) ? (context.user.display_name || context.user.name) : "friend") + ".\n" +
-          (context.identity && context.identity.one_liner ? ("Their identity: " + context.identity.one_liner + "\n") : "") +
-          (context.recent_checkins && context.recent_checkins[0]
-            ? ("Recent check-in: Body " + context.recent_checkins[0].body + "/10, Energy " + context.recent_checkins[0].energy + "/10\n")
-            : "") +
-          "Don't ask \"how are you\". Be specific and personal based on context.\n" +
-          "One or two sentences max. Warm, not cheery.";
+        var currentLang = getCurrentLanguage();
+        const openingPrompt = ((currentLang === "de")
+            ? ("Beginne dieses Gespräch mit einer warmen, persönlichen Eröffnung.\n" +
+              "Der Name ist " + (context.user && (context.user.display_name || context.user.name) ? (context.user.display_name || context.user.name) : "du") + ".\n" +
+              (context.identity && context.identity.one_liner ? ("Identität: " + context.identity.one_liner + "\n") : "") +
+              (context.recent_checkins && context.recent_checkins[0]
+                ? ("Letzter Check-in: Körper " + context.recent_checkins[0].body + "/10, Energie " + context.recent_checkins[0].energy + "/10\n")
+                : "") +
+              "Frag nicht \"wie geht's dir\". Sei konkret und persönlich auf Basis des Kontexts.\n" +
+              "Maximal ein bis zwei Sätze. Warm, nicht kitschig. Antworte auf Deutsch.")
+            : ("Start this conversation with one warm, personal opening.\n" +
+              "You know this person. Their name is " + (context.user && (context.user.display_name || context.user.name) ? (context.user.display_name || context.user.name) : "friend") + ".\n" +
+              (context.identity && context.identity.one_liner ? ("Their identity: " + context.identity.one_liner + "\n") : "") +
+              (context.recent_checkins && context.recent_checkins[0]
+                ? ("Recent check-in: Body " + context.recent_checkins[0].body + "/10, Energy " + context.recent_checkins[0].energy + "/10\n")
+                : "") +
+              "Don't ask \"how are you\". Be specific and personal based on context.\n" +
+              "One or two sentences max. Warm, not cheery."));
         const openingResult = await callGeminiChat(context, [], openingPrompt);
         if (!openingResult.text) {
           appendMessageBubble("assistant", t("chat_fallback_opening"));
@@ -2591,7 +2653,7 @@ Write in ${lang}.`;
         const events = context.upcoming_events || [];
         const topics = context.recent_topics || [];
         const transits = context.today_transits || null;
-        const langCode = user.language || "en";
+        const langCode = user.language || (appState.profile && appState.profile.language) || getCurrentLanguage() || "en";
         const lang = getLanguageName(langCode);
 
         var prompt;
@@ -2890,15 +2952,21 @@ ALWAYS respond in ${lang}.`;
         var sysPrompt = langCode === "de"
           ? "Du bist Mai \u2014 ruhige, emotional intelligente Begleiterin. Kurz. Warm. Geerdet. Keine Listen. Keine Emojis."
           : "You are Mai \u2014 calm, emotionally intelligent companion. Short. Warm. Grounded. No lists. No emojis.";
-        const data = await callAI({
-          systemPrompt: sysPrompt,
-          contents: [{ role: "user", parts: [{ text: promptText }] }],
-          maxOutputTokens: maxOutputTokens || 1024,
-          temperature: 0.75,
-          topP: 0.9
-        });
-
-        return parseGeminiResult(data);
+        console.log("[MaiTribe] callGeminiRaw called, prompt length:", (promptText || "").length);
+        try {
+          const data = await callAI({
+            systemPrompt: sysPrompt,
+            contents: [{ role: "user", parts: [{ text: promptText }] }],
+            maxOutputTokens: maxOutputTokens || 1024,
+            temperature: 0.75,
+            topP: 0.9
+          });
+          console.log("[MaiTribe] Gemini response received");
+          return parseGeminiResult(data);
+        } catch (error) {
+          console.error("[MaiTribe] Gemini API error:", error);
+          return { text: null, error: { error: "network_error", status: 0 } };
+        }
       }
 
       async function callAI(options, retryCount) {
@@ -2906,7 +2974,8 @@ ALWAYS respond in ${lang}.`;
         var key = appState.config.geminiApiKey;
         if (!key) return { error: "no_key" };
 
-        var model = options.model || (retryCount === 0 ? "gemini-2.5-flash" : "gemini-2.0-flash-lite");
+        var model = options.model || (retryCount === 0 ? "gemini-2.5-flash" : "gemini-2.5-flash-lite");
+        console.log("[MaiTribe] callAI model:", model, "retry:", retryCount);
         var apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(key);
         var timeout = options.timeout || 20000;
 
@@ -3172,22 +3241,50 @@ ALWAYS respond in ${lang}.`;
         const userId = appState.currentUser.id;
         console.log("[MaiTribe] saveIdentityEdit: userId =", userId, "textLength =", newText.length);
 
-        var archiveResult = await appState.supabase.from("identities").update({ is_active: false }).eq("user_id", userId).eq("is_active", true);
-        if (archiveResult.error) console.warn("[MaiTribe] identity archive error:", archiveResult.error);
-
         const sentences = splitIdentitySentences(newText);
-        const insertPayload = {
-          user_id: userId,
-          full_text: newText,
-          one_liner: sentences[0] || newText,
-          sentences: sentences,
-          is_active: true
-        };
-        console.log("[MaiTribe] inserting identity:", JSON.stringify(insertPayload));
-        const { data, error } = await appState.supabase.from("identities").insert(insertPayload).select();
+        var { data: existingIdentity, error: existingError } = await appState.supabase
+          .from("identities")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("is_active", true)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (existingError) {
+          console.warn("[MaiTribe] identity lookup error:", existingError);
+        }
+
+        var result;
+        if (existingIdentity && existingIdentity.id) {
+          console.log("[MaiTribe] updating active identity id:", existingIdentity.id);
+          result = await appState.supabase
+            .from("identities")
+            .update({
+              full_text: newText,
+              one_liner: sentences[0] || newText,
+              sentences: sentences,
+              is_active: true
+            })
+            .eq("id", existingIdentity.id)
+            .eq("user_id", userId)
+            .select();
+        } else {
+          const insertPayload = {
+            user_id: userId,
+            full_text: newText,
+            one_liner: sentences[0] || newText,
+            sentences: sentences,
+            is_active: true
+          };
+          console.log("[MaiTribe] inserting identity:", JSON.stringify(insertPayload));
+          result = await appState.supabase.from("identities").insert(insertPayload).select();
+        }
+
+        const data = result && result.data;
+        const error = result && result.error;
 
         if (error) {
-          console.error("[MaiTribe] identity insert error:", error);
+          console.error("[MaiTribe] identity save error:", error);
           setStatus("identity-edit-status", error.message || t("status_could_not_save_identity"), true);
           return;
         }
@@ -3224,9 +3321,9 @@ ALWAYS respond in ${lang}.`;
           });
 
           if (appState.currentUser && appState.supabase) {
-            await appState.supabase.from("users").update({
+            await updateUsersSafe(appState.currentUser.id, {
               push_token: JSON.stringify(subscription)
-            }).eq("id", appState.currentUser.id);
+            });
           }
 
           return { ok: true, message: t("status_push_enabled") };
