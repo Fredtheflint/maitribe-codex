@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#131814" />
   <title>MaiTribe — Holistic AI Wellness</title>
-  <meta name="description" content="Mai is your holistic AI companion for body, mind, and soul. Join the waitlist." />
+  <meta name="description" content="MaiTribe: your smart AI companion for identity growth, contextual support, and private wellbeing." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
@@ -300,6 +300,13 @@
 
     .form-status.error { color: var(--warn); }
 
+    .waitlist-counter {
+      margin-top: 12px;
+      color: var(--sage);
+      font-size: 0.88rem;
+      opacity: 0.95;
+    }
+
     /* --- What section --- */
     .what-cards {
       display: grid;
@@ -462,6 +469,21 @@
       font-size: 0.82rem;
     }
 
+    .footer-links {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .footer-links a {
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-decoration: none;
+      transition: color 220ms ease;
+    }
+
+    .footer-links a:hover { color: var(--cream); }
+
     /* --- Scroll reveal --- */
     [data-reveal] {
       opacity: 0;
@@ -589,14 +611,15 @@
         <h1 class="hero-logo">
           <span class="logo-mai">mai</span><span class="logo-tribe">tribe</span>
         </h1>
-        <p class="hero-tagline" data-i18n="hero_tagline">Your holistic AI companion for body, mind, and soul.</p>
-        <p class="hero-note" data-i18n="hero_note">Not a chatbot. Not a coach. A quiet presence that walks beside you.</p>
+        <p class="hero-tagline" data-i18n="hero_tagline">Your smart companion - not another wellness app.</p>
+        <p class="hero-note" data-i18n="hero_note">Mai knows you. Not because she tracks you, but because she listens.</p>
         <div class="hero-form">
           <form class="waitlist-form" id="heroForm" onsubmit="return submitWaitlist(event, 'hero')">
             <input type="email" id="heroEmail" data-i18n-placeholder="waitlist_placeholder" placeholder="Your email" aria-label="Email for waitlist" required />
             <button type="submit" class="btn-primary" data-i18n="waitlist_btn">Join the waitlist</button>
           </form>
           <div class="form-status" id="heroStatus" aria-live="polite"></div>
+          <p class="waitlist-counter" id="heroWaitlistCount"></p>
         </div>
       </div>
     </section>
@@ -604,8 +627,8 @@
     <!-- What is Mai? -->
     <section id="what">
       <div class="container">
-        <h2 class="section-title" data-reveal data-i18n="what_title">What is Mai?</h2>
-        <p class="section-subtitle" data-reveal data-i18n="what_subtitle">A calm AI companion designed around three dimensions of your wellbeing.</p>
+        <h2 class="section-title" data-reveal data-i18n="what_title">Why Mai feels different</h2>
+        <p class="section-subtitle" data-reveal data-i18n="what_subtitle">Not generic wellness advice. Identity-first, context-aware support with practical insight.</p>
         <div class="what-cards">
           <!-- Body -->
           <div class="what-card" data-reveal style="transition-delay: 0.1s">
@@ -615,8 +638,8 @@
                 <path d="M28 16c-1 4.5-4.5 8-9 9 4.5 1 8 4.5 9 9 1-4.5 4.5-8 9-9-4.5-1-8-4.5-9-9z" fill="var(--sage)" opacity="0.25"/>
               </svg>
             </div>
-            <h3 data-i18n="card_body_title">Body</h3>
-            <p data-i18n="card_body_desc">Track your physical energy. Notice patterns. Learn what your body is telling you each day.</p>
+            <h3 data-i18n="card_body_title">Not generic</h3>
+            <p data-i18n="card_body_desc">Mai does not just say "take a deep breath". She gives concrete, science-based suggestions you can use right away.</p>
           </div>
           <!-- Mind -->
           <div class="what-card" data-reveal style="transition-delay: 0.25s">
@@ -628,8 +651,8 @@
                 <circle cx="28" cy="28" r="2" fill="var(--sage)"/>
               </svg>
             </div>
-            <h3 data-i18n="card_mind_title">Mind</h3>
-            <p data-i18n="card_mind_desc">Observe your thoughts without judgment. Create space between stimulus and response.</p>
+            <h3 data-i18n="card_mind_title">Identity-based</h3>
+            <p data-i18n="card_mind_desc">Who do you want to be? Mai helps you collect one small proof each day that you are becoming that person.</p>
           </div>
           <!-- Soul -->
           <div class="what-card" data-reveal style="transition-delay: 0.4s">
@@ -641,8 +664,8 @@
                 <circle cx="40" cy="16" r="1.5" fill="var(--sage)"/>
               </svg>
             </div>
-            <h3 data-i18n="card_soul_title">Soul</h3>
-            <p data-i18n="card_soul_desc">Connect with what truly matters to you. Find meaning in the quiet moments between.</p>
+            <h3 data-i18n="card_soul_title">Context-aware</h3>
+            <p data-i18n="card_soul_desc">Mai reacts to your real life, not to random timers. Hard meeting at 14:00? Mai is there before and after.</p>
           </div>
         </div>
       </div>
@@ -651,22 +674,22 @@
     <!-- How it works -->
     <section id="how">
       <div class="container">
-        <h2 class="section-title" data-reveal data-i18n="how_title">How it works</h2>
+        <h2 class="section-title" data-reveal data-i18n="how_title">How Mai supports you</h2>
         <div class="how-steps">
           <div class="how-step" data-reveal style="transition-delay: 0.1s">
             <div class="step-number">1</div>
-            <h3 data-i18n="step1_title">Check in</h3>
-            <p data-i18n="step1_desc">A gentle daily moment. Rate your body, mind, and soul. No pressure, no scores, just honest awareness.</p>
+            <h3 data-i18n="step1_title">Check in honestly</h3>
+            <p data-i18n="step1_desc">A quick daily check-in for body, mind, soul, and energy. No perfection, just real signal.</p>
           </div>
           <div class="how-step" data-reveal style="transition-delay: 0.3s">
             <div class="step-number">2</div>
-            <h3 data-i18n="step2_title">Talk to Mai</h3>
-            <p data-i18n="step2_desc">Share what's on your mind. Mai listens, reflects, and offers one small step forward. Always gentle, never pushy.</p>
+            <h3 data-i18n="step2_title">Talk with Mai</h3>
+            <p data-i18n="step2_desc">Mai listens first, then gives either one deep question or one practical nugget - based on what you need.</p>
           </div>
           <div class="how-step" data-reveal style="transition-delay: 0.5s">
             <div class="step-number">3</div>
-            <h3 data-i18n="step3_title">Grow quietly</h3>
-            <p data-i18n="step3_desc">Over time, Mai learns your patterns and rhythms. Insights emerge. You begin to see yourself more clearly.</p>
+            <h3 data-i18n="step3_title">Collect evidence</h3>
+            <p data-i18n="step3_desc">You gather small proof moments that show who you are becoming. This is your no-zero-days momentum.</p>
           </div>
         </div>
       </div>
@@ -676,7 +699,7 @@
     <section class="philosophy" id="philosophy">
       <div class="container">
         <div class="philosophy-card" data-reveal>
-          <blockquote data-i18n="philosophy_quote">Mai is not a chatbot. Not a coach. Not a therapist. She is a quiet, caring presence — like a thoughtful friend who truly sees you. She acknowledges first, then gently helps you see for yourself.</blockquote>
+          <blockquote data-i18n="philosophy_quote">Mai is your smart companion, not another noisy app. Personal, context-aware, and private by design. Your data stays yours. Always.</blockquote>
         </div>
       </div>
     </section>
@@ -684,14 +707,15 @@
     <!-- Waitlist CTA -->
     <section class="waitlist-cta" id="waitlist">
       <div class="container">
-        <h2 class="section-title" data-reveal data-i18n="cta_title">Begin your journey</h2>
-        <p class="section-subtitle" data-reveal data-i18n="cta_subtitle">Join the waitlist and be among the first to meet Mai.</p>
+        <h2 class="section-title" data-reveal data-i18n="cta_title">Be there when Mai goes live</h2>
+        <p class="section-subtitle" data-reveal data-i18n="cta_subtitle">Join the waitlist now. Your data stays yours. Always.</p>
         <div data-reveal style="transition-delay: 0.2s">
           <form class="waitlist-form" id="ctaForm" onsubmit="return submitWaitlist(event, 'cta')">
             <input type="email" id="ctaEmail" data-i18n-placeholder="waitlist_placeholder" placeholder="Your email" aria-label="Email for waitlist" required />
             <button type="submit" class="btn-primary" data-i18n="waitlist_btn">Join the waitlist</button>
           </form>
           <div class="form-status" id="ctaStatus" aria-live="polite"></div>
+          <p class="waitlist-counter" id="ctaWaitlistCount"></p>
         </div>
       </div>
     </section>
@@ -703,7 +727,10 @@
       <div class="footer-logo">
         <span class="logo-mai">mai</span><span class="logo-tribe">tribe</span>
       </div>
-      <p class="footer-copy" data-i18n="footer_copy">&copy; 2025 MaiTribe. All rights reserved.</p>
+      <div class="footer-links">
+        <a href="/privacy.html" data-i18n="footer_privacy">Privacy</a>
+        <p class="footer-copy" data-i18n="footer_copy">&copy; 2025 MaiTribe. All rights reserved.</p>
+      </div>
     </div>
   </footer>
 
@@ -718,32 +745,34 @@
         nav_how: "How it works",
         nav_philosophy: "Philosophy",
         nav_waitlist_link: "Join",
-        hero_tagline: "Your holistic AI companion for body, mind, and soul.",
-        hero_note: "Not a chatbot. Not a coach. A quiet presence that walks beside you.",
+        hero_tagline: "Your smart companion - not another wellness app.",
+        hero_note: "Mai knows you. Not because she tracks you, but because she listens.",
         waitlist_placeholder: "Your email",
-        waitlist_btn: "Join the waitlist",
+        waitlist_btn: "Join now",
+        waitlist_count: "{count} people are already waiting.",
         waitlist_success: "You\u2019re on the list. We\u2019ll be in touch.",
         waitlist_exists: "You\u2019re already on the list. We\u2019ll be in touch soon.",
         waitlist_error: "Something went wrong. Please try again.",
         waitlist_invalid: "Please enter a valid email address.",
-        what_title: "What is Mai?",
-        what_subtitle: "A calm AI companion designed around three dimensions of your wellbeing.",
-        card_body_title: "Body",
-        card_body_desc: "Track your physical energy. Notice patterns. Learn what your body is telling you each day.",
-        card_mind_title: "Mind",
-        card_mind_desc: "Observe your thoughts without judgment. Create space between stimulus and response.",
-        card_soul_title: "Soul",
-        card_soul_desc: "Connect with what truly matters to you. Find meaning in the quiet moments between.",
-        how_title: "How it works",
-        step1_title: "Check in",
-        step1_desc: "A gentle daily moment. Rate your body, mind, and soul. No pressure, no scores, just honest awareness.",
-        step2_title: "Talk to Mai",
-        step2_desc: "Share what\u2019s on your mind. Mai listens, reflects, and offers one small step forward. Always gentle, never pushy.",
-        step3_title: "Grow quietly",
-        step3_desc: "Over time, Mai learns your patterns and rhythms. Insights emerge. You begin to see yourself more clearly.",
-        philosophy_quote: "Mai is not a chatbot. Not a coach. Not a therapist. She is a quiet, caring presence \u2014 like a thoughtful friend who truly sees you. She acknowledges first, then gently helps you see for yourself.",
-        cta_title: "Begin your journey",
-        cta_subtitle: "Join the waitlist and be among the first to meet Mai.",
+        what_title: "Why Mai feels different",
+        what_subtitle: "Not generic wellness advice. Identity-first, context-aware support with practical insight.",
+        card_body_title: "Not generic",
+        card_body_desc: "Mai does not just say \"take a deep breath\". She might say: 90 seconds of warm water over your hands can activate your vagus nerve and calm your system.",
+        card_mind_title: "Identity-based",
+        card_mind_desc: "Who do you want to be? Mai helps you collect one small proof each day that you are becoming that person.",
+        card_soul_title: "Context-aware",
+        card_soul_desc: "Mai reacts to your real life, not to random timers. Hard meeting at 14:00? Mai is there before and after.",
+        how_title: "How Mai supports you",
+        step1_title: "Check in honestly",
+        step1_desc: "A quick daily check-in for body, mind, soul, and energy. No perfection, just real signal.",
+        step2_title: "Talk with Mai",
+        step2_desc: "Mai listens first, then gives either one deep question or one practical nugget - based on what you need.",
+        step3_title: "Collect evidence",
+        step3_desc: "You gather small proof moments that show who you are becoming. This is your no-zero-days momentum.",
+        philosophy_quote: "Mai is your smart companion, not another noisy app. Personal, context-aware, and private by design. Your data stays yours. Always.",
+        cta_title: "Be there when Mai goes live",
+        cta_subtitle: "Join the waitlist now. Your data stays yours. Always.",
+        footer_privacy: "Privacy",
         footer_copy: "\u00A9 2025 MaiTribe. All rights reserved."
       },
       de: {
@@ -751,40 +780,52 @@
         nav_how: "So funktioniert\u2019s",
         nav_philosophy: "Philosophie",
         nav_waitlist_link: "Mitmachen",
-        hero_tagline: "Deine ganzheitliche KI-Begleiterin f\u00FCr K\u00F6rper, Geist und Seele.",
-        hero_note: "Kein Chatbot. Kein Coach. Eine stille Pr\u00E4senz, die neben dir geht.",
+        hero_tagline: "Deine kluge Begleiterin - nicht noch eine Wellness-App.",
+        hero_note: "Mai kennt dich. Nicht weil sie dich trackt, sondern weil sie zuhoert.",
         waitlist_placeholder: "Deine E-Mail",
-        waitlist_btn: "Auf die Warteliste",
+        waitlist_btn: "Jetzt mitmachen",
+        waitlist_count: "{count} Menschen warten bereits.",
         waitlist_success: "Du bist dabei. Wir melden uns.",
         waitlist_exists: "Du stehst schon auf der Liste. Wir melden uns bald.",
         waitlist_error: "Etwas ist schiefgelaufen. Bitte versuch es noch einmal.",
         waitlist_invalid: "Bitte gib eine g\u00FCltige E-Mail-Adresse ein.",
-        what_title: "Was ist Mai?",
-        what_subtitle: "Eine ruhige KI-Begleiterin f\u00FCr drei Dimensionen deines Wohlbefindens.",
-        card_body_title: "K\u00F6rper",
-        card_body_desc: "Sp\u00FCre deine k\u00F6rperliche Energie. Erkenne Muster. Lerne, was dein K\u00F6rper dir jeden Tag sagt.",
-        card_mind_title: "Geist",
-        card_mind_desc: "Beobachte deine Gedanken ohne Urteil. Schaffe Raum zwischen Reiz und Reaktion.",
-        card_soul_title: "Seele",
-        card_soul_desc: "Verbinde dich mit dem, was dir wirklich wichtig ist. Finde Bedeutung in den stillen Momenten dazwischen.",
-        how_title: "So funktioniert\u2019s",
-        step1_title: "Check-in",
-        step1_desc: "Ein sanfter t\u00E4glicher Moment. Sp\u00FCre in K\u00F6rper, Geist und Seele hinein. Kein Druck, keine Bewertung \u2014 nur ehrliche Wahrnehmung.",
+        what_title: "Warum Mai anders ist",
+        what_subtitle: "Nicht generisch. Identitaetsbasiert. Kontextbewusst. Praktisch.",
+        card_body_title: "Nicht generisch",
+        card_body_desc: "Mai sagt nicht einfach \"Atme tief ein\". Sie gibt konkrete Impulse, zum Beispiel 90 Sekunden warmes Wasser ueber die Haende fuer den Vagusnerv.",
+        card_mind_title: "Identitaetsbasiert",
+        card_mind_desc: "Wer willst du sein? Mai hilft dir jeden Tag, einen kleinen Beweis dafuer zu sammeln.",
+        card_soul_title: "Kontextbewusst",
+        card_soul_desc: "Mai reagiert auf dein Leben, nicht auf einen Timer. Schwieriges Meeting um 14 Uhr? Mai ist vorher da.",
+        how_title: "So unterstuetzt dich Mai",
+        step1_title: "Ehrlicher Check-in",
+        step1_desc: "Kurzer taeglicher Check-in fuer Koerper, Geist, Seele und Energie. Kein Perfektionismus, nur klares Signal.",
         step2_title: "Sprich mit Mai",
-        step2_desc: "Teile, was dich bewegt. Mai h\u00F6rt zu, reflektiert und bietet einen kleinen Schritt nach vorn. Immer sanft, nie dr\u00E4ngend.",
-        step3_title: "Wachse in Stille",
-        step3_desc: "\u00DCber die Zeit lernt Mai deine Muster und Rhythmen. Einsichten entstehen. Du beginnst, dich klarer zu sehen.",
-        philosophy_quote: "Mai ist kein Chatbot. Kein Coach. Keine Therapeutin. Sie ist eine stille, f\u00FCrsorgliche Pr\u00E4senz \u2014 wie eine aufmerksame Freundin, die dich wirklich sieht. Sie nimmt wahr, bevor sie sanft hilft, selbst zu erkennen.",
-        cta_title: "Beginne deine Reise",
-        cta_subtitle: "Trag dich in die Warteliste ein und sei unter den Ersten, die Mai kennenlernen.",
+        step2_desc: "Mai hoert zuerst zu und gibt dann entweder eine tiefe Frage oder einen konkreten Wissens-Impuls - passend zu deinem Moment.",
+        step3_title: "Beweise sammeln",
+        step3_desc: "Du sammelst kleine Proof-Momente dafuer, wer du wirst. So entsteht No-Zero-Days-Momentum.",
+        philosophy_quote: "Mai ist deine kluge Begleiterin, nicht noch eine laute App. Persoenlich, kontextbewusst und privat by design. Deine Daten gehoeren dir. Immer.",
+        cta_title: "Sei dabei wenn Mai live geht",
+        cta_subtitle: "Trag dich jetzt ein. Deine Daten gehoeren dir. Immer.",
+        footer_privacy: "Datenschutz",
         footer_copy: "\u00A9 2025 MaiTribe. Alle Rechte vorbehalten."
       }
     };
 
     let currentLang = localStorage.getItem("maitribe-landing-lang") || (navigator.language.startsWith("de") ? "de" : "en");
+    let waitlistCount = 324;
 
     function t(key) {
       return (i18n[currentLang] && i18n[currentLang][key]) || i18n.en[key] || key;
+    }
+
+    function renderWaitlistCount() {
+      var template = t("waitlist_count") || "{count}";
+      var label = template.replace("{count}", String(waitlistCount));
+      var heroCounter = document.getElementById("heroWaitlistCount");
+      var ctaCounter = document.getElementById("ctaWaitlistCount");
+      if (heroCounter) heroCounter.textContent = label;
+      if (ctaCounter) ctaCounter.textContent = label;
     }
 
     function applyI18n() {
@@ -801,6 +842,7 @@
       });
       var toggle = document.getElementById("langToggle");
       if (toggle) toggle.textContent = currentLang === "en" ? "DE" : "EN";
+      renderWaitlistCount();
     }
 
     /* ================================================================
@@ -832,6 +874,23 @@
       supabaseClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
         auth: { persistSession: false }
       });
+    }
+
+    function fetchWaitlistCount() {
+      if (!supabaseClient) {
+        renderWaitlistCount();
+        return;
+      }
+      supabaseClient.from("waitlist").select("id", { count: "exact", head: true })
+        .then(function(res) {
+          if (!res.error && typeof res.count === "number" && res.count > 0) {
+            waitlistCount = res.count;
+          }
+          renderWaitlistCount();
+        })
+        .catch(function() {
+          renderWaitlistCount();
+        });
     }
 
     /* ================================================================
@@ -874,6 +933,8 @@
           } else {
             statusEl.textContent = t("waitlist_success");
             emailInput.value = "";
+            waitlistCount = waitlistCount + 1;
+            renderWaitlistCount();
           }
         })
         .catch(function() {
@@ -952,6 +1013,7 @@
        ================================================================ */
     applyI18n();
     initSupabase();
+    fetchWaitlistCount();
     initReveal();
     initHeaderScroll();
     initSmoothScroll();

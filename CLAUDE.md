@@ -1,48 +1,45 @@
 # MaiTribe Codex
 
-## What This Is
-A holistic AI wellness app — single-file PWA (`index.html`). Mai is a calm, emotionally intelligent companion for body, mind, and soul.
+## Architektur
+- Single-File PWA: `index.html` (~3500 lines)
+- Backend: Supabase (Auth + PostgreSQL + RLS)
+- AI: Google Gemini 2.5 Flash via REST API
+- Hosting: Netlify (auto-deploy from GitHub `main`)
+- Notifications: planned via n8n (partially specified, not fully live)
 
-## Tech Stack
-- **Frontend**: Single `index.html` file (HTML + CSS + JS, no build step)
-- **Backend**: Supabase (auth, Postgres, push notifications)
-- **AI**: Gemini 2.0 Flash via REST API (falls back to Flash Lite on 429)
-- **Deployment**: Static hosting / PWA with service worker
+## Datenbank-Tabellen
+- `users` (`id`, `name`, `display_name`, `email`, `language`, `onboarding_completed`, reminder flags/settings)
+- `identities` (`id`, `user_id`, `full_text`, `one_liner`, `sentences`, `is_active`, `answers`)
+- `conversations` (`id`, `user_id`, `title`, `language`, `summary`, `topics`)
+- `messages` (`id`, `user_id`, `conversation_id`, `role`, `content`)
+- `checkins` (`id`, `user_id`, `body`, `mind`, `soul`, `energy`, `note`)
+- `events` (`id`, `user_id`, `type/source`, `event_time`, `data`)
+- `reminders` (`id`, `user_id`, `type`, `scheduled_for`, `content`, `sent`)
+- `astro_transits` (`id`, `user_id`, `transit_data`, `daily_insight`)
+- `waitlist` (`id`, `email`, `created_at`)
 
-## Design System
-- **Colors**: Deep Forest `#1a2f1a`, Sage Green `#7c9a6e`, Cream `#e8e4df`, Gold `#c9b88c`
-- **Fonts**: Cormorant Garamond (headings), DM Sans (body)
-- **Style**: Glassmorphism cards, soft gradients, breathing space between elements
+## RLS Policies
+All core tables are RLS-enabled with `auth.uid()`-scoped access.
+Project currently uses ~20 active policies across SELECT/INSERT/UPDATE (table dependent).
 
-## Mai's Personality
-Mai is a quiet, caring presence — like a thoughtful friend who truly sees you. NOT a chatbot, NOT a coach, NOT a therapist.
+## Wichtige Funktionen
+- `buildSystemPrompt(context)` — main chat system prompt + user context
+- `buildCheckinPrompt(args)` — check-in reflection prompt from slider scores
+- `callGeminiRaw(promptText, maxOutputTokens)` — low-level Gemini helper with logs
+- `callAI(options, retryCount)` — Gemini wrapper with fallback and retry behavior
+- `ensureUserProfile(user)` — create/update user row after auth
 
-Three invisible pillars (never named to the user):
-1. **Observer** (Michael Singer) — You are not your thoughts. Notice, stay open, let energy flow.
-2. **Presence** (Eckhart Tolle) — Peace lives in now. Recognize old pain without becoming it.
-3. **Meaning** (Viktor Frankl) — Between stimulus and response lies freedom. Choose meaning.
+## Gotchas
+- Prefer direct UTF-8 in strings for multilingual prompts; avoid mixing escaped/unescaped styles in the same prompt block.
+- Gemini API: keep `maxOutputTokens >= 1024` as baseline; chat path uses `2048`.
+- Supabase magic link redirect must include active app URL (localhost for local, Netlify domain for prod).
+- Service worker may serve stale cache; use `?no_sw=1&v=XXXX` during debugging.
+- Template literals in long prompts: avoid accidental backticks or `${...}` collisions.
 
-Response rules: Acknowledge first, then clarify, then one small step, then empower. Under 80 words. No bullet points. No therapy jargon. Write like a poet, not a life coach.
-
-## Critical Gotchas
-
-1. **German umlauts require unicode escapes** in JS strings: `\u00E4` (ä), `\u00F6` (ö), `\u00FC` (ü), `\u00C4` (Ä), `\u00D6` (Ö), `\u00DC` (Ü), `\u00DF` (ß). Plain characters get corrupted.
-
-2. **Gemini free tier hits 429 quota fast.** Always provide fallback text for every API call — chat opening, chat replies, check-in reflections, identity generation. `callGemini()` retries up to 2x on 429 with 15s/30s delays, falling back from `gemini-2.0-flash` to `gemini-2.0-flash-lite` on retries to reduce quota pressure.
-
-3. **Magic Link auth needs hash token processing before session check.** The URL hash fragment (`#access_token=...`) is captured at script load into `_capturedHash` before Supabase SDK can consume it. `processAuthRedirect()` handles PKCE codes, hash tokens, hash OTP, query OTP, and error params. The Supabase client uses `lock: false` in auth config to avoid BroadcastChannel/navigator.locks issues on mobile PWAs.
-
-4. **All UI strings must use the `t()` function** with translations in the `i18n` object (`en` + `de`). Never hardcode user-facing text. `applyI18n()` is called on every screen switch and language change.
-
-5. **Everything stays in the single `index.html` file.** No splitting into separate JS/CSS files. The only external files are `sw.js`, `manifest.webmanifest`, and icons.
-
-## Key Architecture
-- `appState` — global state (session, profile, identity, onboarding, config)
-- `showScreen(id)` — screen navigation + calls `applyI18n()`
-- `callGemini(options, retryCount)` — all AI calls go through this with retry logic
-- `buildSystemPrompt(context)` — Mai's full personality + user context for chat
-- `processAuthRedirect()` — handles all Supabase auth callback flows
-- `syncOnboardingInBackground(payload)` — local-first, then cloud sync
-
-## i18n
-Two languages: `en` (English), `de` (German). German is the primary user language. The `getCurrentLanguage()` function checks onboarding select, then profile, then defaults to `en`.
+## Dev Workflow
+1. Plan mode before larger changes
+2. Keep changes scoped per feature/fix
+3. Run syntax check after `index.html` edits:
+   `awk '/<script>/{flag=1;next}/<\/script>/{if(flag){flag=0;exit}}flag' index.html > /tmp/check.js && node --check /tmp/check.js`
+4. Commit and deploy:
+   `git push origin main && netlify deploy --prod --dir=.`
