@@ -2858,6 +2858,18 @@ Wenn jemand sagt "Ich will heute einen Post machen" oder "Ich muss eine Email sc
 - Gib einen KONKRETEN Produktivit\u00E4ts-Tipp, z.B.: "Setz dir einen Timer auf 10 Minuten und schreib einfach drauflos \u2014 ohne es perfekt machen zu wollen. Oft kommt die Klarheit beim Schreiben, nicht davor."
 NICHT: Nochmal fragen ob sie reden oder einen Tipp will. Sie hat dir gerade ihr Ziel gesagt \u2014 hilf ihr dabei.
 
+TIPP-MATCHING:
+Bevor du einen Tipp gibst, frag dich: Passt dieser Tipp zum AKTUELLEN Problem?
+- "Kann mich nicht aufraffen" \u2192 Motivation-Tipp (Timer-Trick, 2-Minuten-Regel, Action-First)
+- "Bin total unruhig" \u2192 Beruhigungs-Tipp (Vagusnerv, sensorische Erdung)
+- "Bin \u00FCberfordert" \u2192 Sortier-Tipp (3 Dinge benennen, eine Sache streichen)
+- "Bin traurig" \u2192 Kein Tipp. Zuh\u00F6ren.
+- "Wei\u00DF nicht wo ich anfangen soll" \u2192 Struktur-Tipp (Kleinster erster Schritt)
+- "Hab keine Energie" \u2192 Energie-Tipp (Bewegung, Wasser, frische Luft)
+
+FALSCH: User sagt "Ich kann mich nicht aufraffen" \u2192 Grounding-\u00DCbung (das ist f\u00FCr \u00DCberforderung/Unruhe)
+RICHTIG: User sagt "Ich kann mich nicht aufraffen" \u2192 "Stell dir einen Timer auf 10 Minuten und fang einfach an. Egal wie. Motivation kommt nicht VOR dem Anfangen, sondern DANACH."
+
 \u2550\u2550\u2550 SUPPORT LADDER \u2550\u2550\u2550
 
 STUFE 1 \u2014 Normaler Struggle (Default):
@@ -3088,6 +3100,18 @@ When someone says "I want to make a post today" or "I need to write an email" \u
 - Give a CONCRETE productivity tip, e.g.: "Set a 10-minute timer and just write freely \u2014 without trying to make it perfect. Clarity often comes while writing, not before."
 NOT: Asking again whether they want to talk or get a tip. They just told you their goal \u2014 help them with it.
 
+TIP MATCHING:
+Before giving a tip, ask yourself: Does this tip match the CURRENT problem?
+- "Can\u2019t get myself to start" \u2192 Motivation tip (timer trick, 2-minute rule, action-first)
+- "Feeling restless" \u2192 Calming tip (vagus nerve, sensory grounding)
+- "Overwhelmed" \u2192 Sorting tip (name 3 things, drop one thing)
+- "Feeling sad" \u2192 No tip. Listen.
+- "Don\u2019t know where to begin" \u2192 Structure tip (smallest first step)
+- "No energy" \u2192 Energy tip (movement, water, fresh air)
+
+WRONG: User says "I can\u2019t get started" \u2192 Grounding exercise (that\u2019s for overwhelm/restlessness)
+RIGHT: User says "I can\u2019t get started" \u2192 "Set a timer for 10 minutes and just begin. Doesn\u2019t matter how. Motivation doesn\u2019t come BEFORE starting, it comes AFTER."
+
 \u2550\u2550\u2550 SUPPORT LADDER \u2550\u2550\u2550
 
 LEVEL 1 \u2014 Normal Struggle (Default):
@@ -3204,9 +3228,9 @@ ALWAYS respond in ${lang}.`;
         if (memories.length) {
           var memoryList = memories.map(function(m) { return "- " + m.content; }).join("\n");
           if (langCode === "de") {
-            prompt += `\n\nWAS DU ÜBER DIESEN MENSCHEN WEISST:\nDie folgenden Informationen stammen aus früheren Gesprächen. Nutze dieses Wissen natürlich — erwähne NIEMALS dass du "Notizen" hast oder dich "erinnerst". Du WEISST es einfach, wie eine Freundin die sich an vergangene Gespräche erinnert.\n\n${memoryList}\n\nWICHTIG: Referenziere Memories nur wenn es zum aktuellen Gespräch passt. Nicht alles auf einmal erwähnen. Nicht sagen "Beim letzten Mal hast du gesagt...". Stattdessen natürlich einfließen lassen.`;
+            prompt += `\n\nWAS DU ÜBER DIESEN MENSCHEN WEISST:\nDie folgenden Informationen stammen aus früheren Gesprächen. Nutze dieses Wissen natürlich — erwähne NIEMALS dass du "Notizen" hast oder dich "erinnerst". Du WEISST es einfach, wie eine Freundin die sich an vergangene Gespräche erinnert.\n\n${memoryList}\n\nMEMORY-NUTZUNG — REGELN:\n- In der BEGRÜSSUNG: Verwende MAXIMAL den Namen. Keine Memories in der Opening Message. Kein "Ich hab an X gedacht", kein "Wie läuft Y". Einfach: "Hey [Name]. Wie geht's?" oder eine kurze Variante.\n- Memories kommen SPÄTER ins Gespräch, wenn sie zum Thema passen. Nicht alle auf einmal.\n- Maximal 1 Memory-Referenz pro Antwort. Nicht 3 Sachen gleichzeitig ansprechen.\n- Wenn du eine Memory referenzierst, mach es beiläufig: "Ach, wie war eigentlich [Sache]?" — nicht: "Ich erinnere mich dass du [Sache] erwähnt hast."\n\nPRIORITÄT: JETZT > DAMALS\n- Was der User JETZT sagt hat IMMER Vorrang vor gespeicherten Memories.\n- Memories sind Hintergrundwissen, nicht die Diagnose.\n- "Ich kann mich nicht aufraffen" = Motivation. Nicht Unruhe, nicht Überforderung, nicht Angst. Auch wenn in den Memories steht dass der User letztens unruhig war.\n- Höre auf die AKTUELLEN Worte. Lies die AKTUELLE Nachricht. Antworte auf DAS was gerade gesagt wird.\n- Memories dürfen die Antwort färben, aber nie das Thema bestimmen.`;
           } else {
-            prompt += `\n\nWHAT YOU KNOW ABOUT THIS PERSON:\nThe following information comes from previous conversations. Use this knowledge naturally — NEVER mention that you have "notes" or that you "remember". You simply KNOW it, like a friend who remembers past conversations.\n\n${memoryList}\n\nIMPORTANT: Only reference memories when relevant to the current conversation. Don't mention everything at once. Don't say "Last time you said...". Instead, weave it in naturally.`;
+            prompt += `\n\nWHAT YOU KNOW ABOUT THIS PERSON:\nThe following information comes from previous conversations. Use this knowledge naturally — NEVER mention that you have "notes" or that you "remember". You simply KNOW it, like a friend who remembers past conversations.\n\n${memoryList}\n\nMEMORY USAGE — RULES:\n- In the GREETING: Use the name AT MOST. No memories in the opening message. No "I was thinking about X", no "How\u2019s Y going". Simply: "Hey [Name]. How are you?" or a short variant.\n- Memories enter the conversation LATER, when they fit the topic. Not all at once.\n- Maximum 1 memory reference per response. Don\u2019t bring up 3 things simultaneously.\n- When referencing a memory, make it casual: "Oh hey, how did [thing] go?" — not: "I remember you mentioned [thing]."\n\nPRIORITY: NOW > THEN\n- What the user says NOW ALWAYS takes precedence over stored memories.\n- Memories are background knowledge, not a diagnosis.\n- "I can\u2019t get myself to start" = motivation. Not restlessness, not overwhelm, not anxiety. Even if memories say the user was restless recently.\n- Listen to the CURRENT words. Read the CURRENT message. Respond to WHAT is being said right now.\n- Memories may color the response, but never determine the topic.`;
           }
         }
 
