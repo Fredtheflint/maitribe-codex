@@ -2668,7 +2668,8 @@ Write in ${lang}.`;
           appState.supabase.from("checkins").select("body,mind,soul,energy,note,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(3),
           appState.supabase.from("events").select("title,description,event_time").eq("user_id", userId).eq("status", "upcoming").gt("event_time", new Date().toISOString()).order("event_time", { ascending: true }).limit(5),
           appState.supabase.from("conversations").select("topics,summary").eq("user_id", userId).order("created_at", { ascending: false }).limit(5),
-          appState.supabase.from("astro_transits").select("daily_insight,hd_daily_gate,hd_gate_description").eq("user_id", userId).eq("transit_date", today).limit(1).maybeSingle()
+          appState.supabase.from("astro_transits").select("daily_insight,hd_daily_gate,hd_gate_description").eq("user_id", userId).eq("transit_date", today).limit(1).maybeSingle(),
+          appState.supabase.from("memories").select("content, category, importance, created_at").eq("user_id", userId).order("importance", { ascending: false }).order("created_at", { ascending: false }).limit(15)
         ]);
 
         function val(i) {
@@ -2687,7 +2688,8 @@ Write in ${lang}.`;
           recent_checkins: val(2).data || [],
           upcoming_events: val(3).data || [],
           recent_topics: val(4).data || [],
-          today_transits: val(5).data || null
+          today_transits: val(5).data || null,
+          memories: val(6).data || []
         };
       }
 
@@ -2698,6 +2700,7 @@ Write in ${lang}.`;
         const events = context.upcoming_events || [];
         const topics = context.recent_topics || [];
         const transits = context.today_transits || null;
+        const memories = context.memories || [];
         const langCode = user.language || (appState.profile && appState.profile.language) || getCurrentLanguage() || "en";
         const lang = getLanguageName(langCode);
 
@@ -3156,6 +3159,15 @@ ALWAYS respond in ${lang}.`;
           if (merged.length) prompt += `\nRecent conversation themes: ${merged.join(", ")}`;
         }
 
+        if (memories.length) {
+          var memoryList = memories.map(function(m) { return "- " + m.content; }).join("\n");
+          if (langCode === "de") {
+            prompt += `\n\nWAS DU ÜBER DIESEN MENSCHEN WEISST:\nDie folgenden Informationen stammen aus früheren Gesprächen. Nutze dieses Wissen natürlich — erwähne NIEMALS dass du "Notizen" hast oder dich "erinnerst". Du WEISST es einfach, wie eine Freundin die sich an vergangene Gespräche erinnert.\n\n${memoryList}\n\nWICHTIG: Referenziere Memories nur wenn es zum aktuellen Gespräch passt. Nicht alles auf einmal erwähnen. Nicht sagen "Beim letzten Mal hast du gesagt...". Stattdessen natürlich einfließen lassen.`;
+          } else {
+            prompt += `\n\nWHAT YOU KNOW ABOUT THIS PERSON:\nThe following information comes from previous conversations. Use this knowledge naturally — NEVER mention that you have "notes" or that you "remember". You simply KNOW it, like a friend who remembers past conversations.\n\n${memoryList}\n\nIMPORTANT: Only reference memories when relevant to the current conversation. Don't mention everything at once. Don't say "Last time you said...". Instead, weave it in naturally.`;
+          }
+        }
+
         if (transits && transits.daily_insight) {
           prompt += `\nToday's cosmic insight: ${transits.daily_insight}`;
           if (transits.hd_gate_description) {
@@ -3301,6 +3313,161 @@ ALWAYS respond in ${lang}.`;
         if (!parts || !parts.length) return null;
         return parts.map((part) => part.text || "").join("\n").trim() || null;
       }
+
+      // ── Mai Memory System ──────────────────────────────────────
+
+      var _memoryExtractionDone = {};
+      var _memoryExtractionPending = false;
+
+      function isDuplicateMemory(newContent, existingMemories) {
+        var newWords = newContent.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 3; });
+        if (!newWords.length) return null;
+        for (var i = 0; i < existingMemories.length; i++) {
+          var existing = existingMemories[i];
+          var existingWords = existing.content.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 3; });
+          if (!existingWords.length) continue;
+          var overlap = 0;
+          for (var j = 0; j < newWords.length; j++) {
+            if (existingWords.indexOf(newWords[j]) !== -1) overlap++;
+          }
+          var ratio = overlap / Math.max(newWords.length, 1);
+          if (ratio > 0.5) return existing.id;
+        }
+        return null;
+      }
+
+      async function enforceMemoryLimit(userId) {
+        try {
+          var countResult = await appState.supabase
+            .from("memories")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId);
+          var total = countResult.count || 0;
+          if (total <= 100) return;
+          var excess = total - 100;
+          var oldest = await appState.supabase
+            .from("memories")
+            .select("id")
+            .eq("user_id", userId)
+            .order("importance", { ascending: true })
+            .order("created_at", { ascending: true })
+            .limit(excess);
+          if (oldest.data && oldest.data.length) {
+            var ids = oldest.data.map(function(m) { return m.id; });
+            await appState.supabase.from("memories").delete().in("id", ids);
+            console.log("[MaiTribe] Enforced memory limit, removed", ids.length, "old memories");
+          }
+        } catch (err) {
+          console.warn("[MaiTribe] enforceMemoryLimit error:", err);
+        }
+      }
+
+      async function extractAndSaveMemories(conversationId, userId, langCode) {
+        if (!conversationId || !userId) return;
+        if (_memoryExtractionDone[conversationId]) return;
+        _memoryExtractionDone[conversationId] = true;
+
+        try {
+          var msgResult = await appState.supabase
+            .from("messages")
+            .select("role, content")
+            .eq("conversation_id", conversationId)
+            .order("created_at", { ascending: true });
+
+          if (!msgResult.data || msgResult.data.length < 4) return;
+          var userMsgCount = msgResult.data.filter(function(m) { return m.role === "user"; }).length;
+          if (userMsgCount < 2) return;
+
+          var conversationText = msgResult.data.map(function(m) {
+            return (m.role === "user" ? "User" : "Mai") + ": " + m.content;
+          }).join("\n");
+
+          var lang = langCode || getCurrentLanguage() || "en";
+          var extractionSystemPrompt;
+          if (lang === "de") {
+            extractionSystemPrompt = "Du bist ein Memory-Extraktionssystem. Analysiere das folgende Gespräch und extrahiere wichtige Fakten, Vorlieben, Emotionen und persönliche Details über den User.\n\nAntworte NUR mit einem JSON-Array. Jedes Element hat:\n- \"content\": der Memory-Text (kurz, prägnant, 1 Satz)\n- \"category\": eine von [\"personal\", \"preference\", \"emotion\", \"goal\", \"health\", \"relationship\", \"work\", \"spiritual\", \"general\"]\n- \"importance\": 1-10 (wie wichtig ist dieses Detail für zukünftige Gespräche?)\n\nRegeln:\n- Maximal 5 Memories pro Gespräch\n- Nur wirklich bedeutsame Informationen extrahieren\n- Keine trivialen Smalltalk-Details\n- Formuliere Memories aus der Perspektive über den User, z.B. \"Hat einen Hund namens Bello\" nicht \"User hat einen Hund\"\n- Antworte NUR mit dem JSON-Array, kein anderer Text";
+          } else {
+            extractionSystemPrompt = "You are a memory extraction system. Analyze the following conversation and extract important facts, preferences, emotions, and personal details about the user.\n\nRespond ONLY with a JSON array. Each element has:\n- \"content\": the memory text (short, concise, 1 sentence)\n- \"category\": one of [\"personal\", \"preference\", \"emotion\", \"goal\", \"health\", \"relationship\", \"work\", \"spiritual\", \"general\"]\n- \"importance\": 1-10 (how important is this detail for future conversations?)\n\nRules:\n- Maximum 5 memories per conversation\n- Only extract truly meaningful information\n- No trivial small-talk details\n- Phrase memories from a perspective about the user, e.g. \"Has a dog named Bello\" not \"User has a dog\"\n- Respond ONLY with the JSON array, no other text";
+          }
+
+          var data = await callAI({
+            systemPrompt: extractionSystemPrompt,
+            contents: [{ role: "user", parts: [{ text: conversationText }] }],
+            maxOutputTokens: 512,
+            temperature: 0.3,
+            topP: 0.9
+          });
+
+          var rawText = extractGeminiText(data);
+          if (!rawText) {
+            console.warn("[MaiTribe] Memory extraction returned empty");
+            return;
+          }
+
+          var jsonMatch = rawText.match(/\[[\s\S]*\]/);
+          if (!jsonMatch) {
+            console.warn("[MaiTribe] Memory extraction: no JSON array found in response");
+            return;
+          }
+
+          var memories;
+          try {
+            memories = JSON.parse(jsonMatch[0]);
+          } catch (parseErr) {
+            console.warn("[MaiTribe] Memory extraction: JSON parse failed:", parseErr);
+            return;
+          }
+
+          if (!Array.isArray(memories) || !memories.length) return;
+
+          var sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          var recentResult = await appState.supabase
+            .from("memories")
+            .select("id, content, category")
+            .eq("user_id", userId)
+            .gte("created_at", sevenDaysAgo);
+          var recentMemories = (recentResult.data || []);
+
+          var savedCount = 0;
+          for (var i = 0; i < Math.min(memories.length, 5); i++) {
+            var mem = memories[i];
+            if (!mem.content || typeof mem.content !== "string") continue;
+            var content = mem.content.trim();
+            if (!content) continue;
+            var category = mem.category || "general";
+            var importance = Math.max(1, Math.min(10, parseInt(mem.importance) || 5));
+
+            var sameCategoryRecent = recentMemories.filter(function(r) { return r.category === category; });
+            var duplicateId = isDuplicateMemory(content, sameCategoryRecent);
+
+            if (duplicateId) {
+              await appState.supabase
+                .from("memories")
+                .update({ content: content, importance: importance, updated_at: new Date().toISOString() })
+                .eq("id", duplicateId);
+              console.log("[MaiTribe] Updated existing memory:", content.substring(0, 50));
+            } else {
+              await appState.supabase
+                .from("memories")
+                .insert({
+                  user_id: userId,
+                  conversation_id: conversationId,
+                  content: content,
+                  category: category,
+                  importance: importance
+                });
+              savedCount++;
+            }
+          }
+
+          await enforceMemoryLimit(userId);
+          console.log("[MaiTribe] Extracted " + savedCount + " new memories from conversation " + conversationId);
+        } catch (err) {
+          console.error("[MaiTribe] extractAndSaveMemories error:", err);
+        }
+      }
+
+      // ── End Mai Memory System ──────────────────────────────────
 
       async function extractEventsFromMessage(text) {
         const patterns = /\b(tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next week|at\s+\d{1,2}(:\d{2})?\s*(am|pm)?)\b/i;
@@ -3793,12 +3960,38 @@ ALWAYS respond in ${lang}.`;
           }
         });
 
-        getEl("btn-chat-back").addEventListener("click", () => showScreen("screen-home"));
+        getEl("btn-chat-back").addEventListener("click", function() {
+          var convId = appState.currentConversationId;
+          var uid = appState.user && appState.user.id;
+          var lang = (appState.profile && appState.profile.language) || getCurrentLanguage() || "en";
+          showScreen("screen-home");
+          if (convId && uid) {
+            extractAndSaveMemories(convId, uid, lang).catch(function(err) {
+              console.error("[MaiTribe] Background memory extraction failed:", err);
+            });
+          }
+        });
         getEl("btn-chat-refresh").addEventListener("click", async () => {
           if (appState.currentConversationId) {
             await loadMessages(appState.currentConversationId);
           } else {
             await initChat();
+          }
+        });
+
+        document.addEventListener("visibilitychange", function() {
+          if (document.visibilityState === "hidden" && !_memoryExtractionPending) {
+            var convId = appState.currentConversationId;
+            var uid = appState.user && appState.user.id;
+            if (convId && uid && !_memoryExtractionDone[convId]) {
+              _memoryExtractionPending = true;
+              var lang = (appState.profile && appState.profile.language) || getCurrentLanguage() || "en";
+              extractAndSaveMemories(convId, uid, lang).catch(function(err) {
+                console.error("[MaiTribe] Visibility memory extraction failed:", err);
+              }).finally(function() {
+                _memoryExtractionPending = false;
+              });
+            }
           }
         });
 
