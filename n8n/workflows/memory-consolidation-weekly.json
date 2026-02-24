@@ -1,0 +1,305 @@
+{
+  "name": "MaiTribe - Memory Consolidation Weekly",
+  "nodes": [
+    {
+      "id": "cron-1",
+      "name": "Weekly Cron",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -1180,
+        260
+      ],
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "custom",
+              "cronExpression": "0 3 * * 0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pg-1",
+      "name": "Select Users > 20 Memories",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -960,
+        260
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select user_id, count(*)::int as memory_count from public.memories group by user_id having count(*) > 20;",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-2",
+      "name": "Load User Memories",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -740,
+        260
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"select id, content, category, importance, created_at from public.memories where user_id = '\" + $json.user_id + \"' order by category, created_at;\" }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "code-1",
+      "name": "Build Consolidation Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -520,
+        260
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const row = $json;\nconst memories = Array.isArray(row) ? row : [$json];\nconst userId = memories[0] && memories[0].user_id ? memories[0].user_id : ($items('Select Users > 20 Memories', 0, 0)[0]?.json?.user_id || null);\nconst payload = memories.map((m) => ({ id: m.id, content: m.content, category: m.category, importance: m.importance, created_at: m.created_at }));\nconst prompt = `You receive a memory list for one user.\\nConsolidate similar memories. Keep unique ones separate.\\nIncrease importance for repeated patterns.\\nDelete outdated or irrelevant memories.\\n\\nRules:\\n- Keep at most 50 memories after consolidation.\\n- Preserve key details.\\n- If a goal has been achieved, transform from \\\"plans\\\" to \\\"achieved\\\".\\n- If an emotion is older than 4 weeks and not repeated, delete it.\\n\\nReturn JSON only:\\n{\\n  \\\"keep\\\": [{\\\"id\\\": \\\"...\\\", \\\"reason\\\": \\\"unique\\\"}],\\n  \\\"merge\\\": [{\\\"ids\\\": [\\\"...\\\", \\\"...\\\"], \\\"merged_content\\\": \\\"...\\\", \\\"category\\\": \\\"...\\\", \\\"importance\\\": 8}],\\n  \\\"delete\\\": [{\\\"id\\\": \\\"...\\\", \\\"reason\\\": \\\"outdated\\\"}]\\n}\\n\\nMemories:\\n${JSON.stringify(payload)}`;\nreturn [{ json: { user_id: userId, memories: payload, prompt } }];"
+      }
+    },
+    {
+      "id": "http-1",
+      "name": "Gemini Consolidation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        -300,
+        260
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + $env.GEMINI_API_KEY }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { contents: [ { role: 'user', parts: [ { text: $json.prompt } ] } ], generationConfig: { maxOutputTokens: 2048, temperature: 0.2 } } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "code-2",
+      "name": "Parse Consolidation JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        260
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const text = $json.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('\\n') || '';\nlet parsed;\ntry {\n  parsed = JSON.parse(text);\n} catch (e) {\n  return [{ json: { ...$json, parse_error: true, parse_error_message: e.message, raw_text: text } }];\n}\nconst keep = Array.isArray(parsed.keep) ? parsed.keep : [];\nconst merge = Array.isArray(parsed.merge) ? parsed.merge : [];\nconst del = Array.isArray(parsed.delete) ? parsed.delete : [];\nreturn [{ json: { ...$json, keep, merge, delete: del, parse_error: false } }];"
+      }
+    },
+    {
+      "id": "if-1",
+      "name": "Parse OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        140,
+        260
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ !$json.parse_error }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "code-3",
+      "name": "Build SQL Operations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        360,
+        180
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const userId = $json.user_id;\nconst deleteIds = [];\nfor (const d of ($json.delete || [])) {\n  if (d && d.id) deleteIds.push(String(d.id));\n}\nfor (const m of ($json.merge || [])) {\n  for (const id of (m.ids || [])) deleteIds.push(String(id));\n}\nconst uniqDelete = [...new Set(deleteIds)];\nconst escapedDelete = uniqDelete.map((id) => `'${id.replace(/'/g, \"''\")}'`).join(',');\nconst deleteSql = uniqDelete.length ? `delete from public.memories where id in (${escapedDelete});` : null;\nconst inserts = [];\nfor (const m of ($json.merge || [])) {\n  if (!m.merged_content) continue;\n  const content = String(m.merged_content).replace(/'/g, \"''\");\n  const category = String(m.category || 'general').replace(/'/g, \"''\");\n  const importance = Number(m.importance || 7);\n  inserts.push(`insert into public.memories (user_id, content, category, importance, source, created_at) values ('${userId}', '${content}', '${category}', ${importance}, 'consolidation', now());`);\n}\nreturn [{ json: { ...$json, delete_sql: deleteSql, insert_sql: inserts.join('\\n') } }];"
+      }
+    },
+    {
+      "id": "pg-3",
+      "name": "Delete Old Memories",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        580,
+        120
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.delete_sql || 'select 1;' }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-4",
+      "name": "Insert Consolidated Memories",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        800,
+        120
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.insert_sql || 'select 1;' }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "code-4",
+      "name": "Log Parse Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        360,
+        360
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return [{ json: { user_id: $json.user_id || null, status: 'parse_error', details: $json.parse_error_message || 'invalid_json' } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Weekly Cron": {
+      "main": [
+        [
+          {
+            "node": "Select Users > 20 Memories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Users > 20 Memories": {
+      "main": [
+        [
+          {
+            "node": "Load User Memories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load User Memories": {
+      "main": [
+        [
+          {
+            "node": "Build Consolidation Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Consolidation Prompt": {
+      "main": [
+        [
+          {
+            "node": "Gemini Consolidation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Consolidation": {
+      "main": [
+        [
+          {
+            "node": "Parse Consolidation JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Consolidation JSON": {
+      "main": [
+        [
+          {
+            "node": "Parse OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse OK?": {
+      "main": [
+        [
+          {
+            "node": "Build SQL Operations",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Parse Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build SQL Operations": {
+      "main": [
+        [
+          {
+            "node": "Delete Old Memories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Old Memories": {
+      "main": [
+        [
+          {
+            "node": "Insert Consolidated Memories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "versionId": "memory-consolidation-weekly-v1"
+}

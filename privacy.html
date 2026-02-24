@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#131814" />
+  <title>MaiTribe - Privacy</title>
+  <meta name="description" content="MaiTribe privacy page. Clear, human explanation of data handling." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --forest: #131814;
+      --sage: #a8c5a0;
+      --cream: #e8e4df;
+      --line: rgba(232, 228, 223, 0.22);
+      --card: rgba(232, 228, 223, 0.08);
+      --muted: rgba(232, 228, 223, 0.7);
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "DM Sans", sans-serif;
+      background: radial-gradient(circle at 20% -10%, rgba(168, 197, 160, 0.16), transparent 48%),
+                  radial-gradient(circle at 84% 20%, rgba(201, 184, 140, 0.12), transparent 44%),
+                  var(--forest);
+      color: var(--cream);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .logo {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 2rem;
+      font-weight: 300;
+      letter-spacing: 0.3px;
+    }
+    .logo .mai { color: var(--sage); }
+    .lang-toggle, .back-link {
+      border: 1px solid var(--line);
+      background: rgba(232, 228, 223, 0.08);
+      color: var(--cream);
+      border-radius: 8px;
+      padding: 8px 12px;
+      text-decoration: none;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .hero {
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    h1, h2 {
+      font-family: "Cormorant Garamond", serif;
+      font-weight: 400;
+      line-height: 1.1;
+      margin: 0 0 12px;
+    }
+    h1 { font-size: clamp(2rem, 6vw, 3rem); }
+    h2 { font-size: 1.6rem; margin-top: 8px; }
+    .muted { color: var(--muted); margin: 0; }
+    .card {
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-top: 12px;
+    }
+    .card p { margin: 8px 0; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .footer {
+      margin-top: 20px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    a.inline-link { color: var(--sage); }
+    @media (max-width: 760px) {
+      .grid { grid-template-columns: 1fr; }
+      .container { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <div class="topbar">
+      <div class="logo"><span class="mai">mai</span>tribe</div>
+      <div style="display:flex; gap:8px;">
+        <a class="back-link" href="/landing.html" data-i18n="back">Back</a>
+        <button class="lang-toggle" id="langToggle">DE</button>
+      </div>
+    </div>
+
+    <section class="hero">
+      <h1 data-i18n="title">Privacy, in plain language.</h1>
+      <p class="muted" data-i18n="intro">
+        We could give you ten pages of legal text. Instead, here is what actually happens with your data.
+      </p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2 data-i18n="store_title">What we store</h2>
+        <p data-i18n="store_text">
+          MaiTribe stores your account and app data in Supabase PostgreSQL (EU region). This includes email, profile data, check-ins, identity text and chat history.
+        </p>
+      </article>
+      <article class="card">
+        <h2 data-i18n="see_title">What Mai sees</h2>
+        <p data-i18n="see_text">
+          Mai only sees what is needed to respond to you: your chat messages, check-ins and identity context - for your account only.
+        </p>
+      </article>
+      <article class="card">
+        <h2 data-i18n="third_title">What goes to third parties</h2>
+        <p data-i18n="third_text">
+          For AI responses, chat content is sent to Google Gemini API. We do not share your data with ad networks or data brokers.
+        </p>
+      </article>
+      <article class="card">
+        <h2 data-i18n="not_title">What we do NOT do</h2>
+        <p data-i18n="not_text">
+          No ads. No tracking pixels. No selling your data. No sharing to third parties except Gemini for AI functionality.
+        </p>
+      </article>
+    </section>
+
+    <section class="card">
+      <h2 data-i18n="rights_title">Your rights</h2>
+      <p data-i18n="rights_text">
+        You can request data export, account deletion, or full data deletion. Write to us and we will handle it.
+      </p>
+      <p>
+        <strong data-i18n="contact_label">Contact:</strong>
+        <a class="inline-link" href="mailto:f.stutt@icloud.com">f.stutt@icloud.com</a>
+      </p>
+    </section>
+
+    <section class="card">
+      <h2 data-i18n="human_title">Human version</h2>
+      <p data-i18n="human_text">
+        MaiTribe is built to help you - not to exploit attention. Your data exists to support your own reflection and growth, nothing else.
+      </p>
+    </section>
+
+    <div class="footer">
+      <span data-i18n="updated">Last updated: February 23, 2026</span>
+      <span><a class="inline-link" href="/landing.html">Landing</a> | <a class="inline-link" href="/index.html">App</a></span>
+    </div>
+  </main>
+
+  <script>
+    const i18n = {
+      en: {
+        back: "Back",
+        title: "Privacy, in plain language.",
+        intro: "We could give you ten pages of legal text. Instead, here is what actually happens with your data.",
+        store_title: "What we store",
+        store_text: "MaiTribe stores your account and app data in Supabase PostgreSQL (EU region). This includes email, profile data, check-ins, identity text and chat history.",
+        see_title: "What Mai sees",
+        see_text: "Mai only sees what is needed to respond to you: your chat messages, check-ins and identity context - for your account only.",
+        third_title: "What goes to third parties",
+        third_text: "For AI responses, chat content is sent to Google Gemini API. We do not share your data with ad networks or data brokers.",
+        not_title: "What we do NOT do",
+        not_text: "No ads. No tracking pixels. No selling your data. No sharing to third parties except Gemini for AI functionality.",
+        rights_title: "Your rights",
+        rights_text: "You can request data export, account deletion, or full data deletion. Write to us and we will handle it.",
+        contact_label: "Contact:",
+        human_title: "Human version",
+        human_text: "MaiTribe is built to help you - not to exploit attention. Your data exists to support your own reflection and growth, nothing else.",
+        updated: "Last updated: February 23, 2026"
+      },
+      de: {
+        back: "Zurueck",
+        title: "Datenschutz, klar erklaert.",
+        intro: "Wir koennten dir jetzt zehn Seiten Rechtstext geben. Stattdessen sagen wir dir einfach, was mit deinen Daten passiert.",
+        store_title: "Was wir speichern",
+        store_text: "MaiTribe speichert deine Konto- und App-Daten in Supabase PostgreSQL (EU-Region). Dazu gehoeren E-Mail, Profildaten, Check-ins, Identity-Text und Chatverlauf.",
+        see_title: "Was Mai sieht",
+        see_text: "Mai sieht nur das, was fuer Antworten noetig ist: deine Chatnachrichten, Check-ins und Identity-Kontext - nur fuer deinen Account.",
+        third_title: "Was an Dritte geht",
+        third_text: "Fuer AI-Antworten werden Chatinhalte an die Google Gemini API gesendet. Es gibt keine Weitergabe an Werbenetzwerke oder Datenhaendler.",
+        not_title: "Was wir NICHT machen",
+        not_text: "Keine Werbung. Kein Tracking. Kein Verkauf deiner Daten. Keine Weitergabe an Dritte ausser Gemini fuer AI-Funktionen.",
+        rights_title: "Deine Rechte",
+        rights_text: "Du kannst Datenexport, Account-Loeschung oder vollstaendige Datenloeschung anfordern. Schreib uns, wir kuemmern uns darum.",
+        contact_label: "Kontakt:",
+        human_title: "Die menschliche Version",
+        human_text: "MaiTribe ist dafuer gebaut, dir zu helfen - nicht deine Aufmerksamkeit auszunutzen. Deine Daten sind nur fuer deine eigene Reflexion und Entwicklung da.",
+        updated: "Zuletzt aktualisiert: 23. Februar 2026"
+      }
+    };
+
+    let currentLang = localStorage.getItem("maitribe-privacy-lang") || (navigator.language.startsWith("de") ? "de" : "en");
+
+    function t(key) {
+      return (i18n[currentLang] && i18n[currentLang][key]) || i18n.en[key] || key;
+    }
+
+    function applyI18n() {
+      document.documentElement.lang = currentLang;
+      document.querySelectorAll("[data-i18n]").forEach(function(el) {
+        const key = el.getAttribute("data-i18n");
+        el.textContent = t(key);
+      });
+      const toggle = document.getElementById("langToggle");
+      if (toggle) toggle.textContent = currentLang === "en" ? "DE" : "EN";
+    }
+
+    document.getElementById("langToggle").addEventListener("click", function() {
+      currentLang = currentLang === "en" ? "de" : "en";
+      localStorage.setItem("maitribe-privacy-lang", currentLang);
+      applyI18n();
+    });
+
+    applyI18n();
+  </script>
+</body>
+</html>

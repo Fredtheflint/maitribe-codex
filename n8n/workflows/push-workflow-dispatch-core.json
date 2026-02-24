@@ -1,0 +1,215 @@
+{
+  "name": "MaiTribe - Push Dispatch Core",
+  "nodes": [
+    {
+      "id": "cron-1",
+      "name": "Cron Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -980,
+        220
+      ],
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "unit": "minutes",
+              "value": 10
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pg-1",
+      "name": "Select Eligible Users",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -760,
+        220
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select u.id as user_id, u.language, u.daily_mode, ps.subscription from public.users u join public.push_subscriptions ps on ps.user_id = u.id and ps.active = true where u.onboarding_completed = true and coalesce(u.push_declined, false) = false;",
+        "options": {}
+      }
+    },
+    {
+      "id": "code-1",
+      "name": "Build Message Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -540,
+        220
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const row = $json;\nconst isDe = String(row.language || 'en').toLowerCase() === 'de';\nconst title = 'Mai';\nconst body = isDe ? 'Ein kleiner Impuls fuer dich.' : 'A small prompt for you.';\nreturn [{ json: { ...row, title, body, tag: 'mai-core', url: '/index.html' } }];"
+      }
+    },
+    {
+      "id": "http-1",
+      "name": "Send Push (Edge Function)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        -320,
+        220
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/functions/v1/send-push' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { userId: $json.user_id, subscription: $json.subscription, title: $json.title, body: $json.body, data: { tag: $json.tag, url: $json.url } } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "if-1",
+      "name": "Is 410 Gone",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -100,
+        220
+      ],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.statusCode || 200 }}",
+              "operation": "equal",
+              "value2": 410
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pg-2",
+      "name": "Deactivate Subscription",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        120,
+        120
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"update public.push_subscriptions set active = false, updated_at = now() where user_id = '\" + $json.user_id + \"';\" }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-3",
+      "name": "Log Delivery",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        120,
+        320
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"insert into public.reminders (user_id, type, content, sent, sent_at, delivery_method, created_at) values ('\" + $json.user_id + \"', 'push_dispatch', '\" + ($json.body || '').replace(/'/g, \"''\") + \"', true, now(), 'push', now());\" }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Cron Trigger": {
+      "main": [
+        [
+          {
+            "node": "Select Eligible Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Eligible Users": {
+      "main": [
+        [
+          {
+            "node": "Build Message Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Message Payload": {
+      "main": [
+        [
+          {
+            "node": "Send Push (Edge Function)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Push (Edge Function)": {
+      "main": [
+        [
+          {
+            "node": "Is 410 Gone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is 410 Gone": {
+      "main": [
+        [
+          {
+            "node": "Deactivate Subscription",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "versionId": "push-dispatch-core-v1"
+}

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="MaiTribe icon">
+  <rect width="512" height="512" rx="110" fill="#1a2e1a" />
+  <circle cx="256" cy="256" r="176" fill="rgba(168,197,160,0.12)" />
+  <text x="50%" y="53%" text-anchor="middle" dominant-baseline="middle" font-size="220">🌿</text>
+</svg>
