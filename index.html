@@ -272,10 +272,11 @@
       display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;
     }
     .checkin-mini-item {
-      display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary);
+      display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary);
     }
+    .checkin-mini-item > span:first-child { min-width: 44px; }
     .checkin-mini-bar {
-      width: 32px; height: 4px; border-radius: 2px; background: var(--stone-100); overflow: hidden;
+      flex: 1; height: 4px; border-radius: 2px; background: var(--stone-100); overflow: hidden;
     }
     .checkin-mini-fill { height: 100%; border-radius: 2px; transition: width 600ms ease; }
 
@@ -301,8 +302,8 @@
     .identity-evidence { padding: 14px 20px; border-top: 1px solid rgba(0,0,0,0.04); font-size: 13px; color: var(--text-tertiary); }
 
     .insight-card {
-      background: linear-gradient(135deg, var(--sage-50), var(--sage-100));
-      border: 1px solid rgba(0,0,0,0.03); border-radius: var(--radius-lg);
+      background: linear-gradient(135deg, #F6F7F4 0%, #F5F3EE 100%);
+      border: 1px solid #DDE1D5; border-radius: var(--radius-lg);
       padding: 20px; box-shadow: var(--shadow);
     }
     .insight-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -373,11 +374,11 @@
     }
     .bubble.assistant {
       justify-self: start; background: var(--bubble-mai); color: var(--text-primary);
-      border-radius: 16px 16px 16px 6px; border: none;
+      border-radius: 18px 18px 18px 6px; border: none;
     }
     .bubble.user {
       justify-self: end; background: var(--bubble-user); color: var(--bubble-user-text);
-      border-radius: 16px 16px 6px 16px; border: none;
+      border-radius: 18px 18px 6px 18px; border: none;
     }
 
     .typing { display: inline-flex; gap: 5px; align-items: center; padding: 4px 0; }
@@ -563,15 +564,19 @@
     .nav-label { font-size: 11px; font-weight: 500; }
 
     .nav-chat-btn {
-      width: 48px; height: 48px; border-radius: var(--radius-full) !important;
-      background: var(--sage-700) !important; color: white !important;
-      margin-top: -20px; box-shadow: 0 4px 12px rgba(85,99,73,0.3);
-      display: grid !important; place-items: center; padding: 0 !important;
-      flex-direction: row !important;
+      display: flex !important; flex-direction: column !important; align-items: center !important;
+      gap: 2px !important; padding: 0 !important; background: transparent !important;
+      margin-top: -12px; position: relative;
     }
-    .nav-chat-btn .nav-ico { font-size: 22px; color: white; }
-    .nav-chat-btn .nav-label { display: none; }
-    .nav-chat-btn.active { background: var(--sage-800) !important; }
+    .nav-chat-btn .nav-ico {
+      width: 48px; height: 48px; border-radius: var(--radius-full);
+      background: var(--sage-700); color: white;
+      display: grid; place-items: center; font-size: 22px;
+      box-shadow: 0 4px 12px rgba(85,99,73,0.3);
+    }
+    .nav-chat-btn .nav-label { display: block; font-size: 11px; color: var(--sage-700); font-weight: 500; margin-top: 2px; }
+    .nav-chat-btn.active .nav-ico { background: var(--sage-800); }
+    .nav-chat-btn.active .nav-label { color: var(--sage-800); }
 
     /* ── A2HS Banner ── */
     .a2hs-banner {
@@ -781,32 +786,32 @@ Let us start by getting to know each other.</p>
       </div>
 
       <div id="btn-home-checkin" class="home-card" role="button" tabindex="0">
-        <div class="home-card-header">
-          <div class="home-card-icon sage">✦</div>
-          <div>
-            <div class="home-card-title" id="home-checkin-title">Check-in</div>
-            <div class="home-card-sub">Body · Mind · Soul · Energy</div>
+        <div class="home-card-header" style="justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div class="home-card-icon sage">✦</div>
+            <div class="home-card-title" id="home-checkin-title">Wie geht's dir?</div>
           </div>
+          <span id="home-checkin-badge" style="font-size:12px;color:var(--sage-600);background:var(--sage-100);padding:3px 10px;border-radius:var(--radius-full);font-weight:500;">Heute</span>
         </div>
         <div id="home-checkin-mini" class="checkin-mini-grid">
-          <div class="checkin-mini-item"><span>Body</span><div class="checkin-mini-bar"><div class="checkin-mini-fill" style="width:50%;background:var(--body-color)"></div></div></div>
-          <div class="checkin-mini-item"><span>Mind</span><div class="checkin-mini-bar"><div class="checkin-mini-fill" style="width:50%;background:var(--mind-color)"></div></div></div>
-          <div class="checkin-mini-item"><span>Soul</span><div class="checkin-mini-bar"><div class="checkin-mini-fill" style="width:50%;background:var(--soul-color)"></div></div></div>
-          <div class="checkin-mini-item"><span>Energy</span><div class="checkin-mini-bar"><div class="checkin-mini-fill" style="width:50%;background:var(--energy-color)"></div></div></div>
+          <div class="checkin-mini-item"><span id="home-mini-body">K&#246;rper</span><span id="home-mini-body-val" class="slider-val body" style="font-size:16px;min-width:20px;">0</span><div class="checkin-mini-bar"><div class="checkin-mini-fill" style="width:0%;background:var(--body-color)"></div></div></div>
+          <div class="checkin-mini-item"><span id="home-mini-mind">Geist</span><span id="home-mini-mind-val" class="slider-val mind" style="font-size:16px;min-width:20px;">0</span><div class="checkin-mini-bar"><div class="checkin-mini-fill" style="width:0%;background:var(--mind-color)"></div></div></div>
+          <div class="checkin-mini-item"><span id="home-mini-soul">Seele</span><span id="home-mini-soul-val" class="slider-val soul" style="font-size:16px;min-width:20px;">0</span><div class="checkin-mini-bar"><div class="checkin-mini-fill" style="width:0%;background:var(--soul-color)"></div></div></div>
+          <div class="checkin-mini-item"><span id="home-mini-energy">Energie</span><span id="home-mini-energy-val" class="slider-val energy" style="font-size:16px;min-width:20px;">0</span><div class="checkin-mini-bar"><div class="checkin-mini-fill" style="width:0%;background:var(--energy-color)"></div></div></div>
         </div>
-        <button class="home-card-btn" type="button">Start check-in</button>
+        <button id="home-checkin-btn" class="home-card-btn" type="button">Check-in starten</button>
       </div>
 
       <article id="home-identity-card" class="home-card" role="button" tabindex="0" aria-label="Open your identity">
         <div class="home-card-header">
           <div class="home-card-icon purple">◇</div>
           <div>
-            <div class="home-card-title" id="home-identity-title">Your Identity</div>
-            <div class="home-card-sub">Your truth</div>
+            <div class="home-card-title" id="home-identity-title">Deine Identit&#228;t</div>
+            <div class="home-card-sub" id="home-identity-sub">Deine Wahrheit</div>
           </div>
         </div>
         <div class="identity-card-inner">
-          <p id="home-identity-sentence" class="identity-quote">Your truth will appear here once onboarding is complete.</p>
+          <p id="home-identity-sentence" class="identity-quote">Deine Wahrheit erscheint hier nach dem Onboarding.</p>
         </div>
         <div id="home-identity-evidence" class="identity-evidence"></div>
       </article>
@@ -814,9 +819,9 @@ Let us start by getting to know each other.</p>
       <div class="insight-card home-card">
         <div class="insight-header">
           <div class="insight-avatar">m</div>
-          <span class="insight-label" id="home-recent-label">Mai's Insight</span>
+          <span class="insight-label" id="home-recent-label">Mai's Impuls</span>
         </div>
-        <p id="home-recent-insight" class="insight-text">No reflections yet.</p>
+        <p id="home-recent-insight" class="insight-text">Noch keine Reflexionen.</p>
       </div>
 
       <button id="btn-home-chat" class="home-card" type="button" style="display:none;"></button>
@@ -825,21 +830,19 @@ Let us start by getting to know each other.</p>
     <section id="screen-chat" class="screen">
       <div class="chat-shell">
         <header class="chat-header">
-          <button id="btn-chat-back" class="chat-header-btn" type="button" title="Back">←</button>
           <div class="chat-avatar">m</div>
           <div class="chat-header-info">
             <div class="chat-header-name">Mai</div>
             <div class="chat-header-status">online</div>
           </div>
-          <button id="btn-chat-refresh" class="chat-header-btn" type="button" title="Refresh">↻</button>
+          <button id="btn-chat-new" class="chat-header-btn" type="button" title="New chat">+</button>
         </header>
 
         <div id="chat-messages" class="chat-area"></div>
 
         <form id="chat-form" class="chat-input-wrap" autocomplete="off">
           <div class="chat-input-container">
-            <input id="chat-input" type="text" placeholder="Share what's on your mind..." />
-            <button id="btn-chat-voice" class="btn-inline" type="button" title="Voice input" style="padding:6px;font-size:16px;">🎤</button>
+            <input id="chat-input" type="text" placeholder="Schreib Mai..." />
           </div>
           <button id="btn-chat-send" class="chat-send-btn" type="submit" title="Send">↑</button>
         </form>
@@ -1139,13 +1142,27 @@ Let us start by getting to know each other.</p>
           identity_skip: "Skip \u2014 I\u2019ll edit later",
           identity_timeout_msg: "It\u2019s taking longer than expected. You can skip and edit your identity later.",
           home_today: "Today",
-          home_identity_label: "\uD83C\uDF3F Your identity",
+          home_identity_label: "Your Identity",
+          home_identity_sub: "Your truth",
           home_checkin: "Check-in",
+          home_checkin_title: "How are you?",
+          home_checkin_btn: "Start check-in",
           home_checkin_sub: "Body \u00B7 Mind \u00B7 Soul",
+          home_checkin_badge: "Today",
           home_chat: "Talk to Mai",
           home_chat_sub: "Quiet support",
-          home_recent: "Recent insight",
+          home_recent: "Mai's Insight",
           home_no_insight: "No reflections yet.",
+          home_identity_placeholder: "Your truth will appear here once onboarding is complete.",
+          home_mini_body: "Body",
+          home_mini_mind: "Mind",
+          home_mini_soul: "Soul",
+          home_mini_energy: "Energy",
+          chat_input_placeholder: "Write Mai...",
+          profile_stat_checkins: "Check-ins",
+          profile_stat_chats: "Chats",
+          profile_stat_days: "Days",
+          nav_mai: "Mai",
           greeting_night: "Still up, {name}?",
           greeting_morning: "Good morning, {name}",
           greeting_afternoon: "Good afternoon, {name}",
@@ -1303,13 +1320,27 @@ Let us start by getting to know each other.</p>
           identity_skip: "\u00DCberspringen \u2014 ich bearbeite sp\u00E4ter",
           identity_timeout_msg: "Es dauert l\u00E4nger als erwartet. Du kannst \u00FCberspringen und deine Identit\u00E4t sp\u00E4ter bearbeiten.",
           home_today: "Heute",
-          home_identity_label: "\uD83C\uDF3F Deine Identit\u00E4t",
+          home_identity_label: "Deine Identit\u00E4t",
+          home_identity_sub: "Deine Wahrheit",
           home_checkin: "Check-in",
+          home_checkin_title: "Wie geht's dir?",
+          home_checkin_btn: "Check-in starten",
           home_checkin_sub: "K\u00F6rper \u00B7 Geist \u00B7 Seele",
+          home_checkin_badge: "Heute",
           home_chat: "Mit Mai sprechen",
           home_chat_sub: "Stille Begleitung",
-          home_recent: "Letzter Impuls",
+          home_recent: "Mai's Impuls",
           home_no_insight: "Noch keine Reflexionen.",
+          home_identity_placeholder: "Deine Wahrheit erscheint hier nach dem Onboarding.",
+          home_mini_body: "K\u00F6rper",
+          home_mini_mind: "Geist",
+          home_mini_soul: "Seele",
+          home_mini_energy: "Energie",
+          chat_input_placeholder: "Schreib Mai...",
+          profile_stat_checkins: "Check-ins",
+          profile_stat_chats: "Gespr\u00E4che",
+          profile_stat_days: "Tage",
+          nav_mai: "Mai",
           greeting_night: "Noch wach, {name}?",
           greeting_morning: "Guten Morgen, {name}",
           greeting_afternoon: "Guten Nachmittag, {name}",
@@ -1634,23 +1665,20 @@ Let us start by getting to know each other.</p>
         setText("btn-request-notifications", t("onboard_notify"));
         setText("btn-onboard-finish", t("onboard_ready"));
 
-        setText("home-today-label", t("home_today"));
+        setText("home-checkin-title", t("home_checkin_title"));
+        setText("home-checkin-badge", t("home_checkin_badge"));
+        setText("home-checkin-btn", t("home_checkin_btn"));
         setText("home-identity-title", t("home_identity_label"));
+        setText("home-identity-sub", t("home_identity_sub"));
         setText("home-recent-label", t("home_recent"));
+        setText("home-mini-body", t("home_mini_body"));
+        setText("home-mini-mind", t("home_mini_mind"));
+        setText("home-mini-soul", t("home_mini_soul"));
+        setText("home-mini-energy", t("home_mini_energy"));
         var idSentence = getEl("home-identity-sentence");
-        if (idSentence && (idSentence.textContent === "Your truth will appear here once onboarding is complete." || idSentence.textContent === i18n.de.home_identity_placeholder)) {
+        if (idSentence && (idSentence.textContent === "Your truth will appear here once onboarding is complete." || idSentence.textContent === "Deine Wahrheit erscheint hier nach dem Onboarding.")) {
           setText("home-identity-sentence", t("home_identity_placeholder"));
         }
-
-        const checkinBtn = getEl("btn-home-checkin");
-        if (checkinBtn) checkinBtn.innerHTML = t("home_checkin") + "<small>" + t("home_checkin_sub") + "</small>";
-        const chatBtn = getEl("btn-home-chat");
-        if (chatBtn) chatBtn.innerHTML = t("home_chat") + "<small>" + t("home_chat_sub") + "</small>";
-
-        setText("btn-chat-back", t("chat_back"));
-        setText("btn-chat-refresh", t("chat_refresh"));
-        setText("btn-chat-voice", t("chat_mic"));
-        setText("btn-chat-send", t("chat_send"));
         setText("checkin-screen-title", t("checkin_title"));
         setText("btn-checkin-back", t("checkin_back"));
         setText("checkin-note-label", t("checkin_note_label"));
@@ -1692,11 +1720,19 @@ Let us start by getting to know each other.</p>
         setText("settings-privacy-link", t("settings_privacy_link"));
 
         setText("nav-home-label", t("nav_home"));
-        setText("nav-chat-label", t("nav_chat"));
+        setText("nav-chat-label", t("nav_mai"));
         setText("nav-profile-label", t("nav_profile"));
 
+        // Profile stats labels
+        var statLabels = document.querySelectorAll(".profile-stat-label");
+        if (statLabels.length >= 3) {
+          statLabels[0].textContent = t("profile_stat_checkins");
+          statLabels[1].textContent = t("profile_stat_chats");
+          statLabels[2].textContent = t("profile_stat_days");
+        }
+
         const chatInput = getEl("chat-input");
-        if (chatInput) chatInput.placeholder = t("chat_placeholder");
+        if (chatInput) chatInput.placeholder = t("chat_input_placeholder");
         const onboardNote = getEl("onboard-note");
         if (onboardNote) onboardNote.placeholder = t("onboard_checkin_note_placeholder");
         const identityAnswer = getEl("identity-answer");
@@ -2446,7 +2482,13 @@ Write in ${lang}.`;
 
         // Set time-of-day subtitle
         var hour = new Date().getHours();
-        var dayPart = hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : "Evening";
+        var lang = getCurrentLanguage();
+        var dayPart;
+        if (lang === "de") {
+          dayPart = hour < 12 ? "Morgen" : hour < 17 ? "Nachmittag" : "Abend";
+        } else {
+          dayPart = hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : "Evening";
+        }
         var todayLabel = getEl("home-today-label");
         if (todayLabel) todayLabel.textContent = dayPart;
 
@@ -2474,19 +2516,27 @@ Write in ${lang}.`;
         // Update identity evidence counter
         var evidenceEl = getEl("home-identity-evidence");
         if (evidenceEl && identity && identity.sentences) {
-          evidenceEl.textContent = identity.sentences.length + " evidence" + (identity.sentences.length !== 1 ? "s" : "");
+          var n = identity.sentences.length;
+          evidenceEl.textContent = lang === "de"
+            ? (n + " Beweis" + (n !== 1 ? "e" : "") + " diese Woche")
+            : (n + " evidence" + (n !== 1 ? "s" : "") + " this week");
         }
 
-        // Update mini check-in bars
+        // Update mini check-in bars and values
         var lastCheckin = latestCheckinResult.data;
-        if (lastCheckin) {
-          var miniEl = getEl("home-checkin-mini");
-          if (miniEl) {
-            var fills = miniEl.querySelectorAll(".checkin-mini-fill");
-            var vals = [lastCheckin.body || 5, lastCheckin.mind || 5, lastCheckin.soul || 5, lastCheckin.energy || 5];
-            fills.forEach(function(fill, i) { fill.style.width = (vals[i] * 10) + "%"; });
-          }
+        var vals = lastCheckin
+          ? [lastCheckin.body || 0, lastCheckin.mind || 0, lastCheckin.soul || 0, lastCheckin.energy || 0]
+          : [0, 0, 0, 0];
+        var miniEl = getEl("home-checkin-mini");
+        if (miniEl) {
+          var fills = miniEl.querySelectorAll(".checkin-mini-fill");
+          fills.forEach(function(fill, i) { fill.style.width = (vals[i] * 10) + "%"; });
         }
+        var valIds = ["home-mini-body-val", "home-mini-mind-val", "home-mini-soul-val", "home-mini-energy-val"];
+        valIds.forEach(function(id, i) {
+          var el = getEl(id);
+          if (el) el.textContent = String(vals[i]);
+        });
 
         const checkinInsight = lastCheckin && lastCheckin.mai_response;
         const messageInsight = latestAssistantMessage.data && latestAssistantMessage.data.content;
@@ -2641,32 +2691,9 @@ Write in ${lang}.`;
         appState.currentConversationId = newConversation.id;
         clearMessages();
 
-        const context = await getUserContext(appState.currentUser.id);
-        var currentLang = getCurrentLanguage();
-        const openingPrompt = ((currentLang === "de")
-            ? ("Beginne dieses Gespräch mit einer warmen, persönlichen Eröffnung.\n" +
-              "Der Name ist " + (context.user && (context.user.display_name || context.user.name) ? (context.user.display_name || context.user.name) : "du") + ".\n" +
-              (context.identity && context.identity.one_liner ? ("Identität: " + context.identity.one_liner + "\n") : "") +
-              (context.recent_checkins && context.recent_checkins[0]
-                ? ("Letzter Check-in: Körper " + context.recent_checkins[0].body + "/10, Energie " + context.recent_checkins[0].energy + "/10\n")
-                : "") +
-              "Frag nicht \"wie geht's dir\". Sei konkret und persönlich auf Basis des Kontexts.\n" +
-              "Maximal ein bis zwei Sätze. Warm, nicht kitschig. Antworte auf Deutsch.")
-            : ("Start this conversation with one warm, personal opening.\n" +
-              "You know this person. Their name is " + (context.user && (context.user.display_name || context.user.name) ? (context.user.display_name || context.user.name) : "friend") + ".\n" +
-              (context.identity && context.identity.one_liner ? ("Their identity: " + context.identity.one_liner + "\n") : "") +
-              (context.recent_checkins && context.recent_checkins[0]
-                ? ("Recent check-in: Body " + context.recent_checkins[0].body + "/10, Energy " + context.recent_checkins[0].energy + "/10\n")
-                : "") +
-              "Don't ask \"how are you\". Be specific and personal based on context.\n" +
-              "One or two sentences max. Warm, not cheery."));
-        const openingResult = await callGeminiChat(context, [], openingPrompt);
-        if (!openingResult.text) {
-          appendMessageBubble("assistant", getFallbackOpening());
-          return;
-        }
-        await saveMessage("assistant", openingResult.text, "text");
-        appendMessageBubble("assistant", openingResult.text);
+        var opening = getFallbackOpening();
+        await saveMessage("assistant", opening, "text");
+        appendMessageBubble("assistant", opening);
       }
 
       async function loadMessages(conversationId) {
@@ -3655,23 +3682,22 @@ No lists. No questions. Just a warm, honest reaction.`;
           }
         });
 
-        getEl("btn-chat-back").addEventListener("click", function() {
+        getEl("btn-chat-new").addEventListener("click", async () => {
+          // Extract memories from current conversation before starting new one
           var convId = appState.currentConversationId;
-          var uid = appState.user && appState.user.id;
-          var lang = (appState.profile && appState.profile.language) || getCurrentLanguage() || "en";
-          showScreen("screen-home");
+          var uid = appState.currentUser && appState.currentUser.id;
           if (convId && uid) {
+            var lang = (appState.profile && appState.profile.language) || getCurrentLanguage() || "en";
             extractAndSaveMemories(convId, uid, lang).catch(function(err) {
-              console.error("[MaiTribe] Background memory extraction failed:", err);
+              console.error("[MaiTribe] Memory extraction on new chat:", err);
             });
           }
-        });
-        getEl("btn-chat-refresh").addEventListener("click", async () => {
+          // Mark current conversation as inactive and start fresh
           if (appState.currentConversationId) {
-            await loadMessages(appState.currentConversationId);
-          } else {
-            await initChat();
+            await appState.supabase.from("conversations").update({ is_active: false }).eq("id", appState.currentConversationId);
           }
+          appState.currentConversationId = null;
+          await initChat();
         });
 
         document.addEventListener("visibilitychange", function() {
@@ -3698,8 +3724,6 @@ No lists. No questions. Just a warm, honest reaction.`;
           await sendMessage(text);
           appState.lastInputWasVoice = false;
         });
-
-        getEl("btn-chat-voice").addEventListener("click", startVoiceInput);
 
         getEl("btn-checkin-back").addEventListener("click", () => showScreen("screen-home"));
         getEl("btn-checkin-submit").addEventListener("click", async () => {
@@ -3741,6 +3765,17 @@ No lists. No questions. Just a warm, honest reaction.`;
         getEl("bottom-nav").querySelectorAll("button").forEach((button) => {
           button.addEventListener("click", async () => {
             const target = button.getAttribute("data-target");
+            // Extract memories when leaving chat screen
+            if (target !== "screen-chat" && appState.currentConversationId) {
+              var convId = appState.currentConversationId;
+              var uid = appState.currentUser && appState.currentUser.id;
+              if (convId && uid) {
+                var lang = (appState.profile && appState.profile.language) || getCurrentLanguage() || "en";
+                extractAndSaveMemories(convId, uid, lang).catch(function(err) {
+                  console.error("[MaiTribe] Nav memory extraction:", err);
+                });
+              }
+            }
             if (target === "screen-chat") {
               showScreen("screen-chat");
               await initChat();
