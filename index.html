@@ -3899,15 +3899,44 @@ No lists. No questions. Just a warm, honest reaction.`;
         }
       }
 
-      async function calculateAstroHD(birthDate, birthHour, timezone, lat, lng) {
-        console.log("[MaiTribe] calculateAstroHD called:", { birthDate: birthDate, birthHour: birthHour, timezone: timezone, lat: lat, lng: lng });
+      async function calculateAstroHD(birthDateStr, birthTimeStr, timezoneOffset, lat, lng) {
+        console.log("[MaiTribe] calculateAstroHD called:", { birthDateStr: birthDateStr, birthTimeStr: birthTimeStr, timezoneOffset: timezoneOffset, lat: lat, lng: lng });
         var engine = await loadNatalEngine();
-        console.log("[MaiTribe] Engine loaded, calling calculateAstrology...");
-        var astro = engine.calculateAstrology(birthDate, birthHour, timezone, lat, lng);
-        console.log("[MaiTribe] Astrology done. Sun:", astro && astro.sun && signName(astro.sun.sign));
-        console.log("[MaiTribe] Calling calculateHumanDesign...");
-        var hd = engine.calculateHumanDesign(birthDate, birthHour, timezone);
-        console.log("[MaiTribe] HD done. Type:", hd && hd.type && hd.type.name);
+        console.log("[MaiTribe] Engine loaded, exports:", Object.keys(engine));
+
+        // Build a proper Date object in UTC
+        var dateParts = birthDateStr.split("-").map(Number);
+        var year = dateParts[0];
+        var month = dateParts[1];
+        var day = dateParts[2];
+        var timeParts = (birthTimeStr || "12:00").split(":").map(Number);
+        var hours = timeParts[0];
+        var minutes = timeParts[1] || 0;
+        var tz = parseFloat(timezoneOffset) || 0;
+        var utcHours = hours - tz;
+        var birthDate = new Date(Date.UTC(year, month - 1, day, utcHours, minutes, 0));
+        console.log("[MaiTribe] Birth Date object (UTC):", birthDate.toISOString());
+
+        var astro = null;
+        try {
+          if (lat && lng) {
+            astro = engine.calculateAstrology(birthDate, parseFloat(lat), parseFloat(lng));
+          } else {
+            astro = engine.calculateAstrology(birthDate);
+          }
+          console.log("[MaiTribe] Astrology done. Sun:", astro && astro.sun && signName(astro.sun.sign));
+        } catch (e) {
+          console.error("[MaiTribe] Astrology calculation failed:", e);
+        }
+
+        var hd = null;
+        try {
+          hd = engine.calculateHumanDesign(birthDate);
+          console.log("[MaiTribe] HD done. Type:", hd && hd.type && hd.type.name);
+        } catch (e) {
+          console.error("[MaiTribe] HD calculation failed:", e);
+        }
+
         return { astro: astro, hd: hd };
       }
 
@@ -4084,13 +4113,7 @@ No lists. No questions. Just a warm, honest reaction.`;
         setText("spiegel-loading-text", t("spiegel_loading"));
 
         try {
-          var hourDecimal = 12;
-          if (timeVal) {
-            var parts = timeVal.split(":");
-            hourDecimal = parseInt(parts[0]) + (parseInt(parts[1] || 0) / 60);
-          }
-
-          var result = await calculateAstroHD(dateVal, hourDecimal, tzVal, lat, lng);
+          var result = await calculateAstroHD(dateVal, timeVal, tzVal, lat, lng);
 
           // Show results immediately (even if save fails)
           getEl("spiegel-loading").style.display = "none";
