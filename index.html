@@ -3860,7 +3860,15 @@ No lists. No questions. Just a warm, honest reaction.`;
       function signName(signObj) {
         if (!signObj) return "-";
         if (typeof signObj === "string") return signObj;
-        return signObj.name || signObj.symbol || "-";
+        // Drill down: .name could itself be an object (e.g. {en:"Pisces", de:"Fische"})
+        var n = signObj.name;
+        if (n && typeof n === "object") n = n.en || n.de || Object.values(n)[0];
+        if (n && typeof n === "string") return n;
+        var s = signObj.symbol;
+        if (s && typeof s === "string") return s;
+        // Last resort: stringify to debug
+        console.warn("[MaiTribe] signName got unexpected structure:", JSON.stringify(signObj).slice(0, 200));
+        return String(n || s || "-");
       }
 
       var _natalEnginePromise = null;
@@ -3970,6 +3978,7 @@ No lists. No questions. Just a warm, honest reaction.`;
 
         // Big Three
         if (astro) {
+          console.log("[MaiTribe] Rendering astro. Sun sign:", signName(astro.sun && astro.sun.sign), "Moon sign:", signName(astro.moon && astro.moon.sign));
           setText("spiegel-sun", signName(astro.sun && astro.sun.sign));
           setText("spiegel-moon", signName(astro.moon && astro.moon.sign));
           setText("spiegel-rising", signName(astro.rising && astro.rising.sign));
