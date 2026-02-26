@@ -578,6 +578,54 @@
     .nav-chat-btn.active .nav-ico { background: var(--sage-800); }
     .nav-chat-btn.active .nav-label { color: var(--sage-800); }
 
+    /* ── Dein Spiegel ── */
+    .spiegel-back { display: flex; align-items: center; gap: 6px; margin-bottom: 16px; }
+    .spiegel-back button { background: none; border: none; font-size: 22px; color: var(--text-secondary); cursor: pointer; padding: 4px; }
+    .spiegel-header { text-align: center; margin-bottom: 20px; }
+    .spiegel-header h2 { font-family: "DM Serif Display", serif; font-size: 22px; color: var(--text-primary); }
+    .spiegel-header p { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+    .spiegel-birth-form { background: var(--bg-card); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow); margin-bottom: 16px; }
+    .spiegel-birth-form label { display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; margin-top: 12px; }
+    .spiegel-birth-form label:first-child { margin-top: 0; }
+    .spiegel-birth-form input { width: 100%; padding: 10px 12px; border: 1px solid var(--stone-100); border-radius: var(--radius-sm); font-size: 15px; font-family: inherit; background: var(--bg-primary); }
+    .spiegel-birth-form .birth-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .spiegel-birth-form .btn-primary { margin-top: 16px; width: 100%; }
+    .spiegel-birth-form .btn { margin-top: 8px; width: 100%; font-size: 13px; }
+
+    .spiegel-card { background: var(--bg-card); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow); margin-bottom: 14px; }
+    .spiegel-card-title { font-family: "DM Serif Display", serif; font-size: 17px; color: var(--text-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .spiegel-card-icon { font-size: 20px; }
+    .spiegel-row { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); }
+    .spiegel-row:last-child { border-bottom: none; }
+    .spiegel-label { font-size: 13px; color: var(--text-secondary); }
+    .spiegel-value { font-size: 14px; color: var(--text-primary); font-weight: 500; }
+    .spiegel-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-top: 6px; }
+    .spiegel-big-three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 6px; }
+    .spiegel-big-item { text-align: center; padding: 10px 4px; background: var(--sage-50); border-radius: var(--radius-md); }
+    .spiegel-big-item .spiegel-big-icon { font-size: 20px; margin-bottom: 4px; }
+    .spiegel-big-item .spiegel-big-sign { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+    .spiegel-big-item .spiegel-big-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+    .spiegel-hd-type { text-align: center; padding: 16px; background: linear-gradient(135deg, var(--sage-50), var(--cream-warm)); border-radius: var(--radius-md); margin-bottom: 10px; }
+    .spiegel-hd-type-name { font-family: "DM Serif Display", serif; font-size: 20px; color: var(--sage-800); }
+    .spiegel-hd-type-desc { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+
+    .spiegel-centers { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .spiegel-center-tag { padding: 4px 10px; border-radius: var(--radius-full); font-size: 12px; font-weight: 500; }
+    .spiegel-center-tag.defined { background: var(--sage-200); color: var(--sage-800); }
+    .spiegel-center-tag.undefined { background: var(--stone-100); color: var(--text-secondary); }
+
+    .spiegel-share-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; border: 1px solid var(--sage-300); border-radius: var(--radius-full); background: transparent; color: var(--sage-700); font-size: 14px; font-weight: 500; cursor: pointer; margin-top: 8px; font-family: inherit; }
+    .spiegel-share-btn:active { background: var(--sage-50); }
+
+    .spiegel-loading { text-align: center; padding: 40px 20px; }
+    .spiegel-loading p { font-size: 14px; color: var(--text-secondary); margin-top: 12px; }
+
+    .home-spiegel-card { background: linear-gradient(135deg, var(--sage-50), var(--cream-warm)); }
+    .home-spiegel-preview { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .home-spiegel-item { text-align: center; font-size: 12px; color: var(--text-secondary); }
+    .home-spiegel-item strong { display: block; font-size: 14px; color: var(--text-primary); }
+
     /* ── A2HS Banner ── */
     .a2hs-banner {
       position: fixed; bottom: 0; left: 0; right: 0;
@@ -824,6 +872,22 @@ Let us start by getting to know each other.</p>
         <p id="home-recent-insight" class="insight-text">Noch keine Reflexionen.</p>
       </div>
 
+      <div id="home-spiegel-card" class="home-card home-spiegel-card" role="button" tabindex="0" aria-label="Dein Spiegel">
+        <div class="home-card-header">
+          <div class="home-card-icon sage">&#9788;</div>
+          <div>
+            <div class="home-card-title" id="home-spiegel-title">Dein Spiegel</div>
+            <div class="home-card-sub" id="home-spiegel-sub">Dein kosmisches Profil</div>
+          </div>
+        </div>
+        <div id="home-spiegel-preview" class="home-spiegel-preview" style="display:none;">
+          <div class="home-spiegel-item"><strong id="home-spiegel-sun">-</strong><span id="home-spiegel-sun-label">Sonne</span></div>
+          <div class="home-spiegel-item"><strong id="home-spiegel-moon">-</strong><span id="home-spiegel-moon-label">Mond</span></div>
+          <div class="home-spiegel-item"><strong id="home-spiegel-type">-</strong><span id="home-spiegel-type-label">HD Typ</span></div>
+        </div>
+        <p id="home-spiegel-cta" style="font-size:13px;color:var(--sage-600);margin-top:8px;">Entdecke dein kosmisches Profil &rarr;</p>
+      </div>
+
       <button id="btn-home-chat" class="home-card" type="button" style="display:none;"></button>
     </section>
 
@@ -908,6 +972,90 @@ Let us start by getting to know each other.</p>
       </div>
     </section>
 
+    <section id="screen-spiegel" class="screen">
+      <div class="spiegel-back">
+        <button id="btn-spiegel-back" type="button" title="Back">&larr;</button>
+      </div>
+      <div class="spiegel-header">
+        <h2 id="spiegel-title">Dein Spiegel</h2>
+        <p id="spiegel-sub">Dein kosmisches Profil</p>
+      </div>
+
+      <!-- Birth data form (shown when no birth data exists) -->
+      <div id="spiegel-birth-form" class="spiegel-birth-form">
+        <p id="spiegel-form-intro" style="font-size:14px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Um dein astrologisches Profil und Human Design zu berechnen, brauche ich deine Geburtsdaten.</p>
+        <label id="spiegel-label-date" for="spiegel-birth-date">Geburtsdatum</label>
+        <input id="spiegel-birth-date" type="date" />
+        <div class="birth-row">
+          <div>
+            <label id="spiegel-label-time" for="spiegel-birth-time">Geburtszeit</label>
+            <input id="spiegel-birth-time" type="time" value="12:00" />
+          </div>
+          <div>
+            <label id="spiegel-label-timezone" for="spiegel-birth-tz">Zeitzone (UTC)</label>
+            <input id="spiegel-birth-tz" type="number" min="-12" max="14" step="1" value="1" style="width:100%" />
+          </div>
+        </div>
+        <label id="spiegel-label-place" for="spiegel-birth-place">Geburtsort</label>
+        <input id="spiegel-birth-place" type="text" placeholder="z.B. Berlin, Deutschland" autocomplete="off" />
+        <div id="spiegel-place-results" style="display:none;background:var(--bg-card);border:1px solid var(--stone-100);border-radius:var(--radius-sm);margin-top:4px;max-height:150px;overflow-y:auto;"></div>
+        <button id="btn-spiegel-calculate" class="btn-primary" type="button">Berechnen</button>
+        <button id="btn-spiegel-skip" class="btn" type="button">Sp&auml;ter</button>
+        <p id="spiegel-form-status" class="status"></p>
+      </div>
+
+      <!-- Loading state -->
+      <div id="spiegel-loading" class="spiegel-loading" style="display:none;">
+        <div class="typing"><i></i><i></i><i></i></div>
+        <p id="spiegel-loading-text">Berechne dein Profil...</p>
+      </div>
+
+      <!-- Results (shown when birth data exists) -->
+      <div id="spiegel-results" style="display:none;">
+        <!-- Big Three -->
+        <div class="spiegel-card">
+          <div class="spiegel-card-title"><span class="spiegel-card-icon">&#9788;</span> <span id="spiegel-astro-title">Dein Geburtschart</span></div>
+          <div class="spiegel-big-three">
+            <div class="spiegel-big-item">
+              <div class="spiegel-big-icon">&#9788;</div>
+              <div id="spiegel-sun" class="spiegel-big-sign">-</div>
+              <div class="spiegel-big-label">Sonne</div>
+            </div>
+            <div class="spiegel-big-item">
+              <div class="spiegel-big-icon">&#9789;</div>
+              <div id="spiegel-moon" class="spiegel-big-sign">-</div>
+              <div class="spiegel-big-label">Mond</div>
+            </div>
+            <div class="spiegel-big-item">
+              <div class="spiegel-big-icon">&#8593;</div>
+              <div id="spiegel-rising" class="spiegel-big-sign">-</div>
+              <div class="spiegel-big-label">Aszendent</div>
+            </div>
+          </div>
+          <div id="spiegel-planets-list"></div>
+        </div>
+
+        <!-- Human Design -->
+        <div class="spiegel-card">
+          <div class="spiegel-card-title"><span class="spiegel-card-icon">&#9672;</span> <span id="spiegel-hd-title">Human Design</span></div>
+          <div class="spiegel-hd-type">
+            <div id="spiegel-hd-type-name" class="spiegel-hd-type-name">-</div>
+            <div id="spiegel-hd-type-desc" class="spiegel-hd-type-desc"></div>
+          </div>
+          <div id="spiegel-hd-details"></div>
+          <div id="spiegel-hd-centers" class="spiegel-centers"></div>
+        </div>
+
+        <!-- Share -->
+        <button id="btn-spiegel-share" class="spiegel-share-btn" type="button">
+          <span>&#9741;</span> <span id="spiegel-share-label">Profil teilen</span>
+        </button>
+
+        <!-- Edit birth data -->
+        <button id="btn-spiegel-edit" class="btn" type="button" style="width:100%;margin-top:8px;font-size:13px;">Geburtsdaten &auml;ndern</button>
+      </div>
+    </section>
+
     <section id="screen-settings" class="screen">
       <div class="profile-header">
         <div id="profile-avatar" class="profile-avatar">?</div>
@@ -960,6 +1108,18 @@ Let us start by getting to know each other.</p>
             <label id="settings-timezone-label" for="settings-timezone" style="margin:0">Timezone</label>
             <input id="settings-timezone" type="text" style="margin-top:4px" />
           </div>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title" id="settings-spiegel-title">Dein Spiegel</div>
+        <div class="settings-item" role="button" tabindex="0" id="settings-spiegel-link" style="cursor:pointer;">
+          <div class="settings-item-icon sage">&#9788;</div>
+          <div class="settings-item-content">
+            <span id="settings-spiegel-label" class="settings-item-label">Kosmisches Profil anzeigen</span>
+            <span id="settings-birth-info" class="helper" style="font-size:12px;"></span>
+          </div>
+          <span style="color:var(--text-tertiary);font-size:16px;">&rarr;</span>
         </div>
       </div>
 
@@ -1086,6 +1246,7 @@ Let us start by getting to know each other.</p>
         "screen-chat",
         "screen-checkin",
         "screen-identity",
+        "screen-spiegel",
         "screen-settings"
       ];
 
@@ -1279,7 +1440,43 @@ Let us start by getting to know each other.</p>
           status_app_start_fail: "App did not start cleanly. Please reload the page.",
           status_local_mode: "Continuing in local mode.",
           a2hs_text: "Install MaiTribe for the best experience",
-          a2hs_install: "Install"
+          a2hs_install: "Install",
+          spiegel_title: "Your Mirror",
+          spiegel_sub: "Your cosmic profile",
+          spiegel_form_intro: "To calculate your astrological profile and Human Design, I need your birth data.",
+          spiegel_label_date: "Birth date",
+          spiegel_label_time: "Birth time",
+          spiegel_label_timezone: "Timezone (UTC)",
+          spiegel_label_place: "Birth place",
+          spiegel_calculate: "Calculate",
+          spiegel_skip: "Later",
+          spiegel_loading: "Calculating your profile...",
+          spiegel_astro_title: "Your Birth Chart",
+          spiegel_hd_title: "Human Design",
+          spiegel_share: "Share profile",
+          spiegel_edit_birth: "Edit birth data",
+          spiegel_sun: "Sun",
+          spiegel_moon: "Moon",
+          spiegel_rising: "Rising",
+          spiegel_hd_strategy: "Strategy",
+          spiegel_hd_authority: "Authority",
+          spiegel_hd_profile: "Profile",
+          spiegel_hd_definition: "Definition",
+          spiegel_hd_cross: "Incarnation Cross",
+          spiegel_hd_defined: "Defined",
+          spiegel_hd_undefined: "Open",
+          spiegel_home_title: "Your Mirror",
+          spiegel_home_sub: "Your cosmic profile",
+          spiegel_home_cta: "Discover your cosmic profile \u2192",
+          spiegel_home_hd_type: "HD Type",
+          spiegel_birth_saved: "Birth data saved!",
+          spiegel_enter_date: "Please enter your birth date.",
+          spiegel_enter_place: "Please enter your birth place.",
+          spiegel_calc_error: "Calculation error. Please try again.",
+          spiegel_place_placeholder: "e.g. Berlin, Germany",
+          settings_spiegel_title: "Your Mirror",
+          settings_spiegel_label: "View cosmic profile",
+          settings_birth_not_set: "Not set up yet"
         },
         de: {
           onboard_welcome_title: "Willkommen.",
@@ -1460,7 +1657,43 @@ Let us start by getting to know each other.</p>
           status_app_start_fail: "App startete nicht sauber. Bitte Seite neu laden.",
           status_local_mode: "Weiter im lokalen Modus.",
           a2hs_text: "Installiere MaiTribe f\u00FCr das beste Erlebnis",
-          a2hs_install: "Installieren"
+          a2hs_install: "Installieren",
+          spiegel_title: "Dein Spiegel",
+          spiegel_sub: "Dein kosmisches Profil",
+          spiegel_form_intro: "Um dein astrologisches Profil und Human Design zu berechnen, brauche ich deine Geburtsdaten.",
+          spiegel_label_date: "Geburtsdatum",
+          spiegel_label_time: "Geburtszeit",
+          spiegel_label_timezone: "Zeitzone (UTC)",
+          spiegel_label_place: "Geburtsort",
+          spiegel_calculate: "Berechnen",
+          spiegel_skip: "Sp\u00E4ter",
+          spiegel_loading: "Berechne dein Profil...",
+          spiegel_astro_title: "Dein Geburtschart",
+          spiegel_hd_title: "Human Design",
+          spiegel_share: "Profil teilen",
+          spiegel_edit_birth: "Geburtsdaten \u00E4ndern",
+          spiegel_sun: "Sonne",
+          spiegel_moon: "Mond",
+          spiegel_rising: "Aszendent",
+          spiegel_hd_strategy: "Strategie",
+          spiegel_hd_authority: "Autorit\u00E4t",
+          spiegel_hd_profile: "Profil",
+          spiegel_hd_definition: "Definition",
+          spiegel_hd_cross: "Inkarnationskreuz",
+          spiegel_hd_defined: "Definiert",
+          spiegel_hd_undefined: "Offen",
+          spiegel_home_title: "Dein Spiegel",
+          spiegel_home_sub: "Dein kosmisches Profil",
+          spiegel_home_cta: "Entdecke dein kosmisches Profil \u2192",
+          spiegel_home_hd_type: "HD Typ",
+          spiegel_birth_saved: "Geburtsdaten gespeichert!",
+          spiegel_enter_date: "Bitte gib dein Geburtsdatum ein.",
+          spiegel_enter_place: "Bitte gib deinen Geburtsort ein.",
+          spiegel_calc_error: "Berechnungsfehler. Bitte versuche es erneut.",
+          spiegel_place_placeholder: "z.B. Berlin, Deutschland",
+          settings_spiegel_title: "Dein Spiegel",
+          settings_spiegel_label: "Kosmisches Profil anzeigen",
+          settings_birth_not_set: "Noch nicht eingerichtet"
         }
       };
 
@@ -1718,6 +1951,8 @@ Let us start by getting to know each other.</p>
         setText("btn-settings-push", t("settings_push"));
         setText("btn-settings-test-push", t("settings_test_push"));
         setText("settings-privacy-link", t("settings_privacy_link"));
+        setText("settings-spiegel-title", t("settings_spiegel_title"));
+        setText("settings-spiegel-label", t("settings_spiegel_label"));
 
         setText("nav-home-label", t("nav_home"));
         setText("nav-chat-label", t("nav_mai"));
@@ -1729,6 +1964,38 @@ Let us start by getting to know each other.</p>
           statLabels[0].textContent = t("profile_stat_checkins");
           statLabels[1].textContent = t("profile_stat_chats");
           statLabels[2].textContent = t("profile_stat_days");
+        }
+
+        // Spiegel i18n
+        setText("spiegel-title", t("spiegel_title"));
+        setText("spiegel-sub", t("spiegel_sub"));
+        setText("spiegel-form-intro", t("spiegel_form_intro"));
+        setText("spiegel-label-date", t("spiegel_label_date"));
+        setText("spiegel-label-time", t("spiegel_label_time"));
+        setText("spiegel-label-timezone", t("spiegel_label_timezone"));
+        setText("spiegel-label-place", t("spiegel_label_place"));
+        setText("btn-spiegel-calculate", t("spiegel_calculate"));
+        setText("btn-spiegel-skip", t("spiegel_skip"));
+        setText("spiegel-loading-text", t("spiegel_loading"));
+        setText("spiegel-astro-title", t("spiegel_astro_title"));
+        setText("spiegel-hd-title", t("spiegel_hd_title"));
+        setText("spiegel-share-label", t("spiegel_share"));
+        setText("btn-spiegel-edit", t("spiegel_edit_birth"));
+        setText("home-spiegel-title", t("spiegel_home_title"));
+        setText("home-spiegel-sub", t("spiegel_home_sub"));
+        setText("home-spiegel-cta", t("spiegel_home_cta"));
+        setText("home-spiegel-sun-label", t("spiegel_sun"));
+        setText("home-spiegel-moon-label", t("spiegel_moon"));
+        setText("home-spiegel-type-label", t("spiegel_home_hd_type"));
+        var spiegelPlaceInput = getEl("spiegel-birth-place");
+        if (spiegelPlaceInput) spiegelPlaceInput.placeholder = t("spiegel_place_placeholder");
+
+        // Big three labels
+        var bigLabels = document.querySelectorAll(".spiegel-big-label");
+        if (bigLabels.length >= 3) {
+          bigLabels[0].textContent = t("spiegel_sun");
+          bigLabels[1].textContent = t("spiegel_moon");
+          bigLabels[2].textContent = t("spiegel_rising");
         }
 
         const chatInput = getEl("chat-input");
@@ -2552,6 +2819,9 @@ Write in ${lang}.`;
           var daysDiff = Math.max(1, Math.floor((Date.now() - new Date(appState.profile.created_at).getTime()) / 86400000));
           statDays.textContent = String(daysDiff);
         }
+
+        // Update Dein Spiegel home card
+        updateHomeSpiegelCard();
       }
 
       async function loadIdentityScreen() {
@@ -2589,6 +2859,21 @@ Write in ${lang}.`;
         getEl("settings-mindful-enabled").checked = appState.profile.mindful_reminders_enabled !== false;
         getEl("settings-mindful-count").value = String(appState.profile.mindful_reminder_count || 2);
         getEl("settings-event-enabled").checked = appState.profile.event_followup_enabled !== false;
+
+        // Birth data info
+        var birthInfo = getEl("settings-birth-info");
+        if (birthInfo) {
+          if (appState.profile.birth_date && appState.profile.astro_profile) {
+            var astro = appState.profile.astro_profile;
+            var sun = (astro && astro.sun && astro.sun.sign) || "";
+            var hd = appState.profile.human_design;
+            var hdType = (hd && hd.type && hd.type.name) || "";
+            birthInfo.textContent = [sun, hdType].filter(Boolean).join(" \u00B7 ") || appState.profile.birth_place || "";
+          } else {
+            var lang = getCurrentLanguage();
+            birthInfo.textContent = lang === "de" ? "Noch nicht eingerichtet" : "Not set up yet";
+          }
+        }
       }
 
       async function saveSettings() {
@@ -2963,6 +3248,10 @@ ALWAYS respond in English.`;
             prompt += `\n\nMEMORIES:\nYou know the following about this person from past conversations. That\u2019s normal \u2014 you just remember.\n\n${memoryList}\n\nRules:\n- NEVER mention memories in greetings.\n- Maximum ONE reference to something earlier per response, and only when it truly fits the topic.\n- When it doesn\u2019t fit, ignore the memories completely.\n- What the user says NOW always takes precedence.`;
           }
         }
+
+        // --- Astro/HD context ---
+        var astroCtx = buildAstroContext(user);
+        if (astroCtx) prompt += astroCtx;
 
         prompt += `\n\nName: ${userName || "friend"}`;
         return prompt;
@@ -3566,6 +3855,316 @@ No lists. No questions. Just a warm, honest reaction.`;
         recognition.start();
       }
 
+      // ── Dein Spiegel: Astro & Human Design ──
+
+      var _natalEnginePromise = null;
+      function loadNatalEngine() {
+        if (!_natalEnginePromise) {
+          _natalEnginePromise = import("https://esm.sh/natalengine@1.0.8").catch(function(err) {
+            console.error("[MaiTribe] Failed to load natalengine:", err);
+            _natalEnginePromise = null;
+            throw err;
+          });
+        }
+        return _natalEnginePromise;
+      }
+
+      var _geocodeTimer = null;
+      async function geocodeBirthPlace(query) {
+        if (!query || query.length < 3) return [];
+        try {
+          var url = "https://nominatim.openstreetmap.org/search?format=json&limit=5&q=" + encodeURIComponent(query);
+          var resp = await fetch(url, { headers: { "Accept-Language": getCurrentLanguage() || "en" } });
+          if (!resp.ok) return [];
+          var data = await resp.json();
+          return data.map(function(item) {
+            return { name: item.display_name, lat: parseFloat(item.lat), lng: parseFloat(item.lon) };
+          });
+        } catch (err) {
+          console.error("[MaiTribe] Geocode error:", err);
+          return [];
+        }
+      }
+
+      async function calculateAstroHD(birthDate, birthHour, timezone, lat, lng) {
+        var engine = await loadNatalEngine();
+        var astro = engine.calculateAstrology(birthDate, birthHour, timezone, lat, lng);
+        var hd = engine.calculateHumanDesign(birthDate, birthHour, timezone);
+        return { astro: astro, hd: hd };
+      }
+
+      async function saveBirthDataAndProfile(birthDate, birthTime, birthPlace, lat, lng, tz, astroResult, hdResult) {
+        if (!appState.supabase || !appState.currentUser) return;
+        var userId = appState.currentUser.id;
+
+        var updatePayload = {
+          birth_date: birthDate,
+          birth_time: birthTime,
+          birth_place: birthPlace,
+          birth_lat: lat,
+          birth_lng: lng,
+          astro_profile: astroResult,
+          human_design: hdResult,
+          wisdom_preferences: { mode: "passive" }
+        };
+
+        var { error } = await appState.supabase.from("users").update(updatePayload).eq("id", userId);
+        if (error) {
+          console.error("[MaiTribe] Save birth data error:", error);
+          throw error;
+        }
+
+        // Update local profile
+        Object.assign(appState.profile, updatePayload);
+      }
+
+      function renderSpiegelResults(astro, hd) {
+        var lang = getCurrentLanguage();
+
+        // Big Three
+        if (astro) {
+          setText("spiegel-sun", (astro.sun && astro.sun.sign) || "-");
+          setText("spiegel-moon", (astro.moon && astro.moon.sign) || "-");
+          setText("spiegel-rising", (astro.rising && astro.rising.sign) || "-");
+
+          // Planets list
+          var planetsEl = getEl("spiegel-planets-list");
+          if (planetsEl && astro.planets) {
+            var html = "";
+            var planetNames = Object.keys(astro.planets);
+            planetNames.forEach(function(name) {
+              var p = astro.planets[name];
+              if (p && p.sign) {
+                html += '<div class="spiegel-row"><span class="spiegel-label">' + name + '</span><span class="spiegel-value">' + p.sign + (p.degree != null ? " " + Math.round(p.degree) + "\u00B0" : "") + '</span></div>';
+              }
+            });
+            planetsEl.innerHTML = html;
+          }
+        }
+
+        // Human Design
+        if (hd) {
+          var typeName = (hd.type && hd.type.name) || "-";
+          setText("spiegel-hd-type-name", typeName);
+          var typeDesc = (hd.type && hd.type.description) || "";
+          setText("spiegel-hd-type-desc", typeDesc);
+
+          var detailsEl = getEl("spiegel-hd-details");
+          if (detailsEl) {
+            var rows = "";
+            if (hd.type && hd.type.strategy) rows += '<div class="spiegel-row"><span class="spiegel-label">' + t("spiegel_hd_strategy") + '</span><span class="spiegel-value">' + hd.type.strategy + '</span></div>';
+            if (hd.authority && hd.authority.name) rows += '<div class="spiegel-row"><span class="spiegel-label">' + t("spiegel_hd_authority") + '</span><span class="spiegel-value">' + hd.authority.name + '</span></div>';
+            if (hd.profile && hd.profile.numbers) rows += '<div class="spiegel-row"><span class="spiegel-label">' + t("spiegel_hd_profile") + '</span><span class="spiegel-value">' + hd.profile.numbers + (hd.profile.name ? " (" + hd.profile.name + ")" : "") + '</span></div>';
+            if (hd.definition) rows += '<div class="spiegel-row"><span class="spiegel-label">' + t("spiegel_hd_definition") + '</span><span class="spiegel-value">' + hd.definition + '</span></div>';
+            if (hd.incarnationCross && hd.incarnationCross.name) rows += '<div class="spiegel-row"><span class="spiegel-label">' + t("spiegel_hd_cross") + '</span><span class="spiegel-value">' + hd.incarnationCross.name + '</span></div>';
+            detailsEl.innerHTML = rows;
+          }
+
+          // Centers
+          var centersEl = getEl("spiegel-hd-centers");
+          if (centersEl && hd.centers) {
+            var tags = "";
+            if (hd.centers.definedNames && hd.centers.definedNames.length) {
+              hd.centers.definedNames.forEach(function(c) {
+                tags += '<span class="spiegel-center-tag defined">' + c + '</span>';
+              });
+            }
+            if (hd.centers.undefinedNames && hd.centers.undefinedNames.length) {
+              hd.centers.undefinedNames.forEach(function(c) {
+                tags += '<span class="spiegel-center-tag undefined">' + c + '</span>';
+              });
+            }
+            centersEl.innerHTML = tags;
+          }
+        }
+      }
+
+      function updateHomeSpiegelCard() {
+        var profile = appState.profile;
+        if (!profile || !profile.astro_profile) return;
+
+        var astro = profile.astro_profile;
+        var hd = profile.human_design;
+        var preview = getEl("home-spiegel-preview");
+        var cta = getEl("home-spiegel-cta");
+
+        if (astro && astro.sun) {
+          setText("home-spiegel-sun", (astro.sun && astro.sun.sign) || "-");
+          setText("home-spiegel-moon", (astro.moon && astro.moon.sign) || "-");
+          setText("home-spiegel-type", (hd && hd.type && hd.type.name) || "-");
+          if (preview) preview.style.display = "grid";
+          if (cta) cta.style.display = "none";
+        }
+      }
+
+      async function loadSpiegelScreen() {
+        var profile = appState.profile;
+
+        // Apply i18n to static labels
+        setText("spiegel-title", t("spiegel_title"));
+        setText("spiegel-sub", t("spiegel_sub"));
+
+        if (profile && profile.astro_profile && profile.human_design) {
+          // Has data — show results
+          getEl("spiegel-birth-form").style.display = "none";
+          getEl("spiegel-loading").style.display = "none";
+          getEl("spiegel-results").style.display = "block";
+          renderSpiegelResults(profile.astro_profile, profile.human_design);
+        } else {
+          // No data — show birth form
+          getEl("spiegel-birth-form").style.display = "block";
+          getEl("spiegel-loading").style.display = "none";
+          getEl("spiegel-results").style.display = "none";
+
+          // Pre-fill from existing profile data if any
+          if (profile && profile.birth_date) {
+            getEl("spiegel-birth-date").value = profile.birth_date;
+          }
+          if (profile && profile.birth_time) {
+            getEl("spiegel-birth-time").value = profile.birth_time.slice(0, 5);
+          }
+          if (profile && profile.birth_place) {
+            getEl("spiegel-birth-place").value = profile.birth_place;
+          }
+        }
+      }
+
+      async function handleSpiegelCalculate() {
+        var dateVal = getEl("spiegel-birth-date").value;
+        var timeVal = getEl("spiegel-birth-time").value || "12:00";
+        var tzVal = parseInt(getEl("spiegel-birth-tz").value) || 0;
+        var placeVal = getEl("spiegel-birth-place").value.trim();
+
+        if (!dateVal) {
+          setStatus("spiegel-form-status", t("spiegel_enter_date"), true);
+          return;
+        }
+        if (!placeVal) {
+          setStatus("spiegel-form-status", t("spiegel_enter_place"), true);
+          return;
+        }
+
+        // Get lat/lng
+        var lat = null;
+        var lng = null;
+        if (appState._spiegelSelectedPlace) {
+          lat = appState._spiegelSelectedPlace.lat;
+          lng = appState._spiegelSelectedPlace.lng;
+        } else {
+          // Try geocoding
+          var results = await geocodeBirthPlace(placeVal);
+          if (results.length) {
+            lat = results[0].lat;
+            lng = results[0].lng;
+          }
+        }
+
+        // Show loading
+        getEl("spiegel-birth-form").style.display = "none";
+        getEl("spiegel-loading").style.display = "block";
+        setText("spiegel-loading-text", t("spiegel_loading"));
+
+        try {
+          var hourDecimal = 12;
+          if (timeVal) {
+            var parts = timeVal.split(":");
+            hourDecimal = parseInt(parts[0]) + (parseInt(parts[1] || 0) / 60);
+          }
+
+          var result = await calculateAstroHD(dateVal, hourDecimal, tzVal, lat, lng);
+
+          await saveBirthDataAndProfile(dateVal, timeVal, placeVal, lat, lng, tzVal, result.astro, result.hd);
+
+          getEl("spiegel-loading").style.display = "none";
+          getEl("spiegel-results").style.display = "block";
+          renderSpiegelResults(result.astro, result.hd);
+          updateHomeSpiegelCard();
+
+          console.log("[MaiTribe] Astro/HD calculated and saved");
+        } catch (err) {
+          console.error("[MaiTribe] Spiegel calculation error:", err);
+          getEl("spiegel-loading").style.display = "none";
+          getEl("spiegel-birth-form").style.display = "block";
+          setStatus("spiegel-form-status", t("spiegel_calc_error"), true);
+        }
+      }
+
+      function buildAstroContext(user) {
+        if (!user) return "";
+        var astro = user.astro_profile;
+        var hd = user.human_design;
+        var prefs = user.wisdom_preferences;
+        if (!prefs || prefs.mode === "off") return "";
+        if (!astro && !hd) return "";
+
+        var langCode = user.language || getCurrentLanguage() || "en";
+        var ctx = "";
+
+        if (langCode === "de") {
+          ctx += "\n\nKOSMISCHES PROFIL (Hintergrundwissen \u2014 NIEMALS ungefragt erw\u00E4hnen):";
+          if (astro && astro.sun) {
+            ctx += "\nSonne: " + astro.sun.sign;
+            if (astro.moon) ctx += " | Mond: " + astro.moon.sign;
+            if (astro.rising) ctx += " | Aszendent: " + astro.rising.sign;
+          }
+          if (hd && hd.type) {
+            ctx += "\nHD-Typ: " + hd.type.name;
+            if (hd.type.strategy) ctx += " | Strategie: " + hd.type.strategy;
+            if (hd.authority && hd.authority.name) ctx += " | Autorit\u00E4t: " + hd.authority.name;
+            if (hd.profile && hd.profile.numbers) ctx += " | Profil: " + hd.profile.numbers;
+          }
+          ctx += "\n\nREGELN F\u00DCR KOSMISCHES WISSEN:";
+          ctx += "\n- Erw\u00E4hne Astrologie oder Human Design NIEMALS von dir aus.";
+          ctx += "\n- Nutze dieses Wissen nur subtil im Hintergrund \u2014 z.B. um Energie-Muster besser zu verstehen.";
+          ctx += "\n- Nur wenn die Person EXPLIZIT nach Astrologie, Transiten oder Human Design fragt, darfst du es direkt benennen.";
+          ctx += "\n- Die Identit\u00E4t der Person hat IMMER Vorrang vor jeder kosmischen Interpretation.";
+          ctx += "\n- Keine deterministischen Aussagen. Keine Horoskop-Sprache.";
+        } else {
+          ctx += "\n\nCOSMIC PROFILE (Background knowledge \u2014 NEVER mention unprompted):";
+          if (astro && astro.sun) {
+            ctx += "\nSun: " + astro.sun.sign;
+            if (astro.moon) ctx += " | Moon: " + astro.moon.sign;
+            if (astro.rising) ctx += " | Rising: " + astro.rising.sign;
+          }
+          if (hd && hd.type) {
+            ctx += "\nHD Type: " + hd.type.name;
+            if (hd.type.strategy) ctx += " | Strategy: " + hd.type.strategy;
+            if (hd.authority && hd.authority.name) ctx += " | Authority: " + hd.authority.name;
+            if (hd.profile && hd.profile.numbers) ctx += " | Profile: " + hd.profile.numbers;
+          }
+          ctx += "\n\nRULES FOR COSMIC KNOWLEDGE:";
+          ctx += "\n- NEVER mention astrology or Human Design on your own.";
+          ctx += "\n- Use this knowledge only subtly in the background \u2014 e.g. to better understand energy patterns.";
+          ctx += "\n- Only if the person EXPLICITLY asks about astrology, transits, or Human Design may you name it directly.";
+          ctx += "\n- The person\u2019s identity ALWAYS takes precedence over any cosmic interpretation.";
+          ctx += "\n- No deterministic statements. No horoscope language.";
+        }
+
+        return ctx;
+      }
+
+      function generateShareText(astro, hd, lang) {
+        var text = "";
+        if (lang === "de") {
+          text = "Mein kosmisches Profil:\n";
+          if (astro && astro.sun) text += "\u2609 Sonne: " + astro.sun.sign + "\n";
+          if (astro && astro.moon) text += "\u263D Mond: " + astro.moon.sign + "\n";
+          if (astro && astro.rising) text += "\u2191 Aszendent: " + astro.rising.sign + "\n";
+          if (hd && hd.type) text += "\u25C8 HD-Typ: " + hd.type.name + "\n";
+          if (hd && hd.profile) text += "Profil: " + hd.profile.numbers + "\n";
+          text += "\nEntdecke dein Profil auf MaiTribe!";
+        } else {
+          text = "My cosmic profile:\n";
+          if (astro && astro.sun) text += "\u2609 Sun: " + astro.sun.sign + "\n";
+          if (astro && astro.moon) text += "\u263D Moon: " + astro.moon.sign + "\n";
+          if (astro && astro.rising) text += "\u2191 Rising: " + astro.rising.sign + "\n";
+          if (hd && hd.type) text += "\u25C8 HD Type: " + hd.type.name + "\n";
+          if (hd && hd.profile) text += "Profile: " + hd.profile.numbers + "\n";
+          text += "\nDiscover your profile on MaiTribe!";
+        }
+        return text;
+      }
+
       function bindEvents() {
         updateRangeOutputs("onboard");
         updateRangeOutputs("checkin");
@@ -3768,6 +4367,94 @@ No lists. No questions. Just a warm, honest reaction.`;
           setStatus("identity-edit-status", "", false);
         });
         getEl("btn-identity-save").addEventListener("click", saveIdentityEdit);
+
+        // ── Dein Spiegel events ──
+        getEl("btn-spiegel-back").addEventListener("click", function() {
+          showScreen("screen-home");
+        });
+
+        getEl("home-spiegel-card").addEventListener("click", async function() {
+          await loadSpiegelScreen();
+          showScreen("screen-spiegel");
+        });
+        getEl("home-spiegel-card").addEventListener("keypress", async function(event) {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            await loadSpiegelScreen();
+            showScreen("screen-spiegel");
+          }
+        });
+
+        getEl("btn-spiegel-calculate").addEventListener("click", handleSpiegelCalculate);
+
+        getEl("btn-spiegel-skip").addEventListener("click", function() {
+          showScreen("screen-home");
+        });
+
+        getEl("btn-spiegel-edit").addEventListener("click", function() {
+          getEl("spiegel-results").style.display = "none";
+          getEl("spiegel-birth-form").style.display = "block";
+          setStatus("spiegel-form-status", "", false);
+        });
+
+        // Geocode autocomplete for birth place
+        getEl("spiegel-birth-place").addEventListener("input", function() {
+          var val = this.value.trim();
+          clearTimeout(_geocodeTimer);
+          var resultsEl = getEl("spiegel-place-results");
+          if (val.length < 3) {
+            resultsEl.style.display = "none";
+            return;
+          }
+          _geocodeTimer = setTimeout(async function() {
+            var results = await geocodeBirthPlace(val);
+            if (!results.length) {
+              resultsEl.style.display = "none";
+              return;
+            }
+            resultsEl.innerHTML = "";
+            results.forEach(function(place) {
+              var item = document.createElement("div");
+              item.style.cssText = "padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--line);";
+              item.textContent = place.name;
+              item.addEventListener("click", function() {
+                getEl("spiegel-birth-place").value = place.name;
+                appState._spiegelSelectedPlace = { lat: place.lat, lng: place.lng };
+                resultsEl.style.display = "none";
+              });
+              resultsEl.appendChild(item);
+            });
+            resultsEl.style.display = "block";
+          }, 500);
+        });
+
+        // Share button
+        getEl("btn-spiegel-share").addEventListener("click", async function() {
+          var profile = appState.profile;
+          if (!profile || !profile.astro_profile) return;
+          var lang = getCurrentLanguage();
+          var text = generateShareText(profile.astro_profile, profile.human_design, lang);
+          if (navigator.share) {
+            try {
+              await navigator.share({ title: "MaiTribe - " + t("spiegel_title"), text: text });
+            } catch (e) {
+              // User cancelled share
+            }
+          } else {
+            // Fallback: copy to clipboard
+            try {
+              await navigator.clipboard.writeText(text);
+              setStatus("spiegel-form-status", lang === "de" ? "In Zwischenablage kopiert!" : "Copied to clipboard!", false);
+            } catch (e) {
+              console.error("[MaiTribe] Share fallback error:", e);
+            }
+          }
+        });
+
+        getEl("settings-spiegel-link").addEventListener("click", async function() {
+          await loadSpiegelScreen();
+          showScreen("screen-spiegel");
+        });
 
         getEl("btn-settings-save").addEventListener("click", saveSettings);
         getEl("btn-settings-push").addEventListener("click", async () => {
