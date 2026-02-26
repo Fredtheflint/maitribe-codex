@@ -2865,7 +2865,7 @@ Write in ${lang}.`;
         if (birthInfo) {
           if (appState.profile.birth_date && appState.profile.astro_profile) {
             var astro = appState.profile.astro_profile;
-            var sun = (astro && astro.sun && astro.sun.sign) || "";
+            var sun = astro && astro.sun ? signName(astro.sun.sign) : "";
             var hd = appState.profile.human_design;
             var hdType = (hd && hd.type && hd.type.name) || "";
             birthInfo.textContent = [sun, hdType].filter(Boolean).join(" \u00B7 ") || appState.profile.birth_place || "";
@@ -3857,6 +3857,12 @@ No lists. No questions. Just a warm, honest reaction.`;
 
       // ── Dein Spiegel: Astro & Human Design ──
 
+      function signName(signObj) {
+        if (!signObj) return "-";
+        if (typeof signObj === "string") return signObj;
+        return signObj.name || signObj.symbol || "-";
+      }
+
       var _natalEnginePromise = null;
       function loadNatalEngine() {
         if (!_natalEnginePromise) {
@@ -3923,9 +3929,9 @@ No lists. No questions. Just a warm, honest reaction.`;
 
         // Big Three
         if (astro) {
-          setText("spiegel-sun", (astro.sun && astro.sun.sign) || "-");
-          setText("spiegel-moon", (astro.moon && astro.moon.sign) || "-");
-          setText("spiegel-rising", (astro.rising && astro.rising.sign) || "-");
+          setText("spiegel-sun", signName(astro.sun && astro.sun.sign));
+          setText("spiegel-moon", signName(astro.moon && astro.moon.sign));
+          setText("spiegel-rising", signName(astro.rising && astro.rising.sign));
 
           // Planets list
           var planetsEl = getEl("spiegel-planets-list");
@@ -3935,7 +3941,8 @@ No lists. No questions. Just a warm, honest reaction.`;
             planetNames.forEach(function(name) {
               var p = astro.planets[name];
               if (p && p.sign) {
-                html += '<div class="spiegel-row"><span class="spiegel-label">' + name + '</span><span class="spiegel-value">' + p.sign + (p.degree != null ? " " + Math.round(p.degree) + "\u00B0" : "") + '</span></div>';
+                var degStr = p.degree != null ? " " + (typeof p.degree === "number" ? Math.round(p.degree) + "\u00B0" : p.degree) : "";
+                html += '<div class="spiegel-row"><span class="spiegel-label">' + name.charAt(0).toUpperCase() + name.slice(1) + '</span><span class="spiegel-value">' + signName(p.sign) + degStr + '</span></div>';
               }
             });
             planetsEl.innerHTML = html;
@@ -3956,7 +3963,7 @@ No lists. No questions. Just a warm, honest reaction.`;
             if (hd.authority && hd.authority.name) rows += '<div class="spiegel-row"><span class="spiegel-label">' + t("spiegel_hd_authority") + '</span><span class="spiegel-value">' + hd.authority.name + '</span></div>';
             if (hd.profile && hd.profile.numbers) rows += '<div class="spiegel-row"><span class="spiegel-label">' + t("spiegel_hd_profile") + '</span><span class="spiegel-value">' + hd.profile.numbers + (hd.profile.name ? " (" + hd.profile.name + ")" : "") + '</span></div>';
             if (hd.definition) rows += '<div class="spiegel-row"><span class="spiegel-label">' + t("spiegel_hd_definition") + '</span><span class="spiegel-value">' + hd.definition + '</span></div>';
-            if (hd.incarnationCross && hd.incarnationCross.name) rows += '<div class="spiegel-row"><span class="spiegel-label">' + t("spiegel_hd_cross") + '</span><span class="spiegel-value">' + hd.incarnationCross.name + '</span></div>';
+            if (hd.incarnationCross && (hd.incarnationCross.fullName || hd.incarnationCross.name)) rows += '<div class="spiegel-row"><span class="spiegel-label">' + t("spiegel_hd_cross") + '</span><span class="spiegel-value">' + (hd.incarnationCross.fullName || hd.incarnationCross.name) + '</span></div>';
             detailsEl.innerHTML = rows;
           }
 
@@ -3964,16 +3971,16 @@ No lists. No questions. Just a warm, honest reaction.`;
           var centersEl = getEl("spiegel-hd-centers");
           if (centersEl && hd.centers) {
             var tags = "";
-            if (hd.centers.definedNames && hd.centers.definedNames.length) {
-              hd.centers.definedNames.forEach(function(c) {
-                tags += '<span class="spiegel-center-tag defined">' + c + '</span>';
-              });
-            }
-            if (hd.centers.undefinedNames && hd.centers.undefinedNames.length) {
-              hd.centers.undefinedNames.forEach(function(c) {
-                tags += '<span class="spiegel-center-tag undefined">' + c + '</span>';
-              });
-            }
+            var defCenters = hd.centers.defined || [];
+            var undefCenters = hd.centers.undefined || [];
+            defCenters.forEach(function(c) {
+              var label = (typeof c === "string") ? c : (c.name || c.theme || "");
+              if (label) tags += '<span class="spiegel-center-tag defined">' + label + '</span>';
+            });
+            undefCenters.forEach(function(c) {
+              var label = (typeof c === "string") ? c : (c.name || c.theme || "");
+              if (label) tags += '<span class="spiegel-center-tag undefined">' + label + '</span>';
+            });
             centersEl.innerHTML = tags;
           }
         }
@@ -3989,8 +3996,8 @@ No lists. No questions. Just a warm, honest reaction.`;
         var cta = getEl("home-spiegel-cta");
 
         if (astro && astro.sun) {
-          setText("home-spiegel-sun", (astro.sun && astro.sun.sign) || "-");
-          setText("home-spiegel-moon", (astro.moon && astro.moon.sign) || "-");
+          setText("home-spiegel-sun", signName(astro.sun && astro.sun.sign));
+          setText("home-spiegel-moon", signName(astro.moon && astro.moon.sign));
           setText("home-spiegel-type", (hd && hd.type && hd.type.name) || "-");
           if (preview) preview.style.display = "grid";
           if (cta) cta.style.display = "none";
@@ -4073,14 +4080,25 @@ No lists. No questions. Just a warm, honest reaction.`;
 
           var result = await calculateAstroHD(dateVal, hourDecimal, tzVal, lat, lng);
 
-          await saveBirthDataAndProfile(dateVal, timeVal, placeVal, lat, lng, tzVal, result.astro, result.hd);
-
+          // Show results immediately (even if save fails)
           getEl("spiegel-loading").style.display = "none";
           getEl("spiegel-results").style.display = "block";
           renderSpiegelResults(result.astro, result.hd);
+
+          // Store locally so home card and system prompt can use it
+          if (appState.profile) {
+            appState.profile.astro_profile = result.astro;
+            appState.profile.human_design = result.hd;
+            appState.profile.wisdom_preferences = { mode: "passive" };
+          }
           updateHomeSpiegelCard();
 
-          console.log("[MaiTribe] Astro/HD calculated and saved");
+          // Try to save to Supabase (non-blocking)
+          saveBirthDataAndProfile(dateVal, timeVal, placeVal, lat, lng, tzVal, result.astro, result.hd).catch(function(err) {
+            console.warn("[MaiTribe] Could not save birth data to DB (migration may not be run yet):", err.message || err);
+          });
+
+          console.log("[MaiTribe] Astro/HD calculated successfully");
         } catch (err) {
           console.error("[MaiTribe] Spiegel calculation error:", err);
           getEl("spiegel-loading").style.display = "none";
@@ -4103,9 +4121,9 @@ No lists. No questions. Just a warm, honest reaction.`;
         if (langCode === "de") {
           ctx += "\n\nKOSMISCHES PROFIL (Hintergrundwissen \u2014 NIEMALS ungefragt erw\u00E4hnen):";
           if (astro && astro.sun) {
-            ctx += "\nSonne: " + astro.sun.sign;
-            if (astro.moon) ctx += " | Mond: " + astro.moon.sign;
-            if (astro.rising) ctx += " | Aszendent: " + astro.rising.sign;
+            ctx += "\nSonne: " + signName(astro.sun.sign);
+            if (astro.moon) ctx += " | Mond: " + signName(astro.moon.sign);
+            if (astro.rising) ctx += " | Aszendent: " + signName(astro.rising.sign);
           }
           if (hd && hd.type) {
             ctx += "\nHD-Typ: " + hd.type.name;
@@ -4122,9 +4140,9 @@ No lists. No questions. Just a warm, honest reaction.`;
         } else {
           ctx += "\n\nCOSMIC PROFILE (Background knowledge \u2014 NEVER mention unprompted):";
           if (astro && astro.sun) {
-            ctx += "\nSun: " + astro.sun.sign;
-            if (astro.moon) ctx += " | Moon: " + astro.moon.sign;
-            if (astro.rising) ctx += " | Rising: " + astro.rising.sign;
+            ctx += "\nSun: " + signName(astro.sun.sign);
+            if (astro.moon) ctx += " | Moon: " + signName(astro.moon.sign);
+            if (astro.rising) ctx += " | Rising: " + signName(astro.rising.sign);
           }
           if (hd && hd.type) {
             ctx += "\nHD Type: " + hd.type.name;
@@ -4147,17 +4165,17 @@ No lists. No questions. Just a warm, honest reaction.`;
         var text = "";
         if (lang === "de") {
           text = "Mein kosmisches Profil:\n";
-          if (astro && astro.sun) text += "\u2609 Sonne: " + astro.sun.sign + "\n";
-          if (astro && astro.moon) text += "\u263D Mond: " + astro.moon.sign + "\n";
-          if (astro && astro.rising) text += "\u2191 Aszendent: " + astro.rising.sign + "\n";
+          if (astro && astro.sun) text += "\u2609 Sonne: " + signName(astro.sun.sign) + "\n";
+          if (astro && astro.moon) text += "\u263D Mond: " + signName(astro.moon.sign) + "\n";
+          if (astro && astro.rising) text += "\u2191 Aszendent: " + signName(astro.rising.sign) + "\n";
           if (hd && hd.type) text += "\u25C8 HD-Typ: " + hd.type.name + "\n";
           if (hd && hd.profile) text += "Profil: " + hd.profile.numbers + "\n";
           text += "\nEntdecke dein Profil auf MaiTribe!";
         } else {
           text = "My cosmic profile:\n";
-          if (astro && astro.sun) text += "\u2609 Sun: " + astro.sun.sign + "\n";
-          if (astro && astro.moon) text += "\u263D Moon: " + astro.moon.sign + "\n";
-          if (astro && astro.rising) text += "\u2191 Rising: " + astro.rising.sign + "\n";
+          if (astro && astro.sun) text += "\u2609 Sun: " + signName(astro.sun.sign) + "\n";
+          if (astro && astro.moon) text += "\u263D Moon: " + signName(astro.moon.sign) + "\n";
+          if (astro && astro.rising) text += "\u2191 Rising: " + signName(astro.rising.sign) + "\n";
           if (hd && hd.type) text += "\u25C8 HD Type: " + hd.type.name + "\n";
           if (hd && hd.profile) text += "Profile: " + hd.profile.numbers + "\n";
           text += "\nDiscover your profile on MaiTribe!";
