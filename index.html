@@ -1012,6 +1012,15 @@ Let us start by getting to know each other.</p>
 
       <!-- Results (shown when birth data exists) -->
       <div id="spiegel-results" style="display:none;">
+        <!-- Mai's personal interpretation -->
+        <div id="spiegel-interpretation" class="spiegel-card" style="display:none; background: linear-gradient(135deg, var(--sage-50), var(--sage-100));">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <span style="width:28px;height:28px;border-radius:50%;background:var(--sage-600);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;">m</span>
+            <strong id="spiegel-interp-title">Mai \u00FCber dich</strong>
+          </div>
+          <p id="spiegel-interpretation-text" style="font-size:15px;line-height:1.6;color:var(--text-primary);margin:0;"></p>
+        </div>
+
         <!-- Big Three -->
         <div class="spiegel-card">
           <div class="spiegel-card-title"><span class="spiegel-card-icon">&#9788;</span> <span id="spiegel-astro-title">Dein Geburtschart</span></div>
@@ -4067,6 +4076,18 @@ No lists. No questions. Just a warm, honest reaction.`;
           getEl("spiegel-loading").style.display = "none";
           getEl("spiegel-results").style.display = "block";
           renderSpiegelResults(profile.astro_profile, profile.human_design);
+          // Show saved interpretation if exists
+          var savedInterp = profile.wisdom_preferences && profile.wisdom_preferences.personal_interpretation;
+          if (savedInterp) {
+            var interpEl = getEl("spiegel-interpretation");
+            var interpTextEl = getEl("spiegel-interpretation-text");
+            var interpTitle = getEl("spiegel-interp-title");
+            if (interpEl && interpTextEl) {
+              interpTextEl.textContent = savedInterp;
+              if (interpTitle) interpTitle.textContent = getCurrentLanguage() === "de" ? "Mai \u00FCber dich" : "Mai about you";
+              interpEl.style.display = "block";
+            }
+          }
         } else {
           // No data — show birth form
           getEl("spiegel-birth-form").style.display = "block";
@@ -4142,6 +4163,33 @@ No lists. No questions. Just a warm, honest reaction.`;
             console.warn("[MaiTribe] Could not save birth data to DB (migration may not be run yet):", err.message || err);
           });
 
+          // Generate personal interpretation in background
+          generatePersonalInterpretation(result.astro, result.hd).then(function(interpText) {
+            if (interpText) {
+              var interpEl = getEl("spiegel-interpretation");
+              var interpTextEl = getEl("spiegel-interpretation-text");
+              var interpTitle = getEl("spiegel-interp-title");
+              if (interpEl && interpTextEl) {
+                interpTextEl.textContent = interpText;
+                if (interpTitle) interpTitle.textContent = getCurrentLanguage() === "de" ? "Mai \u00FCber dich" : "Mai about you";
+                interpEl.style.display = "block";
+                // Save interpretation to profile
+                if (appState.profile && appState.profile.wisdom_preferences) {
+                  appState.profile.wisdom_preferences.personal_interpretation = interpText;
+                  appState.profile.wisdom_preferences.interpretation_date = new Date().toISOString();
+                }
+                // Save to Supabase
+                if (appState.supabase && appState.currentUser) {
+                  appState.supabase.from("users").update({
+                    wisdom_preferences: appState.profile.wisdom_preferences
+                  }).eq("id", appState.currentUser.id).then(function() {
+                    console.log("[MaiTribe] Interpretation saved");
+                  });
+                }
+              }
+            }
+          }).catch(function(e) { console.warn("[MaiTribe] Interpretation generation failed:", e); });
+
           console.log("[MaiTribe] Astro/HD calculated successfully");
         } catch (err) {
           console.error("[MaiTribe] Spiegel calculation error:", err);
@@ -4166,44 +4214,89 @@ No lists. No questions. Just a warm, honest reaction.`;
         var langCode = user.language || getCurrentLanguage() || "en";
         var ctx = "";
 
+        // Helper: get element from sign object
+        function signElement(signObj) {
+          if (!signObj) return "";
+          if (typeof signObj === "object" && signObj.element) return signObj.element;
+          return "";
+        }
+
         if (langCode === "de") {
-          ctx += "\n\nKOSMISCHES PROFIL (Hintergrundwissen \u2014 NIEMALS ungefragt erw\u00E4hnen):";
+          ctx += "\n\n[KOSMISCHES PROFIL \u2014 nutze dieses Wissen unsichtbar, um die Person besser zu verstehen]\n";
           if (astro && astro.sun) {
-            ctx += "\nSonne: " + signName(astro.sun.sign);
-            if (astro.moon) ctx += " | Mond: " + signName(astro.moon.sign);
-            if (astro.rising) ctx += " | Aszendent: " + signName(astro.rising.sign);
+            var sunEl = signElement(astro.sun.sign);
+            ctx += "Sonne: " + signName(astro.sun.sign) + (sunEl ? " (" + sunEl + ")" : "") + " \u2014 Kernidentit\u00E4t\n";
+            if (astro.moon) {
+              var moonEl = signElement(astro.moon.sign);
+              ctx += "Mond: " + signName(astro.moon.sign) + (moonEl ? " (" + moonEl + ")" : "") + " \u2014 Emotionale Natur\n";
+            }
+            if (astro.rising && astro.rising.accurate) {
+              ctx += "Aszendent: " + signName(astro.rising.sign) + " \u2014 \u00C4u\u00DFeres Auftreten\n";
+            }
+            // Venus & Mars for emotional intelligence
+            var venus = findPlanet(astro.planets, "venus");
+            var mars = findPlanet(astro.planets, "mars");
+            if (venus && venus.sign) ctx += "Venus: " + signName(venus.sign) + " \u2014 Beziehungsstil\n";
+            if (mars && mars.sign) ctx += "Mars: " + signName(mars.sign) + " \u2014 Antrieb & Energie\n";
           }
           if (hd && hd.type) {
-            ctx += "\nHD-Typ: " + hd.type.name;
-            if (hd.type.strategy) ctx += " | Strategie: " + hd.type.strategy;
-            if (hd.authority && hd.authority.name) ctx += " | Autorit\u00E4t: " + hd.authority.name;
-            if (hd.profile && hd.profile.numbers) ctx += " | Profil: " + hd.profile.numbers;
+            ctx += "\nHuman Design: " + hd.type.name + "\n";
+            if (hd.type.strategy) ctx += "Strategie: " + hd.type.strategy + "\n";
+            if (hd.authority && hd.authority.name) ctx += "Autorit\u00E4t: " + hd.authority.name + "\n";
+            if (hd.profile && hd.profile.numbers) ctx += "Profil: " + hd.profile.numbers + "\n";
+            if (hd.definition) ctx += "Definition: " + hd.definition + "\n";
+            // Centers
+            if (hd.centers) {
+              var defC = hd.centers.defined || [];
+              var undefC = hd.centers.undefined || [];
+              if (defC.length) ctx += "Definierte Zentren: " + defC.map(function(c) { return typeof c === "string" ? c : (c.name || c); }).join(", ") + "\n";
+              if (undefC.length) ctx += "Offene Zentren: " + undefC.map(function(c) { return typeof c === "string" ? c : (c.name || c); }).join(", ") + " \u2014 hier nimmt die Person Energie von anderen auf\n";
+            }
           }
-          ctx += "\n\nREGELN F\u00DCR KOSMISCHES WISSEN:";
-          ctx += "\n- Erw\u00E4hne Astrologie oder Human Design NIEMALS von dir aus.";
-          ctx += "\n- Nutze dieses Wissen nur subtil im Hintergrund \u2014 z.B. um Energie-Muster besser zu verstehen.";
-          ctx += "\n- Nur wenn die Person EXPLIZIT nach Astrologie, Transiten oder Human Design fragt, darfst du es direkt benennen.";
-          ctx += "\n- Die Identit\u00E4t der Person hat IMMER Vorrang vor jeder kosmischen Interpretation.";
-          ctx += "\n- Keine deterministischen Aussagen. Keine Horoskop-Sprache.";
+          ctx += "\nREGELN F\u00DCR NUTZUNG:\n";
+          ctx += "- Erw\u00E4hne Astrologie oder Human Design NICHT von dir aus\n";
+          ctx += "- Wenn die Person DIREKT danach fragt, antworte darauf\n";
+          ctx += "- Nutze das Wissen um BESSERE Fragen zu stellen und die Person besser zu verstehen\n";
+          ctx += "- Beispiel: Person hat offenes Emotionalzentrum + Mond in Pisces \u2192 wenn sie sagt \"bin pl\u00F6tzlich traurig\", frag \"warst du gerade mit jemandem zusammen?\" statt generischen Tipp\n";
+          ctx += "- Identit\u00E4t hat IMMER Vorrang vor Astro/HD\n";
+          ctx += "- Keine deterministischen Aussagen. Keine Horoskop-Sprache.\n";
         } else {
-          ctx += "\n\nCOSMIC PROFILE (Background knowledge \u2014 NEVER mention unprompted):";
+          ctx += "\n\n[COSMIC PROFILE \u2014 use this knowledge invisibly to better understand the person]\n";
           if (astro && astro.sun) {
-            ctx += "\nSun: " + signName(astro.sun.sign);
-            if (astro.moon) ctx += " | Moon: " + signName(astro.moon.sign);
-            if (astro.rising) ctx += " | Rising: " + signName(astro.rising.sign);
+            var sunElEn = signElement(astro.sun.sign);
+            ctx += "Sun: " + signName(astro.sun.sign) + (sunElEn ? " (" + sunElEn + ")" : "") + " \u2014 Core identity\n";
+            if (astro.moon) {
+              var moonElEn = signElement(astro.moon.sign);
+              ctx += "Moon: " + signName(astro.moon.sign) + (moonElEn ? " (" + moonElEn + ")" : "") + " \u2014 Emotional nature\n";
+            }
+            if (astro.rising && astro.rising.accurate) {
+              ctx += "Rising: " + signName(astro.rising.sign) + " \u2014 Outer persona\n";
+            }
+            var venusEn = findPlanet(astro.planets, "venus");
+            var marsEn = findPlanet(astro.planets, "mars");
+            if (venusEn && venusEn.sign) ctx += "Venus: " + signName(venusEn.sign) + " \u2014 Relationship style\n";
+            if (marsEn && marsEn.sign) ctx += "Mars: " + signName(marsEn.sign) + " \u2014 Drive & energy\n";
           }
           if (hd && hd.type) {
-            ctx += "\nHD Type: " + hd.type.name;
-            if (hd.type.strategy) ctx += " | Strategy: " + hd.type.strategy;
-            if (hd.authority && hd.authority.name) ctx += " | Authority: " + hd.authority.name;
-            if (hd.profile && hd.profile.numbers) ctx += " | Profile: " + hd.profile.numbers;
+            ctx += "\nHuman Design: " + hd.type.name + "\n";
+            if (hd.type.strategy) ctx += "Strategy: " + hd.type.strategy + "\n";
+            if (hd.authority && hd.authority.name) ctx += "Authority: " + hd.authority.name + "\n";
+            if (hd.profile && hd.profile.numbers) ctx += "Profile: " + hd.profile.numbers + "\n";
+            if (hd.definition) ctx += "Definition: " + hd.definition + "\n";
+            if (hd.centers) {
+              var defCen = hd.centers.defined || [];
+              var undefCen = hd.centers.undefined || [];
+              if (defCen.length) ctx += "Defined centers: " + defCen.map(function(c) { return typeof c === "string" ? c : (c.name || c); }).join(", ") + "\n";
+              if (undefCen.length) ctx += "Open centers: " + undefCen.map(function(c) { return typeof c === "string" ? c : (c.name || c); }).join(", ") + " \u2014 where the person absorbs energy from others\n";
+            }
           }
-          ctx += "\n\nRULES FOR COSMIC KNOWLEDGE:";
-          ctx += "\n- NEVER mention astrology or Human Design on your own.";
-          ctx += "\n- Use this knowledge only subtly in the background \u2014 e.g. to better understand energy patterns.";
-          ctx += "\n- Only if the person EXPLICITLY asks about astrology, transits, or Human Design may you name it directly.";
-          ctx += "\n- The person\u2019s identity ALWAYS takes precedence over any cosmic interpretation.";
-          ctx += "\n- No deterministic statements. No horoscope language.";
+          ctx += "\nRULES:\n";
+          ctx += "- Do NOT mention astrology or Human Design on your own\n";
+          ctx += "- If the person asks DIRECTLY, answer them\n";
+          ctx += "- Use this knowledge to ask BETTER questions and understand the person\n";
+          ctx += "- Example: Person has open Emotional center + Moon in Pisces \u2192 if they say \"suddenly sad\", ask \"were you just with someone?\" instead of generic advice\n";
+          ctx += "- Identity ALWAYS takes precedence over Astro/HD\n";
+          ctx += "- No deterministic statements. No horoscope language.\n";
         }
 
         return ctx;
@@ -4229,6 +4322,48 @@ No lists. No questions. Just a warm, honest reaction.`;
           text += "\nDiscover your profile on MaiTribe!";
         }
         return text;
+      }
+
+      function findPlanet(planets, name) {
+        if (!planets) return null;
+        if (Array.isArray(planets)) return planets.find(function(p) { return p.name === name; });
+        return planets[name] || null;
+      }
+
+      async function generatePersonalInterpretation(astro, hd) {
+        var sun = (astro && astro.sun && astro.sun.sign) ? (astro.sun.sign.name || signName(astro.sun.sign)) : "?";
+        var sunElement = (astro && astro.sun && astro.sun.sign && astro.sun.sign.element) || "?";
+        var moon = (astro && astro.moon && astro.moon.sign) ? (astro.moon.sign.name || signName(astro.moon.sign)) : "?";
+        var moonElement = (astro && astro.moon && astro.moon.sign && astro.moon.sign.element) || "?";
+        var hdType = (hd && hd.type && hd.type.name) || "?";
+        var hdStrategy = (hd && hd.type && hd.type.strategy) || "?";
+        var hdAuthority = (hd && hd.authority && hd.authority.name) || "?";
+        var hdProfile = (hd && hd.profile && hd.profile.numbers) || "?";
+        var hdSignature = (hd && hd.type && hd.type.signature) || "?";
+        var hdNotSelf = (hd && hd.type && hd.type.notSelf) || "?";
+
+        var lang = getCurrentLanguage();
+        var prompt;
+        if (lang === "de") {
+          prompt = "Du bist Mai, eine warmherzige Begleiterin. Die Person hat gerade ihr kosmisches Profil berechnet. Gib eine PERS\u00D6NLICHE Interpretation in 3-4 S\u00E4tzen.\n\nDATEN:\n- Sonne: " + sun + " (" + sunElement + ")\n- Mond: " + moon + " (" + moonElement + ")\n- Human Design: " + hdType + " (Strategie: " + hdStrategy + ", Autorit\u00E4t: " + hdAuthority + ")\n- Profil: " + hdProfile + "\n- Signatur: " + hdSignature + " / Nicht-Selbst: " + hdNotSelf + "\n\nREGELN:\n- Sprich die Person direkt an (du)\n- Keine Listen, keine \u00DCberschriften, keine Aufz\u00E4hlungen\n- Verbinde Astro UND HD zu einem Gesamtbild \u2014 nicht einzeln beschreiben\n- Fokus auf die KOMBINATION die diese Person einzigartig macht\n- Kein Astro-Jargon, sondern alltagsnah\n- Warm aber direkt, nicht esoterisch-fluffig\n- Sprache: Deutsch\n- Max 4 S\u00E4tze";
+        } else {
+          prompt = "You are Mai, a warm companion. The person just calculated their cosmic profile. Give a PERSONAL interpretation in 3-4 sentences.\n\nDATA:\n- Sun: " + sun + " (" + sunElement + ")\n- Moon: " + moon + " (" + moonElement + ")\n- Human Design: " + hdType + " (Strategy: " + hdStrategy + ", Authority: " + hdAuthority + ")\n- Profile: " + hdProfile + "\n- Signature: " + hdSignature + " / Not-Self: " + hdNotSelf + "\n\nRULES:\n- Address the person directly (you)\n- No lists, no headings, no bullet points\n- Connect Astro AND HD into one picture \u2014 don't describe separately\n- Focus on the COMBINATION that makes this person unique\n- No astro jargon, keep it relatable\n- Warm but direct, not fluffy-esoteric\n- Max 4 sentences";
+        }
+
+        try {
+          var data = await callAI({
+            systemPrompt: prompt,
+            contents: [{ role: "user", parts: [{ text: lang === "de" ? "Sag mir was du siehst." : "Tell me what you see." }] }],
+            maxOutputTokens: 512,
+            temperature: 0.7,
+            topP: 0.9
+          });
+          var text = extractGeminiText(data);
+          return text || null;
+        } catch (e) {
+          console.error("[MaiTribe] Interpretation generation failed:", e);
+          return null;
+        }
       }
 
       function bindEvents() {

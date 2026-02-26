@@ -1,4 +1,4 @@
-const CACHE_VERSION = 4;
+const CACHE_VERSION = 5;
 const CACHE_NAME = "maitribe-cache-v" + CACHE_VERSION;
 const OFFLINE_FALLBACK = "/offline.html";
 
