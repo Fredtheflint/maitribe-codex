@@ -3866,8 +3866,15 @@ No lists. No questions. Just a warm, honest reaction.`;
       var _natalEnginePromise = null;
       function loadNatalEngine() {
         if (!_natalEnginePromise) {
-          _natalEnginePromise = import("https://esm.sh/natalengine@1.0.8").catch(function(err) {
-            console.error("[MaiTribe] Failed to load natalengine:", err);
+          console.log("[MaiTribe] Loading natalengine from CDN...");
+          _natalEnginePromise = import("https://cdn.jsdelivr.net/npm/natalengine@1.0.8/+esm").then(function(mod) {
+            console.log("[MaiTribe] natalengine loaded, exports:", Object.keys(mod));
+            return mod;
+          }).catch(function(err) {
+            console.warn("[MaiTribe] jsdelivr failed, trying esm.sh...", err);
+            return import("https://esm.sh/natalengine@1.0.8");
+          }).catch(function(err) {
+            console.error("[MaiTribe] All CDN sources failed:", err);
             _natalEnginePromise = null;
             throw err;
           });
@@ -3893,9 +3900,14 @@ No lists. No questions. Just a warm, honest reaction.`;
       }
 
       async function calculateAstroHD(birthDate, birthHour, timezone, lat, lng) {
+        console.log("[MaiTribe] calculateAstroHD called:", { birthDate: birthDate, birthHour: birthHour, timezone: timezone, lat: lat, lng: lng });
         var engine = await loadNatalEngine();
+        console.log("[MaiTribe] Engine loaded, calling calculateAstrology...");
         var astro = engine.calculateAstrology(birthDate, birthHour, timezone, lat, lng);
+        console.log("[MaiTribe] Astrology done. Sun:", astro && astro.sun && signName(astro.sun.sign));
+        console.log("[MaiTribe] Calling calculateHumanDesign...");
         var hd = engine.calculateHumanDesign(birthDate, birthHour, timezone);
+        console.log("[MaiTribe] HD done. Type:", hd && hd.type && hd.type.name);
         return { astro: astro, hd: hd };
       }
 
@@ -4101,9 +4113,13 @@ No lists. No questions. Just a warm, honest reaction.`;
           console.log("[MaiTribe] Astro/HD calculated successfully");
         } catch (err) {
           console.error("[MaiTribe] Spiegel calculation error:", err);
+          console.error("[MaiTribe] Error name:", err && err.name, "message:", err && err.message);
+          console.error("[MaiTribe] Error stack:", err && err.stack);
           getEl("spiegel-loading").style.display = "none";
           getEl("spiegel-birth-form").style.display = "block";
-          setStatus("spiegel-form-status", t("spiegel_calc_error"), true);
+          var errorMsg = t("spiegel_calc_error");
+          if (err && err.message) errorMsg += " (" + err.message + ")";
+          setStatus("spiegel-form-status", errorMsg, true);
         }
       }
 
