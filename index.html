@@ -833,6 +833,8 @@ Let us start by getting to know each other.</p>
         <h2 id="home-greeting" class="greeting">Welcome</h2>
       </div>
 
+      <div id="daily-identity-banner" style="display:none; margin-bottom: 12px;"></div>
+
       <div id="btn-home-checkin" class="home-card" role="button" tabindex="0">
         <div class="home-card-header" style="justify-content:space-between;">
           <div style="display:flex;align-items:center;gap:12px;">
@@ -1770,6 +1772,7 @@ Let us start by getting to know each other.</p>
           checkinResponse: "",
           generatedIdentity: ""
         },
+        latestTransits: null,
         config: loadConfig()
       };
 
@@ -1792,6 +1795,15 @@ Let us start by getting to know each other.</p>
 
       function getEl(id) {
         return document.getElementById(id);
+      }
+
+      function escapeHtml(value) {
+        return String(value == null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
       }
 
       function setStatus(id, message, isError) {
@@ -2587,7 +2599,7 @@ Write in ${lang}.`;
         }, 30000);
 
         try {
-          const responseResult = await callGeminiRaw(prompt, 500);
+          const responseResult = await callGeminiRaw(prompt, 1024);
           clearTimeout(timeoutId);
           const identity = responseResult.text || fallbackIdentity(answers, languageCode);
           appState.onboarding.generatedIdentity = identity;
@@ -2804,6 +2816,350 @@ Write in ${lang}.`;
         }
       }
 
+      function getCurrentUserId() {
+        return appState.currentUser && appState.currentUser.id;
+      }
+
+      function getCurrentUserData() {
+        return appState.profile || null;
+      }
+
+      function getTodayDateString() {
+        return new Date().toISOString().split("T")[0];
+      }
+
+      function getLang() {
+        return getCurrentLanguage() === "de" ? "de" : "en";
+      }
+
+      async function loadIdentityStatementsForProofs(userId) {
+        var statements = [];
+        if (!appState.supabase || !userId) return statements;
+
+        // Preferred table (if present)
+        try {
+          var tableResult = await appState.supabase
+            .from("identity_statements")
+            .select("id,text")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false });
+          if (!tableResult.error && Array.isArray(tableResult.data) && tableResult.data.length) {
+            return tableResult.data.map(function(s) {
+              return { id: String(s.id), text: s.text };
+            }).filter(function(s) { return s.text; });
+          }
+        } catch (err) {
+          console.warn("[MaiTribe] identity_statements lookup failed, fallback to identities:", err.message || err);
+        }
+
+        // Fallback to active identity row
+        var identityResult = await appState.supabase
+          .from("identities")
+          .select("id,full_text,one_liner,sentences")
+          .eq("user_id", userId)
+          .eq("is_active", true)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (identityResult.error || !identityResult.data) return statements;
+
+        var identity = identityResult.data;
+        if (Array.isArray(identity.sentences) && identity.sentences.length) {
+          identity.sentences.forEach(function(sentence, idx) {
+            if (sentence && String(sentence).trim()) {
+              statements.push({
+                id: String(identity.id) + ":" + String(idx),
+                text: String(sentence).trim()
+              });
+            }
+          });
+        }
+        if (!statements.length) {
+          var fallbackText = identity.one_liner || identity.full_text;
+          if (fallbackText) statements.push({ id: String(identity.id), text: fallbackText });
+        }
+        return statements;
+      }
+
+      async function generateMorningActivation(userId) {
+        if (!appState.supabase || !userId) return null;
+        var statements = await loadIdentityStatementsForProofs(userId);
+        if (!statements.length) return null;
+
+        var weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        var weekStart = weekAgo.toISOString().split("T")[0];
+        var recentProofsResult = await appState.supabase
+          .from("identity_proofs")
+          .select("statement_id")
+          .eq("user_id", userId)
+          .gte("date", weekStart);
+
+        if (recentProofsResult.error) {
+          if (recentProofsResult.error.code === "42P01") {
+            console.warn("[MaiTribe] identity_proofs table missing; run migration_2026_02_27_identity_proofs.sql");
+          } else {
+            console.warn("[MaiTribe] recent proofs lookup failed:", recentProofsResult.error.message);
+          }
+        }
+
+        var recentIds = (recentProofsResult.data || []).map(function(p) { return String(p.statement_id || ""); });
+        var neglected = statements.filter(function(s) { return recentIds.indexOf(String(s.id)) === -1; });
+        var pool = neglected.length ? neglected : statements;
+        var selected = pool[Math.floor(Math.random() * pool.length)];
+
+        var userData = getCurrentUserData() || {};
+        var hdType = (((userData.human_design || {}).type || {}).name || "Generator").toLowerCase();
+        var lang = getLang();
+
+        var questionMapDe = {
+          generator: 'Dein Statement: "' + selected.text + '" — Worauf hast du heute Bock, wenn du daran denkst?',
+          "manifesting generator": 'Dein Statement: "' + selected.text + '" — Worauf hast du heute Bock, wenn du daran denkst?',
+          projector: 'Dein Statement: "' + selected.text + '" — Was wäre heute ein Moment, wo du das einladen könntest?',
+          manifestor: 'Dein Statement: "' + selected.text + '" — Was willst du heute dafür in die Welt bringen?',
+          reflector: 'Dein Statement: "' + selected.text + '" — Wie fühlt sich das heute an?'
+        };
+        var questionMapEn = {
+          generator: 'Your statement: "' + selected.text + '" — What feels alive when you think about this today?',
+          "manifesting generator": 'Your statement: "' + selected.text + '" — What feels alive when you think about this today?',
+          projector: 'Your statement: "' + selected.text + '" — Where could you invite this in today?',
+          manifestor: 'Your statement: "' + selected.text + '" — What do you want to set in motion today?',
+          reflector: 'Your statement: "' + selected.text + '" — How does this feel in you today?'
+        };
+
+        var question = lang === "de"
+          ? (questionMapDe[hdType] || questionMapDe.generator)
+          : (questionMapEn[hdType] || questionMapEn.generator);
+
+        var today = getTodayDateString();
+        var row = {
+          user_id: userId,
+          statement_id: String(selected.id),
+          statement_text: selected.text,
+          morning_question: question,
+          date: today
+        };
+
+        var created = await appState.supabase.from("identity_proofs").insert(row).select("*").maybeSingle();
+        if (created.error && created.error.code === "23505") {
+          // Already created for today, fetch existing row
+          var existing = await appState.supabase
+            .from("identity_proofs")
+            .select("*")
+            .eq("user_id", userId)
+            .eq("date", today)
+            .maybeSingle();
+          if (existing.error || !existing.data) return null;
+          return { question: existing.data.morning_question, statementText: existing.data.statement_text, proofId: existing.data.id };
+        }
+        if (created.error || !created.data) return null;
+        return { question: question, statementText: selected.text, proofId: created.data.id };
+      }
+
+      async function generateEveningCheck(userId) {
+        if (!appState.supabase || !userId) return null;
+        var today = getTodayDateString();
+        var result = await appState.supabase
+          .from("identity_proofs")
+          .select("*")
+          .eq("user_id", userId)
+          .eq("date", today)
+          .maybeSingle();
+        if (result.error || !result.data || !result.data.morning_response) return null;
+        var lang = getLang();
+        return {
+          message: lang === "de"
+            ? ("Hey — " + result.data.morning_response + ". Geschafft?")
+            : ("Hey — " + result.data.morning_response + ". Did it happen?"),
+          proofId: result.data.id
+        };
+      }
+
+      async function handleEveningResponse(proofId, result, reflection) {
+        if (!appState.supabase || !proofId) return "";
+        var update = { evening_result: result };
+        if (reflection) update.evening_reflection = reflection;
+        await appState.supabase
+          .from("identity_proofs")
+          .update(update)
+          .eq("id", proofId);
+
+        if (result === "done") {
+          return getLang() === "de" ? "Proof gesammelt. 💪" : "Proof logged. 💪";
+        }
+        return getLang() === "de" ? "Kein Stress. Morgen ist neu." : "No pressure. Tomorrow is a fresh day.";
+      }
+
+      async function submitMorningResponse() {
+        var input = getEl("morning-response-input");
+        var response = input && input.value ? input.value.trim() : "";
+        if (!response) return;
+        var bannerEl = getEl("daily-identity-banner");
+        var proofId = bannerEl && bannerEl.dataset ? bannerEl.dataset.proofId : "";
+        var userId = getCurrentUserId();
+        if (!proofId || !userId || !appState.supabase) return;
+
+        await appState.supabase
+          .from("identity_proofs")
+          .update({ morning_response: response })
+          .eq("id", proofId)
+          .eq("user_id", userId);
+
+        await updateDailyBanner(userId);
+      }
+
+      async function submitEveningResponse(proofId, result) {
+        var bannerEl = getEl("daily-identity-banner");
+        var message = await handleEveningResponse(proofId, result);
+        if (!bannerEl) return;
+        bannerEl.innerHTML =
+          '<div style="padding:12px 16px;background:var(--sage-50);border-radius:12px;text-align:center;">' +
+            "<strong>" + escapeHtml(message) + "</strong>" +
+          "</div>";
+        bannerEl.style.display = "block";
+
+        setTimeout(function() {
+          if (bannerEl) bannerEl.style.display = "none";
+        }, 3000);
+      }
+
+      async function updateDailyBanner(userId) {
+        var bannerEl = getEl("daily-identity-banner");
+        if (!bannerEl || !appState.supabase || !userId) return;
+        bannerEl.style.display = "none";
+        bannerEl.innerHTML = "";
+        bannerEl.dataset.proofId = "";
+
+        var lang = getLang();
+        var hour = new Date().getHours();
+        var today = getTodayDateString();
+        var todayProofResult = await appState.supabase
+          .from("identity_proofs")
+          .select("*")
+          .eq("user_id", userId)
+          .eq("date", today)
+          .maybeSingle();
+
+        if (todayProofResult.error) {
+          if (todayProofResult.error.code !== "42P01") {
+            console.warn("[MaiTribe] updateDailyBanner error:", todayProofResult.error.message);
+          }
+          return;
+        }
+        var todayProof = todayProofResult.data || null;
+
+        if (hour < 14) {
+          if (!todayProof) {
+            var activation = await generateMorningActivation(userId);
+            if (activation) {
+              todayProof = {
+                id: activation.proofId,
+                morning_question: activation.question,
+                statement_text: activation.statementText
+              };
+            }
+          }
+
+          if (todayProof && !todayProof.morning_response) {
+            bannerEl.dataset.proofId = todayProof.id || "";
+            bannerEl.innerHTML =
+              '<div style="padding:16px;background:var(--sage-50);border-radius:12px;">' +
+                '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span>🌿</span><strong>Mai</strong></div>' +
+                '<p style="margin:0 0 12px 0;line-height:1.5;">' + escapeHtml(todayProof.morning_question || "") + '</p>' +
+                '<div style="display:flex;gap:8px;">' +
+                  '<input id="morning-response-input" type="text" placeholder="' + (lang === "de" ? "Deine Antwort..." : "Your answer...") + '" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;">' +
+                  '<button id="morning-response-submit" type="button" style="padding:10px 16px;background:var(--sage-600);border:none;border-radius:8px;color:#fff;cursor:pointer;">→</button>' +
+                "</div>" +
+              "</div>";
+            bannerEl.style.display = "block";
+            var submitBtn = getEl("morning-response-submit");
+            if (submitBtn) submitBtn.onclick = function() { submitMorningResponse(); };
+            return;
+          }
+
+          if (todayProof && todayProof.morning_response) {
+            bannerEl.innerHTML =
+              '<div style="padding:12px 16px;background:var(--sage-50);border-radius:12px;opacity:0.8;">' +
+                "<small>✓ " + (lang === "de" ? "Heute: " : "Today: ") + '"' + escapeHtml(todayProof.morning_response) + '"</small>' +
+              "</div>";
+            bannerEl.style.display = "block";
+            return;
+          }
+        } else if (hour >= 20) {
+          // No follow-up when morning question is ignored
+          if (todayProof && todayProof.morning_response && !todayProof.evening_result) {
+            var evening = await generateEveningCheck(userId);
+            if (!evening) return;
+            bannerEl.innerHTML =
+              '<div style="padding:16px;background:var(--sage-50);border-radius:12px;">' +
+                '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span>🌿</span><strong>Mai</strong></div>' +
+                '<p style="margin:0 0 12px 0;">' + escapeHtml(evening.message) + '</p>' +
+                '<div style="display:flex;gap:8px;">' +
+                  '<button id="evening-done-btn" type="button" style="flex:1;padding:10px;background:var(--sage-600);border:none;border-radius:8px;color:#fff;cursor:pointer;">' + (lang === "de" ? "Ja! ✓" : "Yes ✓") + "</button>" +
+                  '<button id="evening-not-done-btn" type="button" style="flex:1;padding:10px;background:#f0f0f0;border:none;border-radius:8px;color:#666;cursor:pointer;">' + (lang === "de" ? "Nee" : "Not yet") + "</button>" +
+                "</div>" +
+              "</div>";
+            bannerEl.style.display = "block";
+            var doneBtn = getEl("evening-done-btn");
+            var notDoneBtn = getEl("evening-not-done-btn");
+            if (doneBtn) doneBtn.onclick = function() { submitEveningResponse(evening.proofId, "done"); };
+            if (notDoneBtn) notDoneBtn.onclick = function() { submitEveningResponse(evening.proofId, "not_done"); };
+            return;
+          }
+        }
+      }
+
+      async function loadEvidenceVault(userId) {
+        if (!appState.supabase || !userId) return { byStatement: {}, weeklyCount: 0 };
+        var result = await appState.supabase
+          .from("identity_proofs")
+          .select("statement_id, statement_text, evening_result, date")
+          .eq("user_id", userId)
+          .eq("evening_result", "done")
+          .order("date", { ascending: false })
+          .limit(200);
+
+        if (result.error) {
+          if (result.error.code !== "42P01") {
+            console.warn("[MaiTribe] loadEvidenceVault error:", result.error.message);
+          }
+          return { byStatement: {}, weeklyCount: 0 };
+        }
+
+        var proofs = result.data || [];
+        var byStatement = {};
+        var weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        var weekStart = weekAgo.toISOString().split("T")[0];
+        var weeklyCount = 0;
+
+        proofs.forEach(function(proof) {
+          var key = String(proof.statement_id || "");
+          if (!key) return;
+          if (!byStatement[key]) {
+            byStatement[key] = {
+              text: proof.statement_text || "",
+              count: 0,
+              lastDate: proof.date || "",
+              streak: 0
+            };
+          }
+          byStatement[key].count += 1;
+          if (proof.date && proof.date >= weekStart) weeklyCount += 1;
+        });
+
+        return { byStatement: byStatement, weeklyCount: weeklyCount };
+      }
+
+      function renderStatementProgress(statementId, vaultMap) {
+        if (!vaultMap || !vaultMap[statementId]) {
+          return '<small style="color:#999;">' + (getLang() === "de" ? "Noch keine Proofs" : "No proofs yet") + "</small>";
+        }
+        var count = vaultMap[statementId].count || 0;
+        var suffix = count >= 7 ? " 🔥" : "";
+        return '<small style="color:var(--sage-600);">✓ ' + count + "x " + (getLang() === "de" ? "gelebt" : "lived") + suffix + "</small>";
+      }
+
       async function loadHomeScreen() {
         if (!appState.profile) return;
 
@@ -2833,6 +3189,7 @@ Write in ${lang}.`;
 
         const identity = identityResult.data;
         appState.activeIdentity = identity || null;
+        var vaultData = await loadEvidenceVault(appState.currentUser.id);
 
         if (identity && identity.sentences && identity.sentences.length) {
           const seed = Number(new Date().toISOString().slice(8, 10));
@@ -2846,8 +3203,8 @@ Write in ${lang}.`;
 
         // Update identity evidence counter
         var evidenceEl = getEl("home-identity-evidence");
-        if (evidenceEl && identity && identity.sentences) {
-          var n = identity.sentences.length;
+        if (evidenceEl) {
+          var n = vaultData.weeklyCount || 0;
           evidenceEl.textContent = lang === "de"
             ? (n + " Beweis" + (n !== 1 ? "e" : "") + " diese Woche")
             : (n + " evidence" + (n !== 1 ? "s" : "") + " this week");
@@ -2886,6 +3243,20 @@ Write in ${lang}.`;
 
         // Update Dein Spiegel home card
         updateHomeSpiegelCard();
+
+        // Daily morning/evening identity loop banner
+        updateDailyBanner(appState.currentUser.id).catch(function(err) {
+          console.warn("[MaiTribe] updateDailyBanner skipped:", err && err.message ? err.message : err);
+        });
+
+        // Transit snapshot for chat context (best-effort, non-blocking)
+        if (appState.profile && appState.profile.astro_profile) {
+          calculateCurrentTransits().then(function(data) {
+            if (data) appState.latestTransits = data;
+          }).catch(function(err) {
+            console.warn("[MaiTribe] background transit snapshot failed:", err && err.message ? err.message : err);
+          });
+        }
       }
 
       async function loadIdentityScreen() {
@@ -2899,7 +3270,31 @@ Write in ${lang}.`;
           .maybeSingle();
 
         appState.activeIdentity = data || null;
-        getEl("identity-view").textContent = (data && data.full_text) || t("identity_empty");
+        var identityView = getEl("identity-view");
+        var vault = await loadEvidenceVault(appState.currentUser.id);
+        var vaultMap = vault.byStatement || {};
+
+        if (identityView) {
+          if (!data || !data.full_text) {
+            identityView.textContent = t("identity_empty");
+          } else if (Array.isArray(data.sentences) && data.sentences.length) {
+            var lines = data.sentences.map(function(sentence, idx) {
+              var key = String(data.id) + ":" + String(idx);
+              return (
+                '<div style="padding:10px 0;border-bottom:1px solid rgba(0,0,0,0.06);">' +
+                  '<div style="font-size:15px;color:var(--text-primary);line-height:1.5;margin-bottom:4px;">' + escapeHtml(sentence) + '</div>' +
+                  renderStatementProgress(key, vaultMap) +
+                "</div>"
+              );
+            }).join("");
+            identityView.innerHTML = lines;
+          } else {
+            var keySingle = String(data.id);
+            identityView.innerHTML =
+              '<div style="font-size:15px;color:var(--text-primary);line-height:1.6;">' + escapeHtml(data.full_text) + "</div>" +
+              '<div style="margin-top:8px;">' + renderStatementProgress(keySingle, vaultMap) + "</div>";
+          }
+        }
         getEl("identity-edit-text").value = (data && data.full_text) || "";
       }
 
@@ -3266,6 +3661,13 @@ Wenn die Person am Nullpunkt ist, emotional aufgew\u00FChlt, oder einen schweren
 - Erst wenn die Person von sich aus mehr teilt, \u00F6ffnet sich der Raum f\u00FCr mehr.
 - Trigger-W\u00F6rter: Nullpunkt, am Ende, kann nicht mehr, alles egal, warum noch, will nicht mehr, ausgebrannt, zusammengebrochen, allein, einsam.
 
+ISOLATION — WICHTIGE REGEL:
+Wenn jemand sagt, dass sie sich zur\u00FCckziehen, Freunde vernachl\u00E4ssigen, lieber allein sind oder niemanden sehen wollen:
+- Sage NIEMALS "Das ist normal" oder "Allein sein ist gerade genau richtig" oder "Du brauchst jetzt einfach deine Ruhe".
+- Frag stattdessen: "Wie geht's dir damit, dass du dich gerade zur\u00FCckziehst?" oder "Fehlt dir was dabei?".
+- Wenn die letzten Monate schwer waren UND die Person sich isoliert, behandle es als Warnsignal und bleib aufmerksam.
+- Du darfst Alleinsein nicht romantisieren. Sei neugierig, nicht dr\u00E4ngend.
+
 NIE WIDERSPRECHEN:
 Wenn jemand sagt was ihnen hilft ("Musik gibt mir Energie", "Laufen macht meinen Kopf frei", "Mit meiner Katze kuscheln hilft"):
 - ERST validieren: "Was h\u00F6rst du gerade?" / "Mach an!" / "Wie s\u00FC\u00DF, wie hei\u00DFt sie?"
@@ -3368,6 +3770,13 @@ When the person is at rock bottom, emotionally overwhelmed, or having a really h
 - Instead: Just be there. "I get that. How are you feeling right now?"
 - Only when the person shares more on their own does the space open for more.
 - Trigger words: rock bottom, can\u2019t anymore, done, don\u2019t care, why bother, burned out, broken, alone, lonely.
+
+ISOLATION — IMPORTANT RULE:
+When someone says they are withdrawing, neglecting friends, preferring isolation, or avoiding people:
+- NEVER say "That is normal" or "Being alone is exactly right right now" or "You just need to be alone".
+- Ask instead: "How does it feel to pull away like this?" or "Do you miss anything in that?".
+- If they say the past months were very hard AND they are isolating, treat it as a warning signal and stay attentive.
+- Do not romanticize isolation. Be curious without pushing.
 
 NEVER CONTRADICT:
 When someone says what helps them ("Music gives me energy", "Running clears my head", "Cuddling my cat helps"):
@@ -3505,7 +3914,7 @@ Identity always has priority.`;
         const data = await callAI({
           systemPrompt: systemPrompt,
           contents: payloadHistory,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 1024,
           timeout: 30000,
           temperature: 0.8,
           topP: 0.9
@@ -3576,7 +3985,7 @@ Identity always has priority.`;
               generationConfig: {
                 temperature: options.temperature == null ? 0.8 : options.temperature,
                 topP: options.topP == null ? 0.9 : options.topP,
-                maxOutputTokens: options.maxOutputTokens == null ? 2048 : options.maxOutputTokens
+                maxOutputTokens: options.maxOutputTokens == null ? 1024 : options.maxOutputTokens
               }
             })
           });
@@ -3707,7 +4116,7 @@ Identity always has priority.`;
           var data = await callAI({
             systemPrompt: extractionSystemPrompt,
             contents: [{ role: "user", parts: [{ text: conversationText }] }],
-            maxOutputTokens: 512,
+            maxOutputTokens: 1024,
             temperature: 0.3,
             topP: 0.9
           });
@@ -3795,7 +4204,7 @@ Identity always has priority.`;
           "User timezone: " + (profile.timezone || "UTC") + "\\n" +
           "Message: \"" + text.replace(/"/g, "\\\\\"") + "\"";
 
-        const rawResult = await callGeminiRaw(prompt, 180);
+        const rawResult = await callGeminiRaw(prompt, 1024);
         if (!rawResult.text) return;
 
         const event = safeJsonParse(rawResult.text, { found: false });
@@ -4950,6 +5359,60 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
                 : "Open centers: " + openCenters.join(", ") + " — where this person absorbs energy from others\n");
             }
           }
+        }
+
+        // Optional current transit context for chat quality (best-effort, non-blocking)
+        try {
+          var transits = appState.latestTransits || null;
+          if (!transits && astro) {
+            // Fast sync fallback if ephemeris globals are available
+            var quickPositions = getTodayPlanetPositions();
+            if (quickPositions) {
+              var quickAspects = calculateTransitAspects(quickPositions, astro).map(function(a) {
+                return {
+                  transit: a.transitPlanet || "",
+                  natal: a.natalPlanet || "",
+                  type: a.aspectType || "",
+                  orb: a.orb,
+                  transitSign: a.transitSign || ""
+                };
+              });
+              transits = {
+                moonSign: quickPositions.moon && quickPositions.moon.sign ? quickPositions.moon.sign : null,
+                aspects: quickAspects
+              };
+            }
+          }
+
+          if (transits && Array.isArray(transits.aspects) && transits.aspects.length) {
+            if (langCode === "de") {
+              ctx += "\nHEUTIGE TRANSITE (nur nutzen wenn es passt):\n";
+              if (transits.moonSign) ctx += "Mond heute: " + transits.moonSign + "\n";
+            } else {
+              ctx += "\nTODAY'S TRANSITS (use only when relevant):\n";
+              if (transits.moonSign) ctx += "Moon today: " + transits.moonSign + "\n";
+            }
+
+            transits.aspects.slice(0, 3).forEach(function(aspect) {
+              var transitPlanet = aspect.transit || aspect.transitPlanet || "";
+              var natalPlanet = aspect.natal || aspect.natalPlanet || "";
+              var aspectType = aspect.type || aspect.aspectType || "";
+              var orb = aspect.orb == null ? "?" : aspect.orb;
+              if (!transitPlanet || !natalPlanet || !aspectType) return;
+
+              var tLabel = String(transitPlanet).charAt(0).toUpperCase() + String(transitPlanet).slice(1);
+              var nLabel = String(natalPlanet).charAt(0).toUpperCase() + String(natalPlanet).slice(1);
+              ctx += "Transit-" + tLabel + " " + aspectType + " Natal-" + nLabel + " (Orb: " + orb + "°)\n";
+            });
+
+            if (langCode === "de") {
+              ctx += "Erwähne Transite nur wenn die Person danach fragt oder es klar zum aktuellen Befinden passt.\n";
+            } else {
+              ctx += "Mention transits only when the person asks or it clearly fits their current state.\n";
+            }
+          }
+        } catch (e) {
+          console.log("[MaiTribe] Transit context skipped:", e && e.message ? e.message : e);
         }
 
         if (langCode === "de") {
