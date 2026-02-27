@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MaiTribe Onboarding</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #fafaf7;
+      --surface: #ffffff;
+      --surface-soft: #f2f3ec;
+      --text: #1f251d;
+      --text-muted: #5f6758;
+      --sage: #556349;
+      --sage-strong: #46553d;
+      --border: #d6dbcf;
+      --radius: 18px;
+      --shadow: 0 14px 38px rgba(37, 47, 33, 0.1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: radial-gradient(circle at 20% 0%, #ffffff 0%, var(--bg) 52%, #eef1e7 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .card {
+      width: min(860px, 100%);
+      background: color-mix(in srgb, var(--surface), #ffffff 70%);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .progress {
+      height: 5px;
+      background: #e7ebdf;
+    }
+
+    .progress > div {
+      height: 100%;
+      width: calc((var(--step) / 3) * 100%);
+      background: linear-gradient(90deg, #6f7d5f 0%, var(--sage) 100%);
+      transition: width 220ms ease;
+    }
+
+    .inner {
+      padding: 36px clamp(18px, 3.2vw, 48px);
+    }
+
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    .brand {
+      font-family: "DM Serif Display", serif;
+      color: var(--sage);
+      font-size: clamp(40px, 7vw, 64px);
+      letter-spacing: 0.02em;
+      margin: 0;
+    }
+
+    h2 {
+      font-family: "DM Serif Display", serif;
+      font-size: clamp(34px, 5vw, 46px);
+      line-height: 1.06;
+      margin: 8px 0 10px;
+    }
+
+    p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: clamp(17px, 2.2vw, 20px);
+      line-height: 1.45;
+    }
+
+    .stack { display: grid; gap: 18px; margin-top: 26px; }
+
+    textarea {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+      padding: 14px 16px;
+      font: inherit;
+      color: var(--text);
+      min-height: 140px;
+      resize: vertical;
+      outline: none;
+    }
+
+    textarea:focus {
+      border-color: color-mix(in srgb, var(--sage), #fff 20%);
+      box-shadow: 0 0 0 4px rgba(85, 99, 73, 0.13);
+    }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+
+    .chip {
+      border: 1px solid var(--border);
+      background: #f6f8f2;
+      color: #41503a;
+      border-radius: 999px;
+      padding: 9px 14px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .chip:hover { border-color: #bcc4b1; }
+
+    .slider-grid { display: grid; gap: 16px; margin-top: 8px; }
+
+    .slider-row {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #f7f8f3;
+      padding: 14px 14px 10px;
+    }
+
+    .row-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .row-top span:first-child { font-weight: 600; color: #2f3c2a; }
+    .score {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 700;
+      background: #dde4d4;
+      color: #33412d;
+    }
+
+    input[type="range"] { width: 100%; accent-color: var(--sage); }
+
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 28px;
+      gap: 12px;
+    }
+
+    .ghost, .primary {
+      border: none;
+      border-radius: 13px;
+      padding: 12px 18px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .ghost {
+      background: transparent;
+      color: #61705b;
+      border: 1px solid var(--border);
+    }
+
+    .primary {
+      background: var(--sage);
+      color: #fff;
+      min-width: 176px;
+    }
+
+    .primary:hover { background: var(--sage-strong); }
+
+    .sub {
+      margin-top: 14px;
+      font-size: 14px;
+      color: #6f7866;
+    }
+
+    .result {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 14px;
+      background: #eef2e7;
+      color: #364433;
+      font-size: 14px;
+      display: none;
+    }
+
+    @media (max-width: 640px) {
+      .inner { padding: 24px 16px; }
+      .actions { flex-direction: column-reverse; align-items: stretch; }
+      .primary, .ghost { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card" id="app" style="--step:1;">
+    <div class="progress"><div></div></div>
+    <div class="inner">
+      <section class="screen active" data-step="1">
+        <p class="brand">mai</p>
+        <h2>Dein Raum. Deine Wahrheit.</h2>
+        <p>Kein Lärm. Kein Druck. Nur ein klarer Start mit einer klugen Begleiterin, die zuhört.</p>
+        <div class="actions">
+          <button class="ghost" type="button" data-action="skip">Später</button>
+          <button class="primary" type="button" data-action="next">Weiter</button>
+        </div>
+      </section>
+
+      <section class="screen" data-step="2">
+        <h2>Wer willst du sein?</h2>
+        <p>Schreib einen Satz, der sich wahr und mutig anfühlt. Das ist deine Identität für die nächsten Tage.</p>
+        <div class="stack">
+          <textarea id="identityText" placeholder="Ich bin jemand, der auch an schweren Tagen freundlich mit sich bleibt."></textarea>
+          <div class="chips" id="chips">
+            <button class="chip" type="button">mutig handeln</button>
+            <button class="chip" type="button">ruhig bleiben</button>
+            <button class="chip" type="button">klare Grenzen setzen</button>
+            <button class="chip" type="button">dranbleiben</button>
+            <button class="chip" type="button">weich und ehrlich sein</button>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="ghost" type="button" data-action="back">Zurück</button>
+          <button class="primary" type="button" data-action="next">Weiter zum Check-in</button>
+        </div>
+      </section>
+
+      <section class="screen" data-step="3">
+        <h2>Wie geht es dir gerade?</h2>
+        <p>Nur ein kurzer erster Check-in. Vier Slider, dann bist du drin.</p>
+
+        <div class="slider-grid">
+          <label class="slider-row">
+            <div class="row-top"><span>Body</span><span class="score" data-score="body">6</span></div>
+            <input type="range" min="1" max="10" value="6" data-key="body" />
+          </label>
+          <label class="slider-row">
+            <div class="row-top"><span>Mind</span><span class="score" data-score="mind">6</span></div>
+            <input type="range" min="1" max="10" value="6" data-key="mind" />
+          </label>
+          <label class="slider-row">
+            <div class="row-top"><span>Soul</span><span class="score" data-score="soul">6</span></div>
+            <input type="range" min="1" max="10" value="6" data-key="soul" />
+          </label>
+          <label class="slider-row">
+            <div class="row-top"><span>Energy</span><span class="score" data-score="energy">6</span></div>
+            <input type="range" min="1" max="10" value="6" data-key="energy" />
+          </label>
+        </div>
+
+        <div class="actions">
+          <button class="ghost" type="button" data-action="back">Zurück</button>
+          <button class="primary" type="button" data-action="finish">Onboarding abschließen</button>
+        </div>
+        <p class="sub">Hinweis: Dieses Prototype speichert lokal in <code>localStorage</code>.</p>
+        <div class="result" id="result"></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const screens = Array.from(document.querySelectorAll('.screen'));
+      const app = document.getElementById('app');
+      const identityText = document.getElementById('identityText');
+      const result = document.getElementById('result');
+      let step = 1;
+
+      function setStep(next) {
+        step = Math.max(1, Math.min(3, next));
+        app.style.setProperty('--step', String(step));
+        screens.forEach((el) => el.classList.toggle('active', Number(el.dataset.step) === step));
+      }
+
+      document.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-action]');
+        if (!button) return;
+        const action = button.dataset.action;
+        if (action === 'next') setStep(step + 1);
+        if (action === 'back') setStep(step - 1);
+        if (action === 'skip') setStep(2);
+        if (action === 'finish') finishOnboarding();
+      });
+
+      document.getElementById('chips').addEventListener('click', (event) => {
+        const chip = event.target.closest('.chip');
+        if (!chip) return;
+        const value = chip.textContent.trim();
+        const base = identityText.value.trim();
+        identityText.value = base ? `${base} ${value}` : `Ich bin jemand, der ${value}.`;
+        identityText.focus();
+      });
+
+      document.querySelectorAll('input[type="range"]').forEach((range) => {
+        range.addEventListener('input', () => {
+          const key = range.dataset.key;
+          const score = document.querySelector(`[data-score="${key}"]`);
+          if (score) score.textContent = range.value;
+        });
+      });
+
+      function finishOnboarding() {
+        const payload = {
+          identity: identityText.value.trim(),
+          checkin: {
+            body: Number(document.querySelector('[data-key="body"]').value),
+            mind: Number(document.querySelector('[data-key="mind"]').value),
+            soul: Number(document.querySelector('[data-key="soul"]').value),
+            energy: Number(document.querySelector('[data-key="energy"]').value)
+          },
+          completed_at: new Date().toISOString()
+        };
+
+        localStorage.setItem('maitribe.onboarding.v2', JSON.stringify(payload));
+        result.style.display = 'block';
+        result.textContent = 'Fertig. Daten lokal gespeichert. Nächster Schritt: mit Supabase verbinden und als User-Profile + Check-in persistieren.';
+      }
+    })();
+  </script>
+</body>
+</html>

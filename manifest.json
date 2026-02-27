@@ -1,15 +1,15 @@
 {
   "name": "MaiTribe",
   "short_name": "MaiTribe",
-  "description": "Deine kluge Begleiterin fuer Body, Mind, Soul und Spirit",
+  "description": "Your wise companion for body, mind, soul and spirit",
   "id": "/",
   "start_url": "/index.html",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#131814",
-  "theme_color": "#131814",
-  "lang": "de",
+  "background_color": "#FAFAF7",
+  "theme_color": "#556349",
+  "lang": "en",
   "categories": ["health", "lifestyle", "wellness"],
   "icons": [
     {
@@ -29,6 +29,12 @@
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "maskable"
+    },
+    {
+      "src": "/icons/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }

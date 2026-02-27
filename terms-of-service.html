@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MaiTribe Terms of Service</title>
+  <style>
+    :root {
+      --bg: #fafaf7;
+      --surface: #ffffff;
+      --text: #1f251d;
+      --muted: #5e6658;
+      --sage: #556349;
+      --border: #d7dccf;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 28px 16px;
+    }
+    .wrap {
+      max-width: 880px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 26px;
+    }
+    h1, h2 { font-family: "DM Serif Display", Georgia, serif; margin: 0 0 10px; }
+    h1 { color: var(--sage); font-size: clamp(30px, 4.2vw, 44px); }
+    h2 { font-size: 26px; margin-top: 28px; }
+    p, li { color: #2a3128; }
+    .meta { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+    .lang-switch { display: flex; gap: 8px; margin: 14px 0 20px; }
+    .lang-switch button {
+      border: 1px solid var(--border);
+      background: #f1f4eb;
+      color: #3a4934;
+      border-radius: 999px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .lang-switch button.active { background: var(--sage); color: #fff; border-color: var(--sage); }
+    [data-lang] { display: none; }
+    [data-lang].active { display: block; }
+    a { color: var(--sage); }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>MaiTribe Terms of Service</h1>
+    <p class="meta">Last updated: February 25, 2026</p>
+
+    <div class="lang-switch">
+      <button type="button" data-lang-btn="en" class="active">English</button>
+      <button type="button" data-lang-btn="de">Deutsch</button>
+    </div>
+
+    <section data-lang="en" class="active">
+      <p>By using MaiTribe, you agree to these terms.</p>
+
+      <h2>1. Service description</h2>
+      <p>MaiTribe is an AI wellness companion for reflection and personal growth. It is not therapy and not medical care.</p>
+
+      <h2>2. Eligibility</h2>
+      <p>You must be legally allowed to use digital services in your jurisdiction. If you are under legal age, parental consent may be required.</p>
+
+      <h2>3. Account and access</h2>
+      <ul>
+        <li>You are responsible for your login credentials.</li>
+        <li>You must provide accurate account information.</li>
+        <li>We may suspend accounts for abuse or misuse.</li>
+      </ul>
+
+      <h2>4. Acceptable use</h2>
+      <p>You agree not to use the service for illegal activity, harassment, abuse, or attempts to break system security.</p>
+
+      <h2>5. AI limitations</h2>
+      <ul>
+        <li>AI output can be inaccurate or incomplete.</li>
+        <li>You are responsible for personal decisions based on app output.</li>
+        <li>Do not use MaiTribe for emergencies.</li>
+      </ul>
+
+      <h2>6. No medical or therapeutic relationship</h2>
+      <p>MaiTribe does not provide diagnosis, treatment, or crisis intervention. In emergency situations, contact local emergency services.</p>
+
+      <h2>7. Data and privacy</h2>
+      <p>Your data is processed as described in the Privacy Policy. By using the app, you acknowledge processing via Supabase and Gemini API for core functionality.</p>
+
+      <h2>8. Intellectual property</h2>
+      <p>The app, brand assets, and product logic are protected by applicable IP laws. You may not copy, resell, or reverse-engineer the service unlawfully.</p>
+
+      <h2>9. Payments and subscriptions</h2>
+      <p>If paid plans are offered, billing terms, renewal cycles, and cancellation conditions will be shown at purchase time.</p>
+
+      <h2>10. Termination</h2>
+      <p>You may stop using MaiTribe at any time. We may terminate access for serious terms violations.</p>
+
+      <h2>11. Liability limitation</h2>
+      <p>To the extent permitted by law, MaiTribe is provided "as is" without guarantees of uninterrupted or error-free operation.</p>
+
+      <h2>12. Changes to terms</h2>
+      <p>We may update these terms. Material changes will be communicated in-app or on this page.</p>
+
+      <h2>13. Contact</h2>
+      <p>Questions: <a href="mailto:f.stutt@icloud.com">f.stutt@icloud.com</a></p>
+    </section>
+
+    <section data-lang="de">
+      <p>Mit der Nutzung von MaiTribe stimmst du diesen Nutzungsbedingungen zu.</p>
+
+      <h2>1. Leistungsbeschreibung</h2>
+      <p>MaiTribe ist eine AI-Wellness-Begleitung für Reflexion und persönliches Wachstum. Kein Therapie- und kein Medizinprodukt.</p>
+
+      <h2>2. Nutzungsvoraussetzungen</h2>
+      <p>Du musst die App rechtlich nutzen dürfen. Bei Minderjährigen kann eine Zustimmung der Erziehungsberechtigten erforderlich sein.</p>
+
+      <h2>3. Account und Zugang</h2>
+      <ul>
+        <li>Du bist für deine Login-Daten verantwortlich.</li>
+        <li>Deine Account-Angaben müssen korrekt sein.</li>
+        <li>Bei Missbrauch können wir Accounts sperren.</li>
+      </ul>
+
+      <h2>4. Zulässige Nutzung</h2>
+      <p>Keine Nutzung für rechtswidrige Inhalte, Belästigung, Missbrauch oder Angriffe auf die Systemsicherheit.</p>
+
+      <h2>5. Grenzen von AI-Antworten</h2>
+      <ul>
+        <li>AI-Antworten können unvollständig oder fehlerhaft sein.</li>
+        <li>Du triffst persönliche Entscheidungen in eigener Verantwortung.</li>
+        <li>MaiTribe ist nicht für Notfälle geeignet.</li>
+      </ul>
+
+      <h2>6. Kein medizinisches oder therapeutisches Verhältnis</h2>
+      <p>MaiTribe bietet keine Diagnose, Behandlung oder Krisenintervention. Bei akuten Notfällen bitte lokale Notdienste kontaktieren.</p>
+
+      <h2>7. Daten und Datenschutz</h2>
+      <p>Die Datenverarbeitung erfolgt gemäß Privacy Policy. Mit Nutzung der App stimmst du der Verarbeitung über Supabase und Gemini API für Kernfunktionen zu.</p>
+
+      <h2>8. Geistiges Eigentum</h2>
+      <p>App, Marke und Produktlogik sind rechtlich geschützt. Unzulässiges Kopieren, Weiterverkaufen oder Reverse Engineering ist nicht erlaubt.</p>
+
+      <h2>9. Zahlungen und Abos</h2>
+      <p>Falls kostenpflichtige Pläne angeboten werden, werden Preise, Verlängerungen und Kündigungsbedingungen beim Kauf angezeigt.</p>
+
+      <h2>10. Kündigung / Beendigung</h2>
+      <p>Du kannst die Nutzung jederzeit beenden. Bei schwerwiegenden Verstößen können wir den Zugang beenden.</p>
+
+      <h2>11. Haftungsbegrenzung</h2>
+      <p>Soweit gesetzlich zulässig wird MaiTribe "wie gesehen" bereitgestellt, ohne Garantie auf unterbrechungsfreien oder fehlerfreien Betrieb.</p>
+
+      <h2>12. Änderungen der Bedingungen</h2>
+      <p>Wir können diese Bedingungen aktualisieren. Wesentliche Änderungen kommunizieren wir in der App oder auf dieser Seite.</p>
+
+      <h2>13. Kontakt</h2>
+      <p>Fragen: <a href="mailto:f.stutt@icloud.com">f.stutt@icloud.com</a></p>
+    </section>
+  </main>
+
+  <script>
+    const buttons = document.querySelectorAll('[data-lang-btn]');
+    const sections = document.querySelectorAll('[data-lang]');
+    buttons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const lang = btn.getAttribute('data-lang-btn');
+        buttons.forEach((b) => b.classList.toggle('active', b === btn));
+        sections.forEach((s) => s.classList.toggle('active', s.getAttribute('data-lang') === lang));
+        document.documentElement.lang = lang;
+      });
+    });
+  </script>
+</body>
+</html>
