@@ -948,6 +948,48 @@ Let us start by getting to know each other.</p>
       </div>
 
       <div id="checkin-response" class="panel hidden" style="margin-top: 12px;"></div>
+
+      <!-- Transit-enhanced result screen -->
+      <div id="checkin-result" class="hidden" style="margin-top:16px;">
+        <div class="panel" style="margin-bottom:12px;text-align:center;">
+          <div id="checkin-result-title" style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:12px;">Your day today</div>
+          <div class="checkin-mini-grid">
+            <div class="checkin-mini-item"><span id="result-lbl-body">Body</span><span id="result-val-body" class="slider-val body" style="font-size:16px;min-width:20px;">5</span><div class="checkin-mini-bar"><div id="result-fill-body" class="checkin-mini-fill" style="width:50%;background:var(--body-color)"></div></div></div>
+            <div class="checkin-mini-item"><span id="result-lbl-mind">Mind</span><span id="result-val-mind" class="slider-val mind" style="font-size:16px;min-width:20px;">5</span><div class="checkin-mini-bar"><div id="result-fill-mind" class="checkin-mini-fill" style="width:50%;background:var(--mind-color)"></div></div></div>
+            <div class="checkin-mini-item"><span id="result-lbl-soul">Soul</span><span id="result-val-soul" class="slider-val soul" style="font-size:16px;min-width:20px;">5</span><div class="checkin-mini-bar"><div id="result-fill-soul" class="checkin-mini-fill" style="width:50%;background:var(--soul-color)"></div></div></div>
+            <div class="checkin-mini-item"><span id="result-lbl-energy">Energy</span><span id="result-val-energy" class="slider-val energy" style="font-size:16px;min-width:20px;">5</span><div class="checkin-mini-bar"><div id="result-fill-energy" class="checkin-mini-fill" style="width:50%;background:var(--energy-color)"></div></div></div>
+          </div>
+        </div>
+
+        <div id="checkin-mai-card" class="panel" style="margin-bottom:12px;background:linear-gradient(135deg,var(--sage-50),var(--sage-100));">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span style="width:28px;height:28px;border-radius:50%;background:var(--sage-600);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;">m</span>
+            <strong>Mai</strong>
+          </div>
+          <p id="checkin-mai-text" style="font-size:15px;line-height:1.6;margin:0;color:var(--text-primary);"></p>
+        </div>
+
+        <div id="checkin-tips-wrap" class="hidden">
+          <div id="checkin-tip-body" class="panel hidden" style="margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:15px;">Body</span></div>
+            <p id="checkin-tip-body-text" style="font-size:14px;line-height:1.5;margin:0;color:var(--text-secondary);"></p>
+          </div>
+          <div id="checkin-tip-mind" class="panel hidden" style="margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:15px;">Mind</span></div>
+            <p id="checkin-tip-mind-text" style="font-size:14px;line-height:1.5;margin:0;color:var(--text-secondary);"></p>
+          </div>
+          <div id="checkin-tip-soul" class="panel hidden" style="margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:15px;">Soul</span></div>
+            <p id="checkin-tip-soul-text" style="font-size:14px;line-height:1.5;margin:0;color:var(--text-secondary);"></p>
+          </div>
+          <div id="checkin-tip-spirit" class="panel hidden" style="margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:15px;">Spirit</span></div>
+            <p id="checkin-tip-spirit-text" style="font-size:14px;line-height:1.5;margin:0;color:var(--text-secondary);"></p>
+          </div>
+        </div>
+
+        <button id="btn-checkin-result-back" class="btn btn-inline" style="margin-top:12px;width:100%;text-align:center;" type="button">Back</button>
+      </div>
     </section>
 
     <section id="screen-identity" class="screen">
@@ -1231,6 +1273,7 @@ Let us start by getting to know each other.</p>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1"></script>
+  <script src="https://cdn.jsdelivr.net/gh/mivion/ephemeris@master/ephemeris-0.1.0.js" charset="utf-8"></script>
   <script>
     // Apply LockManager bypass immediately after Supabase SDK load.
     (function () {
@@ -1354,6 +1397,9 @@ Let us start by getting to know each other.</p>
           checkin_submit: "Submit check-in",
           checkin_saving: "Saving...",
           checkin_saved: "Saved.",
+          checkin_result_title: "Your day today",
+          checkin_result_back: "Back",
+          checkin_reflecting: "Mai is reflecting...",
           identity_title: "Your Identity",
           identity_back: "Back",
           identity_edit: "Edit",
@@ -1568,6 +1614,9 @@ Let us start by getting to know each other.</p>
           checkin_submit: "Check-in abschicken",
           checkin_saving: "Speichere...",
           checkin_saved: "Gespeichert.",
+          checkin_result_title: "Dein Tag heute",
+          checkin_result_back: "Zur\u00FCck",
+          checkin_reflecting: "Mai reflektiert...",
           identity_title: "Deine Identit\u00E4t",
           identity_back: "Zur\u00FCck",
           identity_edit: "Bearbeiten",
@@ -1929,6 +1978,12 @@ Let us start by getting to know each other.</p>
         setText("checkin-label-mind", t("slider_mind"));
         setText("checkin-label-soul", t("slider_soul"));
         setText("checkin-label-energy", t("slider_energy"));
+        setText("checkin-result-title", t("checkin_result_title"));
+        setText("btn-checkin-result-back", t("checkin_result_back"));
+        setText("result-lbl-body", t("slider_body"));
+        setText("result-lbl-mind", t("slider_mind"));
+        setText("result-lbl-soul", t("slider_soul"));
+        setText("result-lbl-energy", t("slider_energy"));
 
         setText("identity-screen-title", t("identity_title"));
         setText("btn-identity-back", t("identity_back"));
@@ -3332,6 +3387,72 @@ CRISIS:
 ALWAYS respond in English.`;
         }
 
+        // --- Prompt v5 supplement (EPE, vulnerability, anti-repetition) ---
+        if (langCode === "de") {
+          prompt += `\n\nGESPRÄCHSRHYTHMUS — EPE (Elicit → Provide → Elicit):
+Du folgst dem EPE-Rhythmus:
+PHASE 1 — VERSTEHEN (max 2-3 Nachrichten):
+Hör zu, frag nach, spiegel. MAXIMAL 2 Fragen am Stück bevor du etwas zurückgibst. Nie endlose Frageketten.
+PHASE 2 — ETWAS ZURÜCKGEBEN:
+Nach 1-3 Fragen MUSST du echten Mehrwert liefern:
+Ein Neuroscience-Nugget das erklärt WARUM etwas passiert, oder ein konkreter Tipp, oder eine überraschende Beobachtung.
+Nicht alles auf einmal. EIN Element pro Antwort.
+PHASE 3 — CHECK-IN (kurz):
+"Hilft dir das?" oder "Steckt da noch was anderes?" — kurz, nicht therapeutisch.
+ERLAUBNIS-FRAGE bei Tipps wenn du unsicher bist:
+"Darf ich dir was dazu sagen?" oder "Ich hätte eine Idee dazu — magst du die hören?"
+
+WENN JEMAND VERLETZLICH IST:
+Wenn die Person am Nullpunkt ist, einen schweren Moment hat, emotional aufgewühlt ist:
+KEIN Neuroscience. KEIN Coaching. Keine Tipps, keine Einordnung.
+KEINE klinische Sprache. Nicht "Das ist Selbstschutz und der ist okay."
+KEIN Normalisieren von Isolation. Nie sagen "Allein sein ist gerade genau richtig."
+Stattdessen: Einfach da sein. "Das kann ich verstehen. Wie geht's dir denn jetzt gerade damit?"
+Erst wenn die Person von sich aus mehr teilt, öffnet sich der Raum für mehr.
+Trigger-Wörter: Nullpunkt, am Ende, kann nicht mehr, alles egal, will nicht mehr, ausgebrannt, zusammengebrochen, allein, einsam.
+
+NIE WIDERSPRECHEN:
+Wenn jemand sagt was hilft ("Musik gibt mir Energie", "Laufen macht meinen Kopf frei"), niemals dagegen argumentieren.
+Erst validieren, dann optional ein passendes Nugget. Erst validieren. Dann Nugget. Nie widersprechen.
+
+TON-KORREKTUREN:
+Beginne Antworten NICHT mit "Uff", "Ugh", "Ohh" oder ähnlichen Wiederholungs-Eröffnungen.
+"nee" oder "nein" bedeutet einfach NEIN — nicht emotionaler Widerstand.
+Klinge wie eine kluge Freundin, nicht wie ein Therapeut.
+Identität hat immer Vorrang vor allem anderen.`;
+        } else {
+          prompt += `\n\nCONVERSATION RHYTHM — EPE (Elicit → Provide → Elicit):
+Follow the EPE rhythm:
+PHASE 1 — UNDERSTAND (max 2-3 messages):
+Listen, ask, mirror. MAX 2 questions in a row before giving something back. Never create long question chains.
+PHASE 2 — PROVIDE:
+After 1-3 questions, give real value:
+One neuroscience nugget, one concrete tip, or one surprising observation.
+Do not stack all at once. ONE element per response.
+PHASE 3 — CHECK-IN (short):
+"Does that help?" or "Is there something else underneath?" — short, not clinical.
+Ask permission when unsure:
+"Can I share something?" or "I have an idea — want to hear it?"
+
+WHEN SOMEONE IS VULNERABLE:
+If the person is at rock bottom or emotionally overwhelmed:
+NO neuroscience. NO coaching. No tips, no framing.
+NO clinical language. Never normalize isolation.
+Instead: be present. "I get that. How are you feeling right now with this?"
+Only move forward when they open the space.
+Trigger words: rock bottom, can't anymore, done, don't care, burned out, collapsed, alone, lonely.
+
+NEVER CONTRADICT:
+When someone says what helps them ("music helps", "running clears my head"), do not argue.
+Validate first, then optionally add a matching nugget.
+
+TONE CORRECTIONS:
+Do not start with "Uff", "Ugh", "Ohh", or repetitive openings.
+"No"/"nah" means a simple NO — not emotional resistance.
+Sound like a smart friend, not a therapist.
+Identity always has priority.`;
+        }
+
         // --- Identity context ---
         if (identity && identity.full_text) {
           prompt += `\n\nIDENTIT\u00C4T / IDENTITY: "${identity.full_text}"`;
@@ -3706,35 +3827,104 @@ ALWAYS respond in English.`;
             return;
           }
 
-          setStatus("checkin-status", t("status_saved"));
+          setStatus("checkin-status", t("checkin_reflecting"));
 
-          var safeReflection;
+          // Hide form, show result skeleton with scores
+          var formPanel = getEl("btn-checkin-submit").parentElement;
+          if (formPanel) formPanel.style.display = "none";
+          var maiText = getEl("checkin-mai-text");
+          if (maiText) maiText.textContent = t("checkin_reflecting");
+          showCheckinResult(body, mind, soul, energy, { message: t("checkin_reflecting"), tips: {} });
+
+          var safeResponse = { message: "", tips: {} };
+          var transitData = null;
           try {
-            var reflectionPromise = (async function() {
-              var ctx = await getUserContext(appState.currentUser.id);
-              var prompt = buildCheckinPrompt({ body: body, mind: mind, soul: soul, energy: energy, note: note, context: ctx });
-              return await callGeminiForCheckin(prompt);
-            })();
-
-            var timeoutPromise = new Promise(function(_, reject) {
-              setTimeout(function() { reject(new Error("timeout")); }, 15000);
+            // Parallel: get user context + calculate transits
+            var ctxPromise = getUserContext(appState.currentUser.id);
+            var transitPromise = calculateCurrentTransits().catch(function(err) {
+              console.warn("[MaiTribe] Transit calc failed, continuing without:", err.message);
+              return null;
             });
 
-            var reflectionResult = await Promise.race([reflectionPromise, timeoutPromise]);
-            safeReflection = reflectionResult.text || buildLocalCheckinFallback({ body: body, mind: mind, soul: soul, energy: energy, note: note, context: {} });
+            var results = await Promise.all([ctxPromise, transitPromise]);
+            var ctx = results[0];
+            transitData = results[1];
+
+            var hasTransitData = transitData && (transitData.aspects.length > 0 || transitData.moonSign);
+            var hasNatalData = appState.profile && appState.profile.astro_profile && appState.profile.astro_profile.sun;
+
+            var prompt;
+            var sysPrompt;
+            var langCode = getCurrentLanguage();
+
+            if (hasTransitData && hasNatalData) {
+              // Transit-enhanced prompt with JSON response
+              prompt = buildTransitCheckinPrompt({ body: body, mind: mind, soul: soul, energy: energy, note: note, context: ctx, transits: transitData });
+              sysPrompt = langCode === "de"
+                ? "Du bist Mai \u2014 eine kluge, warme Freundin. Kurz, echt, direkt. Kein Astro-Jargon. Antworte als reines JSON. Antworte auf Deutsch."
+                : "You are Mai \u2014 a smart, warm friend. Short, real, direct. No astro jargon. Reply as pure JSON.";
+            } else {
+              // Fallback: simple check-in prompt (no transit data)
+              prompt = buildCheckinPrompt({ body: body, mind: mind, soul: soul, energy: energy, note: note, context: ctx });
+              sysPrompt = langCode === "de"
+                ? "Du bist Mai \u2014 eine kluge, warme Freundin. Kurz, echt, direkt. Keine Listen, kein Coaching-Ton, keine Emojis. 2-3 S\u00E4tze max. Antworte auf Deutsch."
+                : "You are Mai \u2014 a smart, warm friend. Short, real, direct. No lists, no coaching tone, no emojis. 2-3 sentences max.";
+            }
+
+            var aiPromise = callAI({
+              systemPrompt: sysPrompt,
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              maxOutputTokens: hasTransitData ? 1024 : 512,
+              temperature: 0.75,
+              topP: 0.9
+            });
+
+            var timeoutPromise = new Promise(function(_, reject) {
+              setTimeout(function() { reject(new Error("timeout")); }, 20000);
+            });
+
+            var aiResult = await Promise.race([aiPromise, timeoutPromise]);
+            var rawText = extractGeminiText(aiResult);
+
+            if (hasTransitData && hasNatalData) {
+              safeResponse = parseTransitResponse(rawText);
+            } else {
+              safeResponse = { message: rawText || buildLocalCheckinFallback({ body: body, mind: mind, soul: soul, energy: energy, note: note, context: {} }), tips: {} };
+            }
           } catch (e) {
             console.error("[MaiTribe] checkin reflection error:", e);
-            safeReflection = buildLocalCheckinFallback({ body: body, mind: mind, soul: soul, energy: energy, note: note, context: {} });
+            safeResponse = { message: buildLocalCheckinFallback({ body: body, mind: mind, soul: soul, energy: energy, note: note, context: {} }), tips: {} };
           }
 
-          if (safeReflection) {
-            await appState.supabase.from("checkins").update({ mai_response: safeReflection }).eq("id", inserted.id);
-            var responseNode = getEl("checkin-response");
-            responseNode.textContent = safeReflection;
+          // Display result
+          showCheckinResult(body, mind, soul, energy, safeResponse);
+
+          // Save to Supabase
+          var updateData = { mai_response: safeResponse.message };
+          if (transitData) {
+            updateData.transit_context = transitData;
+            updateData.mai_interpretation = safeResponse.message || null;
+          }
+          if (safeResponse.tips) {
+            if (safeResponse.tips.body) updateData.body_tip = safeResponse.tips.body;
+            if (safeResponse.tips.mind) updateData.mind_tip = safeResponse.tips.mind;
+            if (safeResponse.tips.soul) updateData.soul_tip = safeResponse.tips.soul;
+            if (safeResponse.tips.spirit) updateData.spirit_tip = safeResponse.tips.spirit;
+          }
+          appState.supabase.from("checkins").update(updateData).eq("id", inserted.id).then(function() {
+            console.log("[MaiTribe] Check-in + transit data saved");
+          }).catch(function(err) {
+            console.warn("[MaiTribe] Could not save transit data (migration may be needed):", err.message);
+          });
+
+          // Also keep old response div for backward compatibility
+          var responseNode = getEl("checkin-response");
+          if (responseNode) {
+            responseNode.textContent = safeResponse.message;
             responseNode.classList.remove("hidden");
           }
 
-          await loadHomeScreen();
+          loadHomeScreen().catch(function() {});
           return;
         }
 
@@ -3795,6 +3985,175 @@ No lists. No questions. Just a warm, honest reaction.`;
         }
 
         return base;
+      }
+
+      function buildTransitCheckinPrompt(args) {
+        var langCode = args.context && args.context.user && args.context.user.language ? args.context.user.language : "en";
+        var identityObj = args.context && args.context.identity ? args.context.identity : {};
+        var user = args.context && args.context.user ? args.context.user : {};
+        var transits = args.transits;
+
+        var transitBlock = "";
+        if (transits) {
+          transitBlock += "\nTRANSIT DATA:\n";
+          transitBlock += "Moon today: " + (transits.moonSign || "unknown") + "\n";
+          if (transits.retrogrades && transits.retrogrades.length) {
+            transitBlock += "Retrograde: " + transits.retrogrades.join(", ") + "\n";
+          }
+          if (transits.aspects && transits.aspects.length) {
+            transitBlock += "Active aspects (transit planet -> natal planet):\n";
+            for (var i = 0; i < transits.aspects.length; i++) {
+              var a = transits.aspects[i];
+              transitBlock += "- " + a.transit + " " + a.type + " natal " + a.natal + " (orb " + a.orb + ")\n";
+            }
+          }
+        }
+
+        var userBlock = "";
+        if (user.astro_profile && user.astro_profile.sun) {
+          userBlock += "\nPERSON:\n";
+          userBlock += "Sun: " + signName(user.astro_profile.sun.sign) + " | Moon: " + signName(user.astro_profile.moon && user.astro_profile.moon.sign) + "\n";
+        }
+        if (user.human_design && user.human_design.type) {
+          userBlock += "HD Type: " + user.human_design.type.name;
+          if (user.human_design.type.strategy) userBlock += " | Strategy: " + user.human_design.type.strategy;
+          if (user.human_design.authority && user.human_design.authority.name) userBlock += " | Authority: " + user.human_design.authority.name;
+          userBlock += "\n";
+          if (user.human_design.centers && user.human_design.centers.undefined) {
+            var openC = user.human_design.centers.undefined.map(function(c) { return typeof c === "string" ? c : (c.name || c); });
+            if (openC.length) userBlock += "Open Centers: " + openC.join(", ") + "\n";
+          }
+        }
+
+        var identityBlock = "";
+        if (identityObj && identityObj.full_text) {
+          identityBlock = "\nIdentity: \"" + identityObj.full_text + "\"\n";
+        } else if (identityObj && identityObj.one_liner) {
+          identityBlock = "\nIdentity: " + identityObj.one_liner + "\n";
+        }
+
+        var prompt;
+        if (langCode === "de") {
+          prompt = `CHECK-IN ERGEBNIS:
+K\u00F6rper: ${args.body}/10, Geist: ${args.mind}/10, Seele: ${args.soul}/10, Energie: ${args.energy}/10
+${args.note ? 'Notiz: "' + args.note + '"' : ""}
+${transitBlock}${userBlock}${identityBlock}
+REGELN:
+1. Verbinde die Transite mit dem Check-in-Ergebnis. Wenn die Transite zum Befinden passen, erw\u00E4hne es ("Das ergibt Sinn, weil..."). Wenn nicht, erw\u00E4hne Transite nicht.
+2. Gib f\u00FCr MAXIMAL 2-3 der Kategorien Body/Mind/Soul/Spirit einen kurzen, konkreten Tipp. Nicht alle vier jedes Mal.
+3. Integriere Neuroscience wenn es passt (z.B. bei Schlaf, Fokus, Stress).
+4. Ber\u00FCcksichtige den HD-Type bei Tipps falls vorhanden.
+5. Max 6-8 S\u00E4tze gesamt. Warm, pers\u00F6nlich, nie belehrend.
+6. Kein Astro-Jargon. Keine "H\u00E4user" oder "Aspekte" erw\u00E4hnen. Sag was es BEDEUTET.
+7. Mond-Transit ist t\u00E4glich am relevantesten. Langsame Planeten nur bei sehr engem Aspekt.
+
+Antworte als JSON:
+{"message":"Deine warme Hauptreaktion (2-3 S\u00E4tze)","tips":{"body":"K\u00F6rper-Tipp oder null","mind":"Geist-Tipp oder null","soul":"Seele-Tipp oder null","spirit":"Spirit-Tipp oder null"}}
+Setze Kategorien auf null wenn kein passender Tipp. Nur reines JSON, kein Markdown.`;
+        } else {
+          prompt = `CHECK-IN RESULT:
+Body: ${args.body}/10, Mind: ${args.mind}/10, Soul: ${args.soul}/10, Energy: ${args.energy}/10
+${args.note ? 'Note: "' + args.note + '"' : ""}
+${transitBlock}${userBlock}${identityBlock}
+RULES:
+1. Connect transits to the check-in result. If transits match the current state, mention it ("That makes sense because..."). If not, don't mention transits.
+2. Give tips for MAX 2-3 of Body/Mind/Soul/Spirit. Not all four every time.
+3. Include neuroscience when relevant (sleep, focus, stress).
+4. Consider HD type in tips if available.
+5. Max 6-8 sentences total. Warm, personal, never preachy.
+6. No astro jargon. No "houses" or "aspects". Say what it MEANS.
+7. Moon transit is most relevant daily. Slow planets only with very tight aspect.
+
+Reply as JSON:
+{"message":"Your warm main reaction (2-3 sentences)","tips":{"body":"Body tip or null","mind":"Mind tip or null","soul":"Soul tip or null","spirit":"Spirit tip or null"}}
+Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
+        }
+
+        return prompt;
+      }
+
+      function parseTransitResponse(text) {
+        if (!text) return { message: "", tips: {} };
+        // Try JSON parse
+        try {
+          var cleaned = text.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+          var parsed = JSON.parse(cleaned);
+          return {
+            message: parsed.message || "",
+            tips: {
+              body: parsed.tips && parsed.tips.body && parsed.tips.body !== "null" ? parsed.tips.body : null,
+              mind: parsed.tips && parsed.tips.mind && parsed.tips.mind !== "null" ? parsed.tips.mind : null,
+              soul: parsed.tips && parsed.tips.soul && parsed.tips.soul !== "null" ? parsed.tips.soul : null,
+              spirit: parsed.tips && parsed.tips.spirit && parsed.tips.spirit !== "null" ? parsed.tips.spirit : null
+            }
+          };
+        } catch (e) {
+          console.warn("[MaiTribe] Transit response not valid JSON, using as plain text:", e.message);
+          return { message: text, tips: {} };
+        }
+      }
+
+      function showCheckinResult(body, mind, soul, energy, response) {
+        var lang = getCurrentLanguage();
+        // Show scores
+        setText("result-val-body", String(body));
+        setText("result-val-mind", String(mind));
+        setText("result-val-soul", String(soul));
+        setText("result-val-energy", String(energy));
+        var fillBody = getEl("result-fill-body");
+        var fillMind = getEl("result-fill-mind");
+        var fillSoul = getEl("result-fill-soul");
+        var fillEnergy = getEl("result-fill-energy");
+        if (fillBody) fillBody.style.width = (body * 10) + "%";
+        if (fillMind) fillMind.style.width = (mind * 10) + "%";
+        if (fillSoul) fillSoul.style.width = (soul * 10) + "%";
+        if (fillEnergy) fillEnergy.style.width = (energy * 10) + "%";
+        setText("result-lbl-body", t("slider_body"));
+        setText("result-lbl-mind", t("slider_mind"));
+        setText("result-lbl-soul", t("slider_soul"));
+        setText("result-lbl-energy", t("slider_energy"));
+        setText("checkin-result-title", t("checkin_result_title"));
+        setText("btn-checkin-result-back", t("checkin_result_back"));
+
+        // Show main message
+        var maiText = getEl("checkin-mai-text");
+        if (maiText) maiText.textContent = response.message || "";
+
+        // Show tips
+        var tipsWrap = getEl("checkin-tips-wrap");
+        var hasTips = false;
+        var tipKeys = ["body", "mind", "soul", "spirit"];
+        for (var i = 0; i < tipKeys.length; i++) {
+          var key = tipKeys[i];
+          var tipEl = getEl("checkin-tip-" + key);
+          var tipTextEl = getEl("checkin-tip-" + key + "-text");
+          if (tipEl && tipTextEl) {
+            if (response.tips && response.tips[key]) {
+              tipTextEl.textContent = response.tips[key];
+              tipEl.classList.remove("hidden");
+              hasTips = true;
+            } else {
+              tipEl.classList.add("hidden");
+            }
+          }
+        }
+        if (tipsWrap) {
+          if (hasTips) tipsWrap.classList.remove("hidden");
+          else tipsWrap.classList.add("hidden");
+        }
+
+        getEl("checkin-result").classList.remove("hidden");
+      }
+
+      function resetCheckinScreen() {
+        // Show form again, hide result
+        var formPanel = getEl("btn-checkin-submit") && getEl("btn-checkin-submit").parentElement;
+        if (formPanel) formPanel.style.display = "";
+        var resultEl = getEl("checkin-result");
+        if (resultEl) resultEl.classList.add("hidden");
+        var responseEl = getEl("checkin-response");
+        if (responseEl) responseEl.classList.add("hidden");
+        setStatus("checkin-status", "");
       }
 
       async function saveIdentityEdit() {
@@ -3963,15 +4322,50 @@ No lists. No questions. Just a warm, honest reaction.`;
       function signName(signObj) {
         if (!signObj) return "-";
         if (typeof signObj === "string") return signObj;
-        // Drill down: .name could itself be an object (e.g. {en:"Pisces", de:"Fische"})
         var n = signObj.name;
         if (n && typeof n === "object") n = n.en || n.de || Object.values(n)[0];
-        if (n && typeof n === "string") return n;
-        var s = signObj.symbol;
-        if (s && typeof s === "string") return s;
-        // Last resort: stringify to debug
-        console.warn("[MaiTribe] signName got unexpected structure:", JSON.stringify(signObj).slice(0, 200));
-        return String(n || s || "-");
+        return (typeof n === "string" && n.trim()) ? n : "-";
+      }
+
+      function signElement(signObj) {
+        if (!signObj || typeof signObj !== "object") return "";
+        return signObj.element || "";
+      }
+
+      function formatDegree(value) {
+        if (value == null || Number.isNaN(Number(value))) return "";
+        return Number(value).toFixed(1) + "\u00B0";
+      }
+
+      function planetDisplayRows(astro) {
+        if (!astro || !astro.planets) return [];
+        var list = [];
+        if (Array.isArray(astro.planets)) {
+          list = astro.planets.slice();
+        } else {
+          list = Object.keys(astro.planets).map(function(key) {
+            var item = astro.planets[key] || {};
+            if (!item.name) item.name = key;
+            return item;
+          });
+        }
+
+        return list.map(function(planet) {
+          var name = (planet && planet.name ? String(planet.name) : "").toLowerCase();
+          var planetName = name ? name.charAt(0).toUpperCase() + name.slice(1) : "-";
+          var planetSign = signName(planet && planet.sign);
+          var degreeValue = planet && planet.degree != null
+            ? planet.degree
+            : (planet && planet.longitude != null ? (Number(planet.longitude) % 30 + 30) % 30 : null);
+          var planetDegree = formatDegree(degreeValue);
+          return {
+            planetName: planetName,
+            planetSign: planetSign,
+            planetDegree: planetDegree
+          };
+        }).filter(function(row) {
+          return row.planetName !== "-" && row.planetSign !== "-";
+        });
       }
 
       var _natalEnginePromise = null;
@@ -3991,6 +4385,169 @@ No lists. No questions. Just a warm, honest reaction.`;
           });
         }
         return _natalEnginePromise;
+      }
+
+      // ── Transit Engine: astronomy-engine for planetary transit calculations ──
+
+      var _astronomyEnginePromise = null;
+      function loadAstronomyEngine() {
+        if (!_astronomyEnginePromise) {
+          console.log("[MaiTribe] Loading astronomy-engine from CDN...");
+          _astronomyEnginePromise = import("https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/esm/astronomy.js").then(function(mod) {
+            console.log("[MaiTribe] astronomy-engine loaded");
+            return mod;
+          }).catch(function(err) {
+            console.warn("[MaiTribe] jsdelivr astronomy-engine failed, trying esm.sh:", err);
+            return import("https://esm.sh/astronomy-engine@2.1.19");
+          }).catch(function(err) {
+            console.error("[MaiTribe] All CDN sources for astronomy-engine failed:", err);
+            _astronomyEnginePromise = null;
+            throw err;
+          });
+        }
+        return _astronomyEnginePromise;
+      }
+
+      var ZODIAC_SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+
+      function zodiacSignFromLon(lon) {
+        return ZODIAC_SIGNS[Math.floor(((lon % 360) + 360) % 360 / 30)];
+      }
+
+      function getGeoLongitude(Astro, bodyName, time) {
+        if (bodyName === "Sun") return Astro.SunPosition(time).elon;
+        if (bodyName === "Moon") return Astro.EclipticGeoMoon(time).lon;
+        var geo = Astro.GeoVector(Astro.Body[bodyName], time, true);
+        return Astro.Ecliptic(geo).elon;
+      }
+
+      function checkRetrograde(Astro, bodyName, time) {
+        if (bodyName === "Sun" || bodyName === "Moon") return false;
+        var t2 = time.AddDays(1 / 1440);
+        var lon1 = getGeoLongitude(Astro, bodyName, time);
+        var lon2 = getGeoLongitude(Astro, bodyName, t2);
+        var diff = lon2 - lon1;
+        if (diff > 180) diff -= 360;
+        if (diff < -180) diff += 360;
+        return diff < 0;
+      }
+
+      var ASPECT_DEFS = [
+        { name: "conjunction", angle: 0, orb: 8 },
+        { name: "opposition", angle: 180, orb: 8 },
+        { name: "trine", angle: 120, orb: 8 },
+        { name: "square", angle: 90, orb: 7 },
+        { name: "sextile", angle: 60, orb: 6 }
+      ];
+
+      function findAspect(transitLon, natalLon) {
+        var diff = Math.abs(transitLon - natalLon);
+        if (diff > 180) diff = 360 - diff;
+        for (var i = 0; i < ASPECT_DEFS.length; i++) {
+          var a = ASPECT_DEFS[i];
+          var orbActual = Math.abs(diff - a.angle);
+          if (orbActual <= a.orb) return { type: a.name, orb: Math.round(orbActual * 10) / 10 };
+        }
+        return null;
+      }
+
+      async function calculateCurrentTransits() {
+        // Preferred path: ephemeris globals (as requested for transit feature groundwork)
+        var ephemPositions = getTodayPlanetPositions();
+        if (ephemPositions) {
+          var mappedPositions = {};
+          Object.keys(ephemPositions).forEach(function(k) {
+            var src = ephemPositions[k];
+            var cap = k.charAt(0).toUpperCase() + k.slice(1);
+            mappedPositions[cap] = {
+              longitude: Number(src.longitude),
+              sign: src.sign,
+              retrograde: false
+            };
+          });
+
+          var aspectsFromNatal = [];
+          if (appState.profile && appState.profile.astro_profile) {
+            aspectsFromNatal = calculateTransitAspects(ephemPositions, appState.profile.astro_profile).map(function(a) {
+              return {
+                transit: String(a.transitPlanet || "").charAt(0).toUpperCase() + String(a.transitPlanet || "").slice(1),
+                transitSign: a.transitSign,
+                natal: String(a.natalPlanet || "").charAt(0).toUpperCase() + String(a.natalPlanet || "").slice(1),
+                natalSign: "",
+                type: a.aspectType,
+                orb: a.orb
+              };
+            });
+          }
+
+          return {
+            positions: mappedPositions,
+            aspects: aspectsFromNatal,
+            moonSign: mappedPositions.Moon ? mappedPositions.Moon.sign : null,
+            retrogrades: []
+          };
+        }
+
+        // Fallback: astronomy-engine CDN
+        var Astro = await loadAstronomyEngine();
+        var now = Astro.MakeTime(new Date());
+        var planetNames = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"];
+        var positions = {};
+
+        for (var i = 0; i < planetNames.length; i++) {
+          var name = planetNames[i];
+          var lon = getGeoLongitude(Astro, name, now);
+          positions[name] = {
+            longitude: Math.round(lon * 100) / 100,
+            sign: zodiacSignFromLon(lon),
+            retrograde: checkRetrograde(Astro, name, now)
+          };
+        }
+
+        var aspects = [];
+        var profile = appState.profile;
+        if (profile && profile.birth_date) {
+          try {
+            var dateParts = profile.birth_date.split("-").map(Number);
+            var timeParts = (profile.birth_time || "12:00").split(":").map(Number);
+            var tz = parseFloat(profile.birth_tz || 0);
+            var utcH = timeParts[0] - tz;
+            var natalDate = new Date(Date.UTC(dateParts[0], dateParts[1] - 1, dateParts[2], utcH, timeParts[1] || 0, 0));
+            var natalTime = Astro.MakeTime(natalDate);
+
+            for (var ti = 0; ti < planetNames.length; ti++) {
+              var tLon = positions[planetNames[ti]].longitude;
+              for (var ni = 0; ni < planetNames.length; ni++) {
+                var nLon = getGeoLongitude(Astro, planetNames[ni], natalTime);
+                var asp = findAspect(tLon, nLon);
+                if (asp) {
+                  aspects.push({
+                    transit: planetNames[ti],
+                    transitSign: positions[planetNames[ti]].sign,
+                    natal: planetNames[ni],
+                    natalSign: zodiacSignFromLon(nLon),
+                    type: asp.type,
+                    orb: asp.orb
+                  });
+                }
+              }
+            }
+            aspects.sort(function(a, b) { return a.orb - b.orb; });
+            aspects = aspects.slice(0, 5);
+          } catch (err) {
+            console.error("[MaiTribe] Transit aspect calculation error:", err);
+          }
+        }
+
+        var retros = planetNames.filter(function(n) { return positions[n].retrograde; });
+        console.log("[MaiTribe] Transit calc done. Moon:", positions.Moon.sign, "Aspects:", aspects.length, "Retrogrades:", retros.join(",") || "none");
+
+        return {
+          positions: positions,
+          aspects: aspects,
+          moonSign: positions.Moon.sign,
+          retrogrades: retros
+        };
       }
 
       var _geocodeTimer = null;
@@ -4061,6 +4618,7 @@ No lists. No questions. Just a warm, honest reaction.`;
           birth_place: birthPlace,
           birth_lat: lat,
           birth_lng: lng,
+          birth_tz: tz,
           astro_profile: astroResult,
           human_design: hdResult,
           wisdom_preferences: { mode: "passive" }
@@ -4088,16 +4646,12 @@ No lists. No questions. Just a warm, honest reaction.`;
 
           // Planets list
           var planetsEl = getEl("spiegel-planets-list");
-          if (planetsEl && astro.planets) {
-            var html = "";
-            var planetNames = Object.keys(astro.planets);
-            planetNames.forEach(function(name) {
-              var p = astro.planets[name];
-              if (p && p.sign) {
-                var degStr = p.degree != null ? " " + (typeof p.degree === "number" ? Math.round(p.degree) + "\u00B0" : p.degree) : "";
-                html += '<div class="spiegel-row"><span class="spiegel-label">' + name.charAt(0).toUpperCase() + name.slice(1) + '</span><span class="spiegel-value">' + signName(p.sign) + degStr + '</span></div>';
-              }
-            });
+          if (planetsEl) {
+            var rows = planetDisplayRows(astro);
+            var html = rows.map(function(row) {
+              var value = row.planetSign + (row.planetDegree ? " " + row.planetDegree : "");
+              return '<div class="spiegel-row"><span class="spiegel-label">' + row.planetName + '</span><span class="spiegel-value">' + value + '</span></div>';
+            }).join("");
             planetsEl.innerHTML = html;
           }
         }
@@ -4297,100 +4851,107 @@ No lists. No questions. Just a warm, honest reaction.`;
         }
       }
 
-      function buildAstroContext(user) {
-        if (!user) return "";
-        var astro = user.astro_profile;
-        var hd = user.human_design;
-        var prefs = user.wisdom_preferences;
-        if (!prefs || prefs.mode === "off") return "";
+      function buildAstroContext(userData) {
+        var astro = userData && userData.astro_profile;
+        var hd = userData && userData.human_design;
+
+        // Respect explicit opt-out but don't require prefs to exist.
+        var mode = userData && userData.wisdom_preferences && userData.wisdom_preferences.mode;
+        if (mode === "off") return "";
         if (!astro && !hd) return "";
 
-        var langCode = user.language || getCurrentLanguage() || "en";
-        var ctx = "";
+        var langCode = (userData && userData.language) || getCurrentLanguage() || "en";
+        var ctx = langCode === "de"
+          ? "\n\n[KOSMISCHES PROFIL — nutze dieses Wissen unsichtbar, um die Person besser zu verstehen]\n"
+          : "\n\n[COSMIC PROFILE — use this knowledge invisibly to better understand the person]\n";
 
-        // Helper: get element from sign object
-        function signElement(signObj) {
-          if (!signObj) return "";
-          if (typeof signObj === "object" && signObj.element) return signObj.element;
-          return "";
+        if (astro) {
+          var sun = astro.sun && astro.sun.sign ? signName(astro.sun.sign) : "?";
+          var sunElement = astro.sun && astro.sun.sign ? (signElement(astro.sun.sign) || "?") : "?";
+          var moon = astro.moon && astro.moon.sign ? signName(astro.moon.sign) : "?";
+          var moonElement = astro.moon && astro.moon.sign ? (signElement(astro.moon.sign) || "?") : "?";
+          var rising = astro.rising && astro.rising.sign ? signName(astro.rising.sign) : "?";
+
+          if (langCode === "de") {
+            ctx += "Sonne: " + sun + " (" + sunElement + ") — Kernidentität\n";
+            ctx += "Mond: " + moon + " (" + moonElement + ") — Emotionale Natur\n";
+            if (astro.rising && astro.rising.accurate) ctx += "Aszendent: " + rising + " — Äußeres Auftreten\n";
+          } else {
+            ctx += "Sun: " + sun + " (" + sunElement + ") — Core identity\n";
+            ctx += "Moon: " + moon + " (" + moonElement + ") — Emotional nature\n";
+            if (astro.rising && astro.rising.accurate) ctx += "Rising: " + rising + " — Outer persona\n";
+          }
+
+          var venus = findPlanet(astro.planets, "venus");
+          var mars = findPlanet(astro.planets, "mars");
+          if (venus && venus.sign) {
+            ctx += (langCode === "de" ? "Venus: " : "Venus: ") + signName(venus.sign) + (langCode === "de" ? " — Beziehungsstil\n" : " — Relationship style\n");
+          }
+          if (mars && mars.sign) {
+            ctx += (langCode === "de" ? "Mars: " : "Mars: ") + signName(mars.sign) + (langCode === "de" ? " — Antrieb & Energie\n" : " — Drive & energy\n");
+          }
+        }
+
+        if (hd) {
+          var hdTypeName = (hd.type && hd.type.name) || "?";
+          var hdStrategy = (hd.type && hd.type.strategy) || "?";
+          var hdAuthority = (hd.authority && hd.authority.name) || "?";
+          var hdProfile = (hd.profile && hd.profile.numbers) || "?";
+          var hdDefinition = hd.definition || "?";
+
+          if (langCode === "de") {
+            ctx += "\nHuman Design: " + hdTypeName + "\n";
+            ctx += "Strategie: " + hdStrategy + "\n";
+            ctx += "Autorität: " + hdAuthority + "\n";
+            ctx += "Profil: " + hdProfile + "\n";
+            ctx += "Definition: " + hdDefinition + "\n";
+          } else {
+            ctx += "\nHuman Design: " + hdTypeName + "\n";
+            ctx += "Strategy: " + hdStrategy + "\n";
+            ctx += "Authority: " + hdAuthority + "\n";
+            ctx += "Profile: " + hdProfile + "\n";
+            ctx += "Definition: " + hdDefinition + "\n";
+          }
+
+          var centers = [];
+          if (Array.isArray(hd.centers)) {
+            centers = hd.centers.slice();
+          } else if (hd.centers && typeof hd.centers === "object") {
+            var definedLegacy = Array.isArray(hd.centers.defined) ? hd.centers.defined.map(function(c) {
+              return { name: typeof c === "string" ? c : (c && c.name), defined: true };
+            }) : [];
+            var openLegacy = Array.isArray(hd.centers.undefined) ? hd.centers.undefined.map(function(c) {
+              return { name: typeof c === "string" ? c : (c && c.name), defined: false };
+            }) : [];
+            centers = definedLegacy.concat(openLegacy);
+          }
+
+          if (centers.length) {
+            var defined = centers.filter(function(c) { return c && c.defined === true; }).map(function(c) { return c.name || c; });
+            var openCenters = centers.filter(function(c) { return c && c.defined === false; }).map(function(c) { return c.name || c; });
+            if (defined.length) {
+              ctx += (langCode === "de" ? "Definierte Zentren: " : "Defined centers: ") + defined.join(", ") + "\n";
+            }
+            if (openCenters.length) {
+              ctx += (langCode === "de"
+                ? "Offene Zentren: " + openCenters.join(", ") + " — hier nimmt die Person Energie von anderen auf\n"
+                : "Open centers: " + openCenters.join(", ") + " — where this person absorbs energy from others\n");
+            }
+          }
         }
 
         if (langCode === "de") {
-          ctx += "\n\n[KOSMISCHES PROFIL \u2014 nutze dieses Wissen unsichtbar, um die Person besser zu verstehen]\n";
-          if (astro && astro.sun) {
-            var sunEl = signElement(astro.sun.sign);
-            ctx += "Sonne: " + signName(astro.sun.sign) + (sunEl ? " (" + sunEl + ")" : "") + " \u2014 Kernidentit\u00E4t\n";
-            if (astro.moon) {
-              var moonEl = signElement(astro.moon.sign);
-              ctx += "Mond: " + signName(astro.moon.sign) + (moonEl ? " (" + moonEl + ")" : "") + " \u2014 Emotionale Natur\n";
-            }
-            if (astro.rising && astro.rising.accurate) {
-              ctx += "Aszendent: " + signName(astro.rising.sign) + " \u2014 \u00C4u\u00DFeres Auftreten\n";
-            }
-            // Venus & Mars for emotional intelligence
-            var venus = findPlanet(astro.planets, "venus");
-            var mars = findPlanet(astro.planets, "mars");
-            if (venus && venus.sign) ctx += "Venus: " + signName(venus.sign) + " \u2014 Beziehungsstil\n";
-            if (mars && mars.sign) ctx += "Mars: " + signName(mars.sign) + " \u2014 Antrieb & Energie\n";
-          }
-          if (hd && hd.type) {
-            ctx += "\nHuman Design: " + hd.type.name + "\n";
-            if (hd.type.strategy) ctx += "Strategie: " + hd.type.strategy + "\n";
-            if (hd.authority && hd.authority.name) ctx += "Autorit\u00E4t: " + hd.authority.name + "\n";
-            if (hd.profile && hd.profile.numbers) ctx += "Profil: " + hd.profile.numbers + "\n";
-            if (hd.definition) ctx += "Definition: " + hd.definition + "\n";
-            // Centers
-            if (hd.centers) {
-              var defC = hd.centers.defined || [];
-              var undefC = hd.centers.undefined || [];
-              if (defC.length) ctx += "Definierte Zentren: " + defC.map(function(c) { return typeof c === "string" ? c : (c.name || c); }).join(", ") + "\n";
-              if (undefC.length) ctx += "Offene Zentren: " + undefC.map(function(c) { return typeof c === "string" ? c : (c.name || c); }).join(", ") + " \u2014 hier nimmt die Person Energie von anderen auf\n";
-            }
-          }
-          ctx += "\nREGELN F\u00DCR NUTZUNG:\n";
-          ctx += "- Erw\u00E4hne Astrologie oder Human Design NICHT von dir aus\n";
+          ctx += "\nREGELN FÜR NUTZUNG:\n";
+          ctx += "- Erwähne Astrologie oder Human Design NICHT von dir aus\n";
           ctx += "- Wenn die Person DIREKT danach fragt, antworte darauf\n";
-          ctx += "- Nutze das Wissen um BESSERE Fragen zu stellen und die Person besser zu verstehen\n";
-          ctx += "- Beispiel: Person hat offenes Emotionalzentrum + Mond in Pisces \u2192 wenn sie sagt \"bin pl\u00F6tzlich traurig\", frag \"warst du gerade mit jemandem zusammen?\" statt generischen Tipp\n";
-          ctx += "- Identit\u00E4t hat IMMER Vorrang vor Astro/HD\n";
-          ctx += "- Keine deterministischen Aussagen. Keine Horoskop-Sprache.\n";
+          ctx += "- Nutze das Wissen um BESSERE Fragen zu stellen\n";
+          ctx += "- Identität hat IMMER Vorrang vor Astro/HD\n";
         } else {
-          ctx += "\n\n[COSMIC PROFILE \u2014 use this knowledge invisibly to better understand the person]\n";
-          if (astro && astro.sun) {
-            var sunElEn = signElement(astro.sun.sign);
-            ctx += "Sun: " + signName(astro.sun.sign) + (sunElEn ? " (" + sunElEn + ")" : "") + " \u2014 Core identity\n";
-            if (astro.moon) {
-              var moonElEn = signElement(astro.moon.sign);
-              ctx += "Moon: " + signName(astro.moon.sign) + (moonElEn ? " (" + moonElEn + ")" : "") + " \u2014 Emotional nature\n";
-            }
-            if (astro.rising && astro.rising.accurate) {
-              ctx += "Rising: " + signName(astro.rising.sign) + " \u2014 Outer persona\n";
-            }
-            var venusEn = findPlanet(astro.planets, "venus");
-            var marsEn = findPlanet(astro.planets, "mars");
-            if (venusEn && venusEn.sign) ctx += "Venus: " + signName(venusEn.sign) + " \u2014 Relationship style\n";
-            if (marsEn && marsEn.sign) ctx += "Mars: " + signName(marsEn.sign) + " \u2014 Drive & energy\n";
-          }
-          if (hd && hd.type) {
-            ctx += "\nHuman Design: " + hd.type.name + "\n";
-            if (hd.type.strategy) ctx += "Strategy: " + hd.type.strategy + "\n";
-            if (hd.authority && hd.authority.name) ctx += "Authority: " + hd.authority.name + "\n";
-            if (hd.profile && hd.profile.numbers) ctx += "Profile: " + hd.profile.numbers + "\n";
-            if (hd.definition) ctx += "Definition: " + hd.definition + "\n";
-            if (hd.centers) {
-              var defCen = hd.centers.defined || [];
-              var undefCen = hd.centers.undefined || [];
-              if (defCen.length) ctx += "Defined centers: " + defCen.map(function(c) { return typeof c === "string" ? c : (c.name || c); }).join(", ") + "\n";
-              if (undefCen.length) ctx += "Open centers: " + undefCen.map(function(c) { return typeof c === "string" ? c : (c.name || c); }).join(", ") + " \u2014 where the person absorbs energy from others\n";
-            }
-          }
           ctx += "\nRULES:\n";
           ctx += "- Do NOT mention astrology or Human Design on your own\n";
-          ctx += "- If the person asks DIRECTLY, answer them\n";
-          ctx += "- Use this knowledge to ask BETTER questions and understand the person\n";
-          ctx += "- Example: Person has open Emotional center + Moon in Pisces \u2192 if they say \"suddenly sad\", ask \"were you just with someone?\" instead of generic advice\n";
-          ctx += "- Identity ALWAYS takes precedence over Astro/HD\n";
-          ctx += "- No deterministic statements. No horoscope language.\n";
+          ctx += "- If the person asks DIRECTLY, answer\n";
+          ctx += "- Use this knowledge to ask BETTER questions\n";
+          ctx += "- Identity always takes precedence over Astro/HD\n";
         }
 
         return ctx;
@@ -4425,10 +4986,10 @@ No lists. No questions. Just a warm, honest reaction.`;
       }
 
       async function generatePersonalInterpretation(astro, hd) {
-        var sun = (astro && astro.sun && astro.sun.sign) ? (astro.sun.sign.name || signName(astro.sun.sign)) : "?";
-        var sunElement = (astro && astro.sun && astro.sun.sign && astro.sun.sign.element) || "?";
-        var moon = (astro && astro.moon && astro.moon.sign) ? (astro.moon.sign.name || signName(astro.moon.sign)) : "?";
-        var moonElement = (astro && astro.moon && astro.moon.sign && astro.moon.sign.element) || "?";
+        var sun = (astro && astro.sun && astro.sun.sign) ? signName(astro.sun.sign) : "?";
+        var sunElement = (astro && astro.sun && astro.sun.sign) ? (signElement(astro.sun.sign) || "?") : "?";
+        var moon = (astro && astro.moon && astro.moon.sign) ? signName(astro.moon.sign) : "?";
+        var moonElement = (astro && astro.moon && astro.moon.sign) ? (signElement(astro.moon.sign) || "?") : "?";
         var hdType = (hd && hd.type && hd.type.name) || "?";
         var hdStrategy = (hd && hd.type && hd.type.strategy) || "?";
         var hdAuthority = (hd && hd.authority && hd.authority.name) || "?";
@@ -4458,6 +5019,190 @@ No lists. No questions. Just a warm, honest reaction.`;
           console.error("[MaiTribe] Interpretation generation failed:", e);
           return null;
         }
+      }
+
+      function getTodayPlanetPositions() {
+        try {
+          if (typeof $processor === "undefined" || typeof $moshier === "undefined" || typeof $const === "undefined") {
+            console.warn("[MaiTribe] ephemeris globals unavailable");
+            return null;
+          }
+
+          var now = new Date();
+          var date = {
+            year: now.getUTCFullYear(),
+            month: now.getUTCMonth() + 1,
+            day: now.getUTCDate(),
+            hours: now.getUTCHours(),
+            minutes: now.getUTCMinutes(),
+            seconds: 0
+          };
+
+          var lat = (appState.profile && appState.profile.birth_lat) != null ? Number(appState.profile.birth_lat) : 54.32;
+          var lng = (appState.profile && appState.profile.birth_lng) != null ? Number(appState.profile.birth_lng) : 10.14;
+          $const.tlong = lng;
+          $const.glat = lat;
+          $processor.init();
+
+          var planetNames = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn"];
+          var signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"];
+          var positions = {};
+
+          for (var i = 0; i < planetNames.length; i++) {
+            var name = planetNames[i];
+            var body = $moshier.body[name];
+            if (!body) continue;
+            $processor.calc(date, body);
+            var longitude = Number(body.position && body.position.apparentLongitude);
+            if (Number.isNaN(longitude)) continue;
+            positions[name] = {
+              name: name,
+              longitude: longitude,
+              sign: signs[Math.floor(((longitude % 360) + 360) % 360 / 30) % 12],
+              degree: Number((((longitude % 30) + 30) % 30).toFixed(1))
+            };
+          }
+          return positions;
+        } catch (err) {
+          console.error("[MaiTribe] getTodayPlanetPositions failed:", err);
+          return null;
+        }
+      }
+
+      function collectNatalPlanets(natalChart) {
+        var natalPlanets = [];
+        if (!natalChart) return natalPlanets;
+
+        function pushIf(name, obj) {
+          if (!obj) return;
+          if (obj.longitude != null && !Number.isNaN(Number(obj.longitude))) {
+            natalPlanets.push({ name: name, longitude: Number(obj.longitude) });
+            return;
+          }
+          if (obj.degree != null && obj.sign) {
+            var signRaw = typeof obj.sign === "string" ? obj.sign : signName(obj.sign);
+            var sign = String(signRaw || "").toLowerCase();
+            var signIndexMap = {
+              aries: 0, taurus: 1, gemini: 2, cancer: 3, leo: 4, virgo: 5,
+              libra: 6, scorpio: 7, sagittarius: 8, capricorn: 9, aquarius: 10, pisces: 11
+            };
+            if (signIndexMap[sign] != null) {
+              natalPlanets.push({ name: name, longitude: signIndexMap[sign] * 30 + Number(obj.degree) });
+            }
+          }
+        }
+
+        pushIf("sun", natalChart.sun);
+        pushIf("moon", natalChart.moon);
+        pushIf("rising", natalChart.rising);
+
+        if (natalChart.planets) {
+          if (Array.isArray(natalChart.planets)) {
+            natalChart.planets.forEach(function(p) {
+              if (p && p.name) pushIf(String(p.name).toLowerCase(), p);
+            });
+          } else {
+            Object.keys(natalChart.planets).forEach(function(name) {
+              pushIf(String(name).toLowerCase(), natalChart.planets[name]);
+            });
+          }
+        }
+
+        return natalPlanets;
+      }
+
+      function calculateTransitAspects(transitPositions, natalChart) {
+        if (!transitPositions || !natalChart) return [];
+        var aspects = [];
+        var aspectTypes = [
+          { name: "conjunction", angle: 0, orb: 8 },
+          { name: "opposition", angle: 180, orb: 8 },
+          { name: "trine", angle: 120, orb: 8 },
+          { name: "square", angle: 90, orb: 7 },
+          { name: "sextile", angle: 60, orb: 6 }
+        ];
+
+        var natalPlanets = collectNatalPlanets(natalChart);
+        var transitEntries = Object.keys(transitPositions).map(function(name) {
+          return transitPositions[name];
+        }).filter(Boolean);
+
+        for (var i = 0; i < transitEntries.length; i++) {
+          var transitData = transitEntries[i];
+          for (var j = 0; j < natalPlanets.length; j++) {
+            var natalPlanet = natalPlanets[j];
+            var diff = Math.abs(Number(transitData.longitude) - Number(natalPlanet.longitude));
+            var normalizedDiff = diff > 180 ? 360 - diff : diff;
+            for (var k = 0; k < aspectTypes.length; k++) {
+              var aspectType = aspectTypes[k];
+              var orbDiff = Math.abs(normalizedDiff - aspectType.angle);
+              if (orbDiff <= aspectType.orb) {
+                aspects.push({
+                  transitPlanet: transitData.name,
+                  natalPlanet: natalPlanet.name,
+                  aspectType: aspectType.name,
+                  orb: Number(orbDiff.toFixed(1)),
+                  transitSign: transitData.sign
+                });
+              }
+            }
+          }
+        }
+
+        aspects.sort(function(a, b) { return a.orb - b.orb; });
+        return aspects.slice(0, 5);
+      }
+
+      async function generateTransitInterpretation(aspects, positions, checkinData, userData) {
+        var astro = userData && userData.astro_profile;
+        var hd = userData && userData.human_design;
+        var lang = getCurrentLanguage();
+        var aspectLines = (aspects || []).map(function(a) {
+          return "Transit-" + a.transitPlanet + " " + a.aspectType + " Natal-" + a.natalPlanet + " (Orb: " + a.orb + "\u00B0)";
+        }).join("\n");
+
+        var prompt = (lang === "de"
+          ? "Du bist Mai, eine warme und kluge Begleiterin.\n\n" +
+            "TRANSIT-ASPEKTE HEUTE (sortiert nach Stärke):\n" + (aspectLines || "Keine starken Aspekte gefunden.") + "\n\n" +
+            "MOND HEUTE: " + ((positions && positions.moon && positions.moon.sign) || "?") + "\n\n" +
+            "CHECK-IN ERGEBNIS:\n" +
+            "Body: " + checkinData.body + "/10\n" +
+            "Mind: " + checkinData.mind + "/10\n" +
+            "Soul: " + checkinData.soul + "/10\n" +
+            "Energy: " + checkinData.energy + "/10\n" +
+            (checkinData.note ? "Notiz: " + checkinData.note + "\n" : "") + "\n" +
+            "PERSON:\n" +
+            "Sun: " + ((astro && astro.sun && astro.sun.sign) ? signName(astro.sun.sign) : "?") + " | Moon: " + ((astro && astro.moon && astro.moon.sign) ? signName(astro.moon.sign) : "?") + "\n" +
+            "HD Type: " + ((hd && hd.type && hd.type.name) || "?") + " | Authority: " + ((hd && hd.authority && hd.authority.name) || "?") + "\n\n" +
+            "REGELN:\n" +
+            "1. Verbinde die Transite mit dem Check-in-Ergebnis. Nur erwähnen wenn passend.\n" +
+            "2. Gib für MAXIMAL 2-3 Kategorien kurze Tipps (Body/Mind/Soul/Spirit), nicht alle vier.\n" +
+            "3. Integriere Neuroscience wenn passend.\n" +
+            "4. Max 6-8 Sätze, warm und persönlich, nie belehrend.\n" +
+            "5. Kein Astro-Jargon. Sag was es bedeutet.\n" +
+            "6. Formatiere Tipps genau so: 🫁 Body:, 🧠 Mind:, ✨ Soul:, 🔮 Spirit:"
+          : "You are Mai, a warm and smart companion.\n\n" +
+            "TODAY'S TRANSIT ASPECTS (sorted by strength):\n" + (aspectLines || "No strong aspects found.") + "\n\n" +
+            "MOON TODAY: " + ((positions && positions.moon && positions.moon.sign) || "?") + "\n\n" +
+            "CHECK-IN:\n" +
+            "Body: " + checkinData.body + "/10\n" +
+            "Mind: " + checkinData.mind + "/10\n" +
+            "Soul: " + checkinData.soul + "/10\n" +
+            "Energy: " + checkinData.energy + "/10\n" +
+            (checkinData.note ? "Note: " + checkinData.note + "\n" : "") + "\n" +
+            "PERSON:\n" +
+            "Sun: " + ((astro && astro.sun && astro.sun.sign) ? signName(astro.sun.sign) : "?") + " | Moon: " + ((astro && astro.moon && astro.moon.sign) ? signName(astro.moon.sign) : "?") + "\n" +
+            "HD Type: " + ((hd && hd.type && hd.type.name) || "?") + " | Authority: " + ((hd && hd.authority && hd.authority.name) || "?") + "\n\n" +
+            "RULES:\n" +
+            "1. Connect transits to check-in only when relevant.\n" +
+            "2. Give short tips for MAX 2-3 categories (Body/Mind/Soul/Spirit), not all four.\n" +
+            "3. Add neuroscience only if it helps.\n" +
+            "4. Max 6-8 sentences, warm and personal.\n" +
+            "5. No astro jargon.\n" +
+            "6. Format tips exactly as: 🫁 Body:, 🧠 Mind:, ✨ Soul:, 🔮 Spirit:");
+
+        var result = await callGeminiRaw(prompt, 1024);
+        return result && result.text ? result.text : null;
       }
 
       function bindEvents() {
@@ -4647,9 +5392,16 @@ No lists. No questions. Just a warm, honest reaction.`;
           appState.lastInputWasVoice = false;
         });
 
-        getEl("btn-checkin-back").addEventListener("click", () => showScreen("screen-home"));
+        getEl("btn-checkin-back").addEventListener("click", function() {
+          resetCheckinScreen();
+          showScreen("screen-home");
+        });
         getEl("btn-checkin-submit").addEventListener("click", async () => {
           await submitCheckinFromScreen("checkin");
+        });
+        getEl("btn-checkin-result-back").addEventListener("click", function() {
+          resetCheckinScreen();
+          showScreen("screen-home");
         });
 
         getEl("btn-identity-back").addEventListener("click", () => showScreen("screen-home"));
