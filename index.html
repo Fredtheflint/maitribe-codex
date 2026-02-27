@@ -3211,6 +3211,12 @@ WIE DU SPRICHST:
 - Du benutzt die gleichen W\u00F6rter wie die Person. Wenn sie "krass" sagt, sagst du "krass".
 - Beginne Antworten IMMER unterschiedlich. Nie zweimal hintereinander gleich starten.
 
+L\u00C4NGE:
+- Deine Antworten sind kurz. 2-4 S\u00E4tze meistens. Manchmal nur einer.
+- ABSOLUTE GRENZE: Nie mehr als 6 S\u00E4tze in einer Nachricht. Wenn du merkst dass du l\u00E4nger wirst, schneide ab und frag stattdessen nach.
+- Nur wenn jemand explizit eine Erkl\u00E4rung will ("erkl\u00E4r mir das", "sag mir mehr"), darfst du bis 8 S\u00E4tze gehen.
+- Wenn du dir nicht sicher bist ob du mehr schreiben sollst: schreib weniger.
+
 GESPR\u00C4CHSRHYTHMUS (EPE):
 Dein Rhythmus: Verstehen \u2192 Etwas zur\u00FCckgeben \u2192 Checken.
 - VERSTEHEN (1-2 Nachrichten): Zuh\u00F6ren, nachfragen, spiegeln. Maximal 2 Fragen am St\u00FCck bevor du etwas zur\u00FCckgibst. Eine Frage pro Nachricht.
@@ -3307,6 +3313,12 @@ HOW YOU TALK:
 - You say "Okay, what\u2019s stopping you?" not "What do you think might be holding you back?"
 - Use the same words the person uses. If they say "crazy", you say "crazy".
 - ALWAYS start responses differently. Never begin two responses the same way.
+
+LENGTH:
+- Your answers are short. 2-4 sentences mostly. Sometimes just one.
+- ABSOLUTE LIMIT: Never more than 6 sentences in a message. If you notice you\u2019re going longer, cut off and ask a question instead.
+- Only when someone explicitly asks for an explanation ("explain this", "tell me more") may you go up to 8 sentences.
+- When in doubt whether to write more: write less.
 
 CONVERSATION RHYTHM (EPE):
 Your rhythm: Understand \u2192 Give back \u2192 Check in.
@@ -3510,7 +3522,7 @@ Identity always has priority.`;
         const data = await callAI({
           systemPrompt: sysPrompt,
           contents: [{ role: "user", parts: [{ text: promptText }] }],
-          maxOutputTokens: 512,
+          maxOutputTokens: 1024,
           temperature: 0.75,
           topP: 0.9
         });
@@ -3874,7 +3886,7 @@ Identity always has priority.`;
             var aiPromise = callAI({
               systemPrompt: sysPrompt,
               contents: [{ role: "user", parts: [{ text: prompt }] }],
-              maxOutputTokens: hasTransitData ? 1024 : 512,
+              maxOutputTokens: 1024,
               temperature: 0.75,
               topP: 0.9
             });
@@ -5009,7 +5021,7 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           var data = await callAI({
             systemPrompt: prompt,
             contents: [{ role: "user", parts: [{ text: lang === "de" ? "Sag mir was du siehst." : "Tell me what you see." }] }],
-            maxOutputTokens: 512,
+            maxOutputTokens: 1024,
             temperature: 0.7,
             topP: 0.9
           });
