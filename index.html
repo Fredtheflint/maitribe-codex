@@ -1772,7 +1772,15 @@ Let us start by getting to know each other.</p>
           checkinResponse: "",
           generatedIdentity: ""
         },
+        currentScreen: "screen-auth",
+        currentChatSessionStart: null,
+        chatSessionConversationId: null,
+        summaryAlreadySaved: false,
+        chatInactivityTimer: null,
         latestTransits: null,
+        weeklyTransitForecast: null,
+        weeklyTransitForecastDate: null,
+        weeklyTransitForecastUserId: null,
         config: loadConfig()
       };
 
@@ -1814,12 +1822,20 @@ Let us start by getting to know each other.</p>
       }
 
       function showScreen(id) {
+        var previous = appState.currentScreen;
+        if (previous === "screen-chat" && id !== "screen-chat") {
+          onChatEnd().catch(function(err) {
+            console.warn("[MaiTribe] onChatEnd during screen switch failed:", err && err.message ? err.message : err);
+          });
+        }
+
         screens.forEach((screenId) => {
           const node = getEl(screenId);
           if (!node) return;
           node.classList.toggle("active", screenId === id);
         });
 
+        appState.currentScreen = id;
         updateBottomNavVisibility(id);
         if (["screen-home", "screen-chat", "screen-settings"].includes(id)) {
           setActiveBottomTab(id);
@@ -2452,6 +2468,10 @@ Let us start by getting to know each other.</p>
         console.log("[MaiTribe] handleSession for:", session.user.email);
         appState.session = session;
         appState.currentUser = session.user;
+        appState.currentChatSessionStart = null;
+        appState.chatSessionConversationId = null;
+        appState.summaryAlreadySaved = false;
+        clearChatInactivityTimer();
 
         // Degraded-mode approach: each DB step is best-effort.
         // If any fails, we still have auth data and can show the app.
@@ -3401,8 +3421,514 @@ Write in ${lang}.`;
         }
       }
 
+      function clearChatInactivityTimer() {
+        if (appState.chatInactivityTimer) {
+          clearTimeout(appState.chatInactivityTimer);
+          appState.chatInactivityTimer = null;
+        }
+      }
+
+      function resetChatInactivityTimer() {
+        clearChatInactivityTimer();
+        appState.chatInactivityTimer = setTimeout(function() {
+          onChatEnd().catch(function(err) {
+            console.warn("[MaiTribe] onChatEnd inactivity failed:", err && err.message ? err.message : err);
+          });
+        }, 5 * 60 * 1000);
+      }
+
+      async function loadConversationMessagesForSummary(conversationId) {
+        if (!appState.supabase || !conversationId) return [];
+        var result = await appState.supabase
+          .from("messages")
+          .select("role, content, created_at")
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: true })
+          .limit(200);
+        if (result.error || !Array.isArray(result.data)) return [];
+        return result.data;
+      }
+
+      function isSummaryEligible(messages) {
+        if (!Array.isArray(messages) || messages.length < 6) return false;
+        var userCount = messages.filter(function(m) { return m && m.role === "user"; }).length;
+        var maiCount = messages.filter(function(m) { return m && (m.role === "assistant" || m.role === "model"); }).length;
+        return userCount >= 3 && maiCount >= 3;
+      }
+
+      async function cleanupOldSummaries(userId) {
+        if (!appState.supabase || !userId) return;
+        var listResult = await appState.supabase
+          .from("chat_summaries")
+          .select("id")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false });
+        if (listResult.error || !Array.isArray(listResult.data)) return;
+        if (listResult.data.length <= 30) return;
+        var idsToDelete = listResult.data.slice(30).map(function(row) { return row.id; });
+        if (!idsToDelete.length) return;
+        await appState.supabase.from("chat_summaries").delete().in("id", idsToDelete);
+      }
+
+      function extractJsonObjectText(rawText) {
+        if (!rawText || typeof rawText !== "string") return null;
+        var cleaned = rawText.trim()
+          .replace(/^```json\s*/i, "")
+          .replace(/^```\s*/i, "")
+          .replace(/\s*```$/, "");
+        var firstBrace = cleaned.indexOf("{");
+        var lastBrace = cleaned.lastIndexOf("}");
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+          cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+        }
+        return cleaned;
+      }
+
+      function averageEvalScore(evals) {
+        if (!Array.isArray(evals) || !evals.length) return null;
+        var total = evals.reduce(function(sum, row) {
+          return sum + parseFloat(row && row.total_score != null ? row.total_score : 0);
+        }, 0);
+        return (total / evals.length).toFixed(1);
+      }
+
+      async function maybeUpdateUserLearnings(userId) {
+        if (!appState.supabase || !userId) return;
+
+        try {
+          var countResult = await appState.supabase
+            .from("conversation_evals")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId);
+
+          var evalCount = countResult && typeof countResult.count === "number" ? countResult.count : 0;
+          if (evalCount < 10) return;
+
+          var existingResult = await appState.supabase
+            .from("user_learnings")
+            .select("updated_at")
+            .eq("user_id", userId)
+            .maybeSingle();
+
+          if (existingResult && existingResult.data && existingResult.data.updated_at) {
+            var lastUpdate = new Date(existingResult.data.updated_at).getTime();
+            if (!Number.isNaN(lastUpdate)) {
+              var hoursSince = (Date.now() - lastUpdate) / (1000 * 60 * 60);
+              if (hoursSince < 24) return;
+            }
+          }
+
+          var evalsResult = await appState.supabase
+            .from("conversation_evals")
+            .select("*")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(20);
+
+          if (evalsResult.error || !Array.isArray(evalsResult.data) || evalsResult.data.length < 10) return;
+
+          var evals = evalsResult.data;
+          var evalsText = evals.map(function(e, i) {
+            return "Conversation " + (i + 1) + ":\n" +
+              "Scores: Listening=" + (e.score_listening || "") +
+              ", Specificity=" + (e.score_specificity || "") +
+              ", Chart=" + (e.score_chart_usage || "") +
+              ", Length=" + (e.score_length || "") +
+              ", Aha=" + (e.score_aha_moment || "") +
+              ", EPE=" + (e.score_epe_rhythm || "") +
+              ", Vulnerability=" + (e.score_vulnerability || "") + "\n" +
+              "Total: " + (e.total_score || "") + "/5\n" +
+              "Worked: " + (e.what_worked || "") + "\n" +
+              "Improve: " + (e.what_to_improve || "") + "\n" +
+              "Style: " + (e.user_preferred_style || "") + "\n" +
+              "Effective topics: " + ((e.effective_topics || []).join(", "));
+          }).join("\n\n");
+
+          var aggregationPrompt = "You analyze quality evaluations from past conversations between Mai and one specific user.\n\n" +
+            "Return ONLY a valid JSON object in this shape:\n" +
+            "{\n" +
+            "  \"effective_approaches\": [\"max 5 short items\"],\n" +
+            "  \"ineffective_approaches\": [\"max 5 short items\"],\n" +
+            "  \"preferred_style\": \"1-2 sentences\",\n" +
+            "  \"strong_topics\": [\"topic\"],\n" +
+            "  \"weak_topics\": [\"topic\"],\n" +
+            "  \"prompt_block\": \"3-5 short sentences for Mai's prompt: what works, what to avoid, how this user responds best. Max 500 characters.\"\n" +
+            "}\n\n" +
+            "Be specific, concrete, and user-adaptive.";
+
+          var aiJson = await callAI({
+            systemPrompt: "You are a precise evaluator aggregation assistant. Return valid JSON only.",
+            contents: [{ role: "user", parts: [{ text: aggregationPrompt + "\n\nEVALUATIONS:\n" + evalsText }] }],
+            maxOutputTokens: 1024,
+            temperature: 0.2,
+            topP: 0.9,
+            timeout: 25000
+          });
+
+          var rawText = extractGeminiText(aiJson);
+          var cleaned = extractJsonObjectText(rawText);
+          if (!cleaned) return;
+
+          var learnings = JSON.parse(cleaned);
+          if (!learnings || typeof learnings !== "object") return;
+
+          var promptBlock = (learnings.prompt_block || "").trim();
+          if (promptBlock.length > 500) {
+            promptBlock = promptBlock.slice(0, 497).trim() + "...";
+          }
+
+          await appState.supabase
+            .from("user_learnings")
+            .upsert({
+              user_id: userId,
+              effective_approaches: Array.isArray(learnings.effective_approaches) ? learnings.effective_approaches.slice(0, 5) : [],
+              ineffective_approaches: Array.isArray(learnings.ineffective_approaches) ? learnings.ineffective_approaches.slice(0, 5) : [],
+              preferred_style: learnings.preferred_style || null,
+              strong_topics: Array.isArray(learnings.strong_topics) ? learnings.strong_topics.slice(0, 5) : [],
+              weak_topics: Array.isArray(learnings.weak_topics) ? learnings.weak_topics.slice(0, 5) : [],
+              avg_score: parseFloat(averageEvalScore(evals) || "0"),
+              eval_count: evalCount,
+              prompt_block: promptBlock || null,
+              updated_at: new Date().toISOString()
+            }, { onConflict: "user_id" });
+
+          console.log("[MaiTribe] User learnings updated (" + evalCount + " evals)");
+        } catch (error) {
+          console.error("[MaiTribe] Learnings aggregation failed:", error);
+        }
+      }
+
+      async function evaluateConversation(messages, summaryId) {
+        if (!appState.supabase || !appState.currentUser) return null;
+        if (!isSummaryEligible(messages)) return null;
+
+        var chatText = messages.map(function(m) {
+          var role = (m.role === "assistant" || m.role === "model") ? "Mai" : "User";
+          return role + ": " + (m.content || m.text || (m.parts && m.parts[0] && m.parts[0].text) || "");
+        }).join("\n");
+
+        var evalPrompt = "You are a quality evaluator for an AI companion app named Mai. " +
+          "Mai should feel like a smart, warm friend who knows astrology, Human Design, and neuroscience.\n\n" +
+          "Evaluate this conversation on a 1-5 scale for each category.\n\n" +
+          "1. LISTENING: Did Mai listen before giving advice? Did she pick up what the user actually said?\n" +
+          "2. SPECIFICITY: Were Mai's replies specific to this user and this conversation?\n" +
+          "3. CHART_USAGE: Did Mai use astrology / Human Design naturally and helpfully, without being pushy?\n" +
+          "4. LENGTH: Were replies the right length (ideally 2-4 sentences, max 6)?\n" +
+          "5. AHA_MOMENT: Was there at least one surprising, insightful, or moving moment?\n" +
+          "6. EPE_RHYTHM: Did Mai keep a healthy elicit-provide-elicit rhythm?\n" +
+          "7. VULNERABILITY: If the user was vulnerable, did Mai stay present without coaching? If there was no vulnerability, use 3.\n\n" +
+          "Return ONLY a valid JSON object in this exact shape:\n" +
+          "{\n" +
+          "  \"score_listening\": 1,\n" +
+          "  \"score_specificity\": 1,\n" +
+          "  \"score_chart_usage\": 1,\n" +
+          "  \"score_length\": 1,\n" +
+          "  \"score_aha_moment\": 1,\n" +
+          "  \"score_epe_rhythm\": 1,\n" +
+          "  \"score_vulnerability\": 1,\n" +
+          "  \"what_worked\": \"one sentence\",\n" +
+          "  \"what_to_improve\": \"one sentence\",\n" +
+          "  \"user_preferred_style\": \"short description\",\n" +
+          "  \"effective_topics\": [\"topic\"]\n" +
+          "}";
+
+        try {
+          var aiJson = await callAI({
+            systemPrompt: "You are a precise conversation evaluator. Return valid JSON only.",
+            contents: [{ role: "user", parts: [{ text: evalPrompt + "\n\nCONVERSATION:\n" + chatText }] }],
+            maxOutputTokens: 1024,
+            temperature: 0.2,
+            topP: 0.9,
+            timeout: 25000
+          });
+
+          var rawText = extractGeminiText(aiJson);
+          var cleaned = extractJsonObjectText(rawText);
+          if (!cleaned) return null;
+
+          var evalResult = JSON.parse(cleaned);
+          if (!evalResult || typeof evalResult !== "object") return null;
+
+          var scores = [
+            evalResult.score_listening,
+            evalResult.score_specificity,
+            evalResult.score_chart_usage,
+            evalResult.score_length,
+            evalResult.score_aha_moment,
+            evalResult.score_epe_rhythm,
+            evalResult.score_vulnerability
+          ].filter(function(score) { return score != null; });
+
+          var totalScore = scores.length
+            ? (scores.reduce(function(a, b) { return a + b; }, 0) / scores.length).toFixed(1)
+            : null;
+
+          var insertResult = await appState.supabase
+            .from("conversation_evals")
+            .insert({
+              user_id: appState.currentUser.id,
+              summary_id: summaryId || null,
+              score_listening: evalResult.score_listening,
+              score_specificity: evalResult.score_specificity,
+              score_chart_usage: evalResult.score_chart_usage,
+              score_length: evalResult.score_length,
+              score_aha_moment: evalResult.score_aha_moment,
+              score_epe_rhythm: evalResult.score_epe_rhythm,
+              score_vulnerability: evalResult.score_vulnerability,
+              total_score: totalScore != null ? parseFloat(totalScore) : null,
+              what_worked: evalResult.what_worked || null,
+              what_to_improve: evalResult.what_to_improve || null,
+              user_preferred_style: evalResult.user_preferred_style || null,
+              effective_topics: Array.isArray(evalResult.effective_topics) ? evalResult.effective_topics.slice(0, 5) : [],
+              message_count: messages.length
+            });
+
+          if (insertResult.error) {
+            if (insertResult.error.code === "42P01") {
+              console.warn("[MaiTribe] conversation_evals table missing; run conversation evaluator migration.");
+            }
+            return null;
+          }
+
+          console.log("[MaiTribe] Conversation evaluated: " + totalScore + "/5");
+          await maybeUpdateUserLearnings(appState.currentUser.id);
+          return evalResult;
+        } catch (error) {
+          console.error("[MaiTribe] Evaluation failed:", error);
+          return null;
+        }
+      }
+
+      async function generateAndSaveSummary(messages) {
+        if (!appState.supabase || !appState.currentUser) return;
+        if (appState.summaryAlreadySaved) return;
+        if (!isSummaryEligible(messages)) return;
+
+        appState.summaryAlreadySaved = true;
+        var summarySaved = false;
+        var lang = (appState.profile && appState.profile.language) || getCurrentLanguage() || "en";
+        var summaryPrompt = lang === "de"
+          ? "Analysiere dieses Gespräch und erstelle eine strukturierte Zusammenfassung.\n\n" +
+            "Antworte NUR mit einem JSON-Objekt in exakt diesem Format, KEIN anderer Text:\n\n" +
+            "{\n" +
+            "  \"topics\": [\"Thema 1\", \"Thema 2\"],\n" +
+            "  \"emotions\": [\"emotion1\", \"emotion2\"],\n" +
+            "  \"people_mentioned\": [\"Person 1\"],\n" +
+            "  \"key_statements\": [\"Wichtige Aussage 1\", \"Wichtige Aussage 2\"],\n" +
+            "  \"open_questions\": [\"Offene Frage\"],\n" +
+            "  \"identity_relevant\": \"Bezug zu Identity Statements oder null\",\n" +
+            "  \"one_line\": \"Ein Satz der das Gespräch zusammenfasst\"\n" +
+            "}\n\n" +
+            "Regeln:\n" +
+            "- Maximal 3 Einträge pro Array\n" +
+            "- Kurze, prägnante Formulierungen\n" +
+            "- Emotionen als einzelne Wörter\n" +
+            "- key_statements sind Dinge die der User selbst gesagt hat\n" +
+            "- open_questions sind Themen, die beim nächsten Mal relevant sein könnten\n" +
+            "- identity_relevant nur füllen wenn wirklich ein Bezug besteht"
+          : "Analyze this conversation and create a structured summary.\n\n" +
+            "Reply ONLY with a JSON object in this exact format, no extra text:\n\n" +
+            "{\n" +
+            "  \"topics\": [\"topic 1\", \"topic 2\"],\n" +
+            "  \"emotions\": [\"emotion1\", \"emotion2\"],\n" +
+            "  \"people_mentioned\": [\"person 1\"],\n" +
+            "  \"key_statements\": [\"Key statement 1\", \"Key statement 2\"],\n" +
+            "  \"open_questions\": [\"Open follow-up question\"],\n" +
+            "  \"identity_relevant\": \"Identity relevance or null\",\n" +
+            "  \"one_line\": \"One sentence summary\"\n" +
+            "}\n\n" +
+            "Rules:\n" +
+            "- Max 3 items per array\n" +
+            "- Keep wording short and precise\n" +
+            "- Emotions as single words\n" +
+            "- key_statements must be things the user said\n" +
+            "- open_questions should be useful for the next conversation\n" +
+            "- fill identity_relevant only when clearly relevant";
+
+        var chatText = messages.map(function(m) {
+          var role = (m.role === "assistant" || m.role === "model") ? "Mai" : "User";
+          return role + ": " + (m.content || "");
+        }).join("\n");
+
+        try {
+          var aiJson = await callAI({
+            systemPrompt: lang === "de"
+              ? "Du bist ein präziser Summary-Assistent. Antworte nur mit gültigem JSON."
+              : "You are a precise summary assistant. Return valid JSON only.",
+            contents: [{ role: "user", parts: [{ text: summaryPrompt + "\n\nGESPRÄCH:\n" + chatText }] }],
+            maxOutputTokens: 1024,
+            temperature: 0.2,
+            topP: 0.9,
+            timeout: 25000
+          });
+
+          var rawText = extractGeminiText(aiJson);
+          if (!rawText) return;
+
+          var cleaned = extractJsonObjectText(rawText);
+          if (!cleaned) return;
+
+          var summary = JSON.parse(cleaned);
+          if (!summary || typeof summary !== "object") return;
+
+          var saveResult = await appState.supabase
+            .from("chat_summaries")
+            .insert({
+              user_id: appState.currentUser.id,
+              summary: summary,
+              message_count: messages.length
+            })
+            .select("id")
+            .single();
+
+          if (saveResult.error) {
+            if (saveResult.error.code === "42P01") {
+              console.warn("[MaiTribe] chat_summaries table missing; run migration for session summaries.");
+            }
+            return;
+          }
+
+          summarySaved = true;
+          await cleanupOldSummaries(appState.currentUser.id);
+          console.log("[MaiTribe] Chat summary saved");
+          evaluateConversation(messages, saveResult.data && saveResult.data.id ? saveResult.data.id : null).catch(function(err) {
+            console.error("[MaiTribe] Eval failed (non-blocking):", err);
+          });
+        } catch (error) {
+          console.error("[MaiTribe] Summary generation failed:", error);
+        } finally {
+          if (!summarySaved) {
+            appState.summaryAlreadySaved = false;
+          }
+        }
+      }
+
+      async function onChatEnd() {
+        if (!appState.currentUser) return;
+        if (appState.summaryAlreadySaved) {
+          clearChatInactivityTimer();
+          return;
+        }
+        var convId = appState.chatSessionConversationId || appState.currentConversationId;
+        if (!convId) {
+          clearChatInactivityTimer();
+          return;
+        }
+
+        var messages = await loadConversationMessagesForSummary(convId);
+        if (!isSummaryEligible(messages)) {
+          clearChatInactivityTimer();
+          return;
+        }
+
+        await generateAndSaveSummary(messages);
+        clearChatInactivityTimer();
+      }
+
+      async function startNewChatSession(conversationId) {
+        if (!conversationId) return;
+        if (appState.chatSessionConversationId === conversationId && appState.currentChatSessionStart) {
+          resetChatInactivityTimer();
+          return;
+        }
+
+        if (appState.chatSessionConversationId && !appState.summaryAlreadySaved) {
+          await onChatEnd();
+        }
+
+        appState.currentChatSessionStart = new Date();
+        appState.chatSessionConversationId = conversationId;
+        appState.summaryAlreadySaved = false;
+        resetChatInactivityTimer();
+      }
+
+      function formatSummaryRowsForPrompt(rows, langCode) {
+        if (!Array.isArray(rows) || !rows.length) return "";
+        var locale = langCode === "de" ? "de-DE" : "en-US";
+        var lines = rows.slice().reverse().map(function(row) {
+          var s = row && row.summary ? row.summary : {};
+          var dateLabel = "";
+          try {
+            dateLabel = new Date(row.created_at).toLocaleDateString(locale, {
+              weekday: "short",
+              day: "numeric",
+              month: "short"
+            });
+          } catch (_) {
+            dateLabel = row && row.created_at ? row.created_at : "";
+          }
+
+          var line = "[" + dateLabel + "] " + (s.one_line || "");
+          if (Array.isArray(s.people_mentioned) && s.people_mentioned.length) {
+            line += langCode === "de"
+              ? " (erwähnt: " + s.people_mentioned.join(", ") + ")"
+              : " (mentioned: " + s.people_mentioned.join(", ") + ")";
+          }
+          if (Array.isArray(s.open_questions) && s.open_questions.length) {
+            line += langCode === "de"
+              ? " → Offen: " + s.open_questions[0]
+              : " → Open: " + s.open_questions[0];
+          }
+          return line;
+        }).filter(Boolean);
+
+        if (!lines.length) return "";
+        if (langCode === "de") {
+          return "\n\nWAS DU ÜBER DIESE PERSON WEISST (aus früheren Gesprächen):\n" +
+            lines.join("\n") +
+            "\n\nNutze das Wissen unsichtbar. Sag nicht \"Beim letzten Mal...\". Greif Relevantes natürlich auf, sonst lass es weg.";
+        }
+        return "\n\nWHAT YOU KNOW ABOUT THIS PERSON (from earlier conversations):\n" +
+          lines.join("\n") +
+          "\n\nUse this knowledge invisibly. Do not say \"last time you said...\". Bring it up naturally only when relevant.";
+      }
+
+      async function loadRecentSummaries(userId, limit) {
+        if (!appState.supabase || !userId) return "";
+        var lim = limit || 5;
+        try {
+          var result = await appState.supabase
+            .from("chat_summaries")
+            .select("summary, created_at")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(lim);
+
+          if (result.error || !Array.isArray(result.data) || !result.data.length) return "";
+          var lang = (appState.profile && appState.profile.language) || getCurrentLanguage() || "en";
+          return formatSummaryRowsForPrompt(result.data, lang);
+        } catch (error) {
+          console.error("[MaiTribe] Failed to load summaries:", error);
+          return "";
+        }
+      }
+
+      function formatUserLearningsForPrompt(row, langCode) {
+        if (!row || !row.prompt_block) return "";
+        if (langCode === "de") {
+          var prefix = row.avg_score != null
+            ? "\n\nWAS BEI DIESER PERSON FUNKTIONIERT (gelernt aus Score " + row.avg_score + "/5 über vergangene Gespräche):\n"
+            : "\n\nWAS BEI DIESER PERSON FUNKTIONIERT:\n";
+          return prefix + row.prompt_block;
+        }
+        var enPrefix = row.avg_score != null
+          ? "\n\nWHAT WORKS FOR THIS PERSON (learned from an average score of " + row.avg_score + "/5 across past conversations):\n"
+          : "\n\nWHAT WORKS FOR THIS PERSON:\n";
+        return enPrefix + row.prompt_block;
+      }
+
       async function initChat() {
         if (!appState.currentUser) return;
+        if (appState.profile && appState.profile.astro_profile) {
+          // Preload astronomy + today's transits so chat timing questions work immediately.
+          loadAstronomyEngine().then(function() {
+            return calculateCurrentTransits();
+          }).then(function(data) {
+            if (data) appState.latestTransits = data;
+          }).catch(function(err) {
+            console.warn("[MaiTribe] initChat transit preload failed:", err && err.message ? err.message : err);
+          });
+        }
         const nowMinus30 = new Date(Date.now() - 30 * 60 * 1000).toISOString();
 
         const { data: activeConversation } = await appState.supabase
@@ -3418,6 +3944,7 @@ Write in ${lang}.`;
         if (activeConversation) {
           appState.currentConversationId = activeConversation.id;
           await loadMessages(activeConversation.id);
+          await startNewChatSession(activeConversation.id);
           return;
         }
 
@@ -3438,6 +3965,7 @@ Write in ${lang}.`;
         var opening = getFallbackOpening();
         await saveMessage("assistant", opening, "text");
         appendMessageBubble("assistant", opening);
+        await startNewChatSession(newConversation.id);
       }
 
       async function loadMessages(conversationId) {
@@ -3507,21 +4035,45 @@ Write in ${lang}.`;
 
       async function sendMessage(userText) {
         if (!userText.trim() || !appState.currentConversationId) return;
+        if (appState.summaryAlreadySaved) {
+          appState.summaryAlreadySaved = false;
+          appState.currentChatSessionStart = new Date();
+        }
+        if (!appState.chatSessionConversationId) {
+          appState.chatSessionConversationId = appState.currentConversationId;
+        }
 
         appendMessageBubble("user", userText.trim());
         await saveMessage("user", userText.trim(), appState.lastInputWasVoice ? "voice" : "text");
+        resetChatInactivityTimer();
 
         var typingBubble = appendMessageBubble("assistant", "", true);
 
         try {
-          var context = await getUserContext(appState.currentUser.id);
+          var transitPreloadPromise = Promise.resolve(null);
+          if (appState.profile && appState.profile.astro_profile) {
+            transitPreloadPromise = loadAstronomyEngine().then(function() {
+              return calculateCurrentTransits();
+            }).then(function(data) {
+              if (data) appState.latestTransits = data;
+              return data;
+            }).catch(function(err) {
+              console.warn("[MaiTribe] sendMessage transit preload failed:", err && err.message ? err.message : err);
+              return null;
+            });
+          }
 
-          var { data: historyData } = await appState.supabase
+          var contextPromise = getUserContext(appState.currentUser.id);
+          var historyPromise = appState.supabase
             .from("messages")
             .select("role, content")
             .eq("conversation_id", appState.currentConversationId)
             .order("created_at", { ascending: true })
             .limit(20);
+
+          var settled = await Promise.all([contextPromise, historyPromise, transitPreloadPromise]);
+          var context = settled[0];
+          var historyData = (settled[1] && settled[1].data) || [];
 
           var history = historyData || [];
           var responseResult = await callGeminiChat(context, history, userText.trim());
@@ -3535,12 +4087,14 @@ Write in ${lang}.`;
           }
           appendMessageBubble("assistant", responseResult.text);
           await saveMessage("assistant", responseResult.text, "text");
+          resetChatInactivityTimer();
 
           extractEventsFromMessage(userText.trim()).catch(function(err) { console.error("[MaiTribe] extractEvents error:", err); });
         } catch (err) {
           if (typingBubble.parentNode) typingBubble.parentNode.remove(); else typingBubble.remove();
           console.error("[MaiTribe] sendMessage error:", err);
           appendMessageBubble("assistant", t("err_api"));
+          resetChatInactivityTimer();
         }
       }
 
@@ -3554,7 +4108,9 @@ Write in ${lang}.`;
           appState.supabase.from("events").select("title,description,event_time").eq("user_id", userId).eq("status", "upcoming").gt("event_time", new Date().toISOString()).order("event_time", { ascending: true }).limit(5),
           appState.supabase.from("conversations").select("topics,summary").eq("user_id", userId).order("created_at", { ascending: false }).limit(5),
           appState.supabase.from("astro_transits").select("daily_insight,hd_daily_gate,hd_gate_description").eq("user_id", userId).eq("transit_date", today).limit(1).maybeSingle(),
-          appState.supabase.from("memories").select("content, category, importance, created_at").eq("user_id", userId).order("importance", { ascending: false }).order("created_at", { ascending: false }).limit(15)
+          appState.supabase.from("memories").select("content, category, importance, created_at").eq("user_id", userId).order("importance", { ascending: false }).order("created_at", { ascending: false }).limit(15),
+          appState.supabase.from("chat_summaries").select("summary, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(5),
+          appState.supabase.from("user_learnings").select("prompt_block, avg_score, preferred_style").eq("user_id", userId).maybeSingle()
         ]);
 
         function val(i) {
@@ -3574,7 +4130,9 @@ Write in ${lang}.`;
           upcoming_events: val(3).data || [],
           recent_topics: val(4).data || [],
           today_transits: val(5).data || null,
-          memories: val(6).data || []
+          memories: val(6).data || [],
+          recent_summaries: val(7).data || [],
+          user_learnings: val(8).data || null
         };
       }
 
@@ -3611,6 +4169,7 @@ L\u00C4NGE:
 - ABSOLUTE GRENZE: Nie mehr als 6 S\u00E4tze in einer Nachricht. Wenn du merkst dass du l\u00E4nger wirst, schneide ab und frag stattdessen nach.
 - Nur wenn jemand explizit eine Erkl\u00E4rung will ("erkl\u00E4r mir das", "sag mir mehr"), darfst du bis 8 S\u00E4tze gehen.
 - Wenn du dir nicht sicher bist ob du mehr schreiben sollst: schreib weniger.
+- Beende IMMER deinen letzten Satz vollst\u00E4ndig. Keine abgeschnittenen Halbs\u00E4tze.
 
 GESPR\u00C4CHSRHYTHMUS (EPE):
 Dein Rhythmus: Verstehen \u2192 Etwas zur\u00FCckgeben \u2192 Checken.
@@ -3691,6 +4250,18 @@ TON-REGELN:
 - Klinge wie eine kluge Freundin, nicht wie ein Therapeut. "Das klingt echt anstrengend" statt "Ich verstehe, dass das eine belastende Situation f\u00FCr dich ist".
 - Identit\u00E4t hat IMMER Vorrang. Wenn Astro/HD und Identity sich widersprechen, gewinnt Identity.
 
+BEISPIELE — SO KLINGT MAI (UND SO NICHT):
+1) User: "Ich bin komplett \u00FCberfordert." SO: "Okay, das ist gerade viel auf einmal. Willst du sortieren oder einen klaren n\u00E4chsten Schritt?" NICHT: "Das klingt herausfordernd. Atme tief ein."
+2) User: "Ich hab heute nichts geschafft." SO: "Passiert. Was ist ein 5-Minuten-Schritt, der heute noch z\u00E4hlt?" NICHT: "Du musst disziplinierter sein."
+3) User: "Ich ziehe mich von allen zur\u00FCck." SO: "Wie geht's dir damit, dass du dich gerade zur\u00FCckziehst?" NICHT: "Das ist normal, allein sein ist jetzt genau richtig."
+4) User: "Ich bin am Nullpunkt." SO: "Puh. Das ist hart. Wie ist es gerade jetzt in dir?" NICHT: "Hier sind drei Tipps und eine Theorie."
+5) User: "Musik hilft mir total." SO: "Dann nutz das. Was h\u00F6rst du gerade?" NICHT: "Mach lieber Meditation."
+6) User: "Nee." SO: "Alles gut. Willst du reden oder kurz Ruhe?" NICHT: "Ich sp\u00FCre Widerstand."
+7) User: "Kennst du mein HD?" SO: "Ja. Du bist [Typ] mit [Autorit\u00E4t]. Soll ich's praktisch f\u00FCr heute \u00FCbersetzen?" NICHT: "Ich habe keinen Zugriff."
+8) User: "Wie steht's heute?" SO: "Heute ist emotional dichter, aber [Tag] ist klarer f\u00FCr wichtige Gespr\u00E4che." NICHT: "Ohne Planetendaten kann ich nichts sagen."
+9) User: "Ich hab was geschafft!!" SO: "Yes! Was genau war's?" NICHT: "Gut. Und was ist dein n\u00E4chstes Ziel?"
+10) User: "Ich kann nicht schlafen." SO: "Probier Cognitive Shuffle: zuf\u00E4llige Bilder ohne Story, das stoppt Gr\u00FCbelschleifen oft schnell." NICHT: "Schlaf ist wichtig. Gute Nacht."
+
 KRISEN:
 - Suizidgedanken oder Selbstverletzung: "Hey, das klingt ernst. Bitte ruf die Telefonseelsorge an: 0800 111 0 111 (kostenlos, 24/7). Die k\u00F6nnen helfen."
 - Du bist kein Ersatz f\u00FCr professionelle Hilfe. Sag das ehrlich wenn etwas \u00FCber deine M\u00F6glichkeiten geht.
@@ -3721,6 +4292,7 @@ LENGTH:
 - ABSOLUTE LIMIT: Never more than 6 sentences in a message. If you notice you\u2019re going longer, cut off and ask a question instead.
 - Only when someone explicitly asks for an explanation ("explain this", "tell me more") may you go up to 8 sentences.
 - When in doubt whether to write more: write less.
+- Always finish your final sentence. No cut-off endings.
 
 CONVERSATION RHYTHM (EPE):
 Your rhythm: Understand \u2192 Give back \u2192 Check in.
@@ -3801,6 +4373,18 @@ TONE RULES:
 - Sound like a smart friend, not a therapist. "That sounds really exhausting" not "I understand this is a challenging situation for you".
 - Identity ALWAYS takes priority. If Astro/HD and Identity conflict, Identity wins.
 
+EXAMPLES — THIS IS MAI (AND THIS IS NOT):
+1) User: "I'm overwhelmed." DO: "Yeah, that's a lot at once. Want to sort it or want one clear next step?" DON'T: "That sounds challenging. Take a deep breath."
+2) User: "I got nothing done." DO: "It happens. What's one 5-minute move that still counts today?" DON'T: "You should be more disciplined."
+3) User: "I'm withdrawing from everyone." DO: "How does it feel to pull away like this?" DON'T: "That's normal, being alone is right right now."
+4) User: "I'm at rock bottom." DO: "That's heavy. How is it in you right now?" DON'T: "Here are three tips and a model."
+5) User: "Music helps me." DO: "Then use it. What are you listening to?" DON'T: "Try meditation instead."
+6) User: "Nope." DO: "Got it. Want to talk, or just quiet for a minute?" DON'T: "I sense resistance."
+7) User: "Do you know my HD?" DO: "Yes. You're [type] with [authority]. Want the practical version for today?" DON'T: "I have no access."
+8) User: "How's today energetically?" DO: "Today feels denser, but [day] is better for important talks." DON'T: "I can't answer without planet data."
+9) User: "I did something amazing!!" DO: "Love that. What exactly happened?" DON'T: "Great. What's your next goal?"
+10) User: "I can't sleep." DO: "Try cognitive shuffle: random neutral images, no storyline. It often breaks rumination fast." DON'T: "Sleep is important. Good night."
+
 CRISIS:
 - Suicidal thoughts or self-harm: "Hey, that sounds serious. Please call 988 (Suicide & Crisis Lifeline, free, 24/7). They can help."
 - You\u2019re not a replacement for professional help. Say so honestly when something\u2019s beyond your abilities.
@@ -3840,7 +4424,14 @@ TON-KORREKTUREN:
 Beginne Antworten NICHT mit "Uff", "Ugh", "Ohh" oder ähnlichen Wiederholungs-Eröffnungen.
 "nee" oder "nein" bedeutet einfach NEIN — nicht emotionaler Widerstand.
 Klinge wie eine kluge Freundin, nicht wie ein Therapeut.
-Identität hat immer Vorrang vor allem anderen.`;
+Identität hat immer Vorrang vor allem anderen.
+
+TRANSIT-WISSEN:
+- Du HAST Zugriff auf aktuelle und kommende Transit-Daten, wenn sie im Kontext stehen.
+- Sage NIEMALS "Ich habe keinen Zugriff auf Transite", "ich habe keinen Draht" oder ähnliche Sätze.
+- Wenn nach dem besten Tag gefragt wird, nutze die Wochenvorschau im Kontext und nenne konkret den Tag + einfache Begründung.
+- Wenn jemand fragt "wie steht's heute?" oder "wie ist heute die Energie?", nutze die heutigen Transitdaten direkt statt Rückfragen.
+- Kein Astro-Jargon ohne Erklärung: statt "Trigon" lieber "harmonischer Einfluss", statt "Quadrat" lieber "mehr Reibung".`;
         } else {
           prompt += `\n\nCONVERSATION RHYTHM — EPE (Elicit → Provide → Elicit):
 Follow the EPE rhythm:
@@ -3871,7 +4462,14 @@ TONE CORRECTIONS:
 Do not start with "Uff", "Ugh", "Ohh", or repetitive openings.
 "No"/"nah" means a simple NO — not emotional resistance.
 Sound like a smart friend, not a therapist.
-Identity always has priority.`;
+Identity always has priority.
+
+TRANSIT KNOWLEDGE:
+- You DO have access to current and upcoming transit data when it appears in context.
+- NEVER say "I don't have access to transits" or similar disclaimers.
+- If asked for the best day, use the weekly forecast in context and name a specific day with a plain-language reason.
+- If asked "how is today energetically?", use today's transit context directly instead of asking for more data.
+- Avoid jargon without translation: say "harmonious influence" instead of "trine", and "more friction" instead of "square".`;
         }
 
         // --- Identity context ---
@@ -3897,6 +4495,18 @@ Identity always has priority.`;
         // --- Astro/HD context ---
         var astroCtx = buildAstroContext(user);
         if (astroCtx) prompt += astroCtx;
+
+        // --- Cross-session memory context (recent chat summaries) ---
+        var summaryRows = context.recent_summaries || [];
+        if (summaryRows.length) {
+          prompt += formatSummaryRowsForPrompt(summaryRows, langCode);
+        }
+
+        // --- Learned communication preferences ---
+        var learnings = context.user_learnings || null;
+        if (learnings && learnings.prompt_block) {
+          prompt += formatUserLearningsForPrompt(learnings, langCode);
+        }
 
         prompt += `\n\nName: ${userName || "friend"}`;
         return prompt;
@@ -5224,6 +5834,9 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
             appState.profile.astro_profile = result.astro;
             appState.profile.human_design = result.hd;
             appState.profile.wisdom_preferences = { mode: "passive" };
+            appState.weeklyTransitForecast = null;
+            appState.weeklyTransitForecastDate = null;
+            appState.weeklyTransitForecastUserId = null;
           }
           updateHomeSpiegelCard();
 
@@ -5361,54 +5974,99 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           }
         }
 
-        // Optional current transit context for chat quality (best-effort, non-blocking)
+        // Weekly transit forecast and today's transits for timing questions.
         try {
-          var transits = appState.latestTransits || null;
-          if (!transits && astro) {
-            // Fast sync fallback if ephemeris globals are available
-            var quickPositions = getTodayPlanetPositions();
-            if (quickPositions) {
-              var quickAspects = calculateTransitAspects(quickPositions, astro).map(function(a) {
-                return {
-                  transit: a.transitPlanet || "",
-                  natal: a.natalPlanet || "",
-                  type: a.aspectType || "",
-                  orb: a.orb,
-                  transitSign: a.transitSign || ""
-                };
-              });
-              transits = {
-                moonSign: quickPositions.moon && quickPositions.moon.sign ? quickPositions.moon.sign : null,
-                aspects: quickAspects
-              };
-            }
+          function titleCase(raw) {
+            var s = String(raw || "");
+            return s ? s.charAt(0).toUpperCase() + s.slice(1) : "?";
           }
 
-          if (transits && Array.isArray(transits.aspects) && transits.aspects.length) {
-            if (langCode === "de") {
-              ctx += "\nHEUTIGE TRANSITE (nur nutzen wenn es passt):\n";
-              if (transits.moonSign) ctx += "Mond heute: " + transits.moonSign + "\n";
+          var todayKey = getTodayDateString();
+          var userId = userData && userData.id ? String(userData.id) : "";
+          var forecast = [];
+          if (astro) {
+            var canUseCache = appState.weeklyTransitForecast &&
+              appState.weeklyTransitForecastDate === todayKey &&
+              appState.weeklyTransitForecastUserId === userId;
+            if (canUseCache) {
+              forecast = appState.weeklyTransitForecast;
             } else {
-              ctx += "\nTODAY'S TRANSITS (use only when relevant):\n";
-              if (transits.moonSign) ctx += "Moon today: " + transits.moonSign + "\n";
+              forecast = calculateWeeklyTransitForecast(astro);
+              if (forecast && forecast.length) {
+                appState.weeklyTransitForecast = forecast;
+                appState.weeklyTransitForecastDate = todayKey;
+                appState.weeklyTransitForecastUserId = userId;
+              }
+            }
+          }
+          if (forecast && forecast.length > 0) {
+            if (langCode === "de") {
+              ctx += "\nHEUTIGE UND KOMMENDE TRANSITE (nutze nur bei Timing-Fragen):\n";
+            } else {
+              ctx += "\nCURRENT AND UPCOMING TRANSITS (use only for timing questions):\n";
             }
 
-            transits.aspects.slice(0, 3).forEach(function(aspect) {
-              var transitPlanet = aspect.transit || aspect.transitPlanet || "";
-              var natalPlanet = aspect.natal || aspect.natalPlanet || "";
-              var aspectType = aspect.type || aspect.aspectType || "";
-              var orb = aspect.orb == null ? "?" : aspect.orb;
-              if (!transitPlanet || !natalPlanet || !aspectType) return;
-
-              var tLabel = String(transitPlanet).charAt(0).toUpperCase() + String(transitPlanet).slice(1);
-              var nLabel = String(natalPlanet).charAt(0).toUpperCase() + String(natalPlanet).slice(1);
-              ctx += "Transit-" + tLabel + " " + aspectType + " Natal-" + nLabel + " (Orb: " + orb + "°)\n";
+            var top3 = forecast.slice(0, 3);
+            top3.forEach(function(day) {
+              var scoreLabel = (day.score > 0 ? "+" : "") + day.score;
+              var line = day.dayName + ", " + day.dateFormatted + ": Score " + scoreLabel + " | " +
+                (langCode === "de" ? "Mond in " : "Moon in ") + (day.moonSign || "?");
+              if (day.aspects && day.aspects.length) {
+                var aspectPreview = day.aspects.slice(0, 2).map(function(a) {
+                  return titleCase(a.transitPlanet) + " " + a.aspectType + " " + titleCase(a.natalPlanet);
+                }).join(", ");
+                line += " | " + aspectPreview;
+              }
+              ctx += line + "\n";
             });
 
+            var today = forecast.find(function(day) { return day.date === todayKey; });
+            if (today && today.aspects && today.aspects.length) {
+              if (langCode === "de") {
+                ctx += "\nHeutige Aspekte im Detail:\n";
+              } else {
+                ctx += "\nToday's aspect details:\n";
+              }
+              today.aspects.slice(0, 4).forEach(function(a) {
+                var meaning = a.meaning || (langCode === "de" ? "Einfluss" : "influence");
+                ctx += "- Transit " + titleCase(a.transitPlanet) + " " + a.aspectType + " Natal-" + titleCase(a.natalPlanet) +
+                  " (" + meaning + ", Orb " + a.orb + "°)\n";
+              });
+            }
+
             if (langCode === "de") {
-              ctx += "Erwähne Transite nur wenn die Person danach fragt oder es klar zum aktuellen Befinden passt.\n";
+              ctx += "\nTRANSIT-REGELN:\n";
+              ctx += "- Erwähne Transite nur wenn die Person danach fragt oder klar nach Timing sucht.\n";
+              ctx += "- Bei Fragen nach dem besten Tag: nutze den höchsten Score und erkläre es in einfacher Sprache.\n";
+              ctx += "- Kein unnötiger Astro-Jargon. Trine=harmonischer Einfluss, Square=mehr Reibung.\n";
+              ctx += "- Sage NIEMALS, dass du keinen Zugriff auf Transite hast. Die Daten stehen im Kontext.\n";
             } else {
-              ctx += "Mention transits only when the person asks or it clearly fits their current state.\n";
+              ctx += "\nTRANSIT RULES:\n";
+              ctx += "- Mention transits only when the person asks or is clearly asking for timing.\n";
+              ctx += "- For \"best day\" questions, use the highest score and explain it in plain language.\n";
+              ctx += "- Avoid raw jargon. Translate trine to harmonious influence, square to more friction.\n";
+              ctx += "- NEVER claim you have no access to transit data when context is provided.\n";
+            }
+          } else {
+            // Fallback to latest calculated same-day transits if weekly forecast is unavailable.
+            var transits = appState.latestTransits || null;
+            if (transits && Array.isArray(transits.aspects) && transits.aspects.length) {
+              if (langCode === "de") {
+                ctx += "\nHEUTIGE TRANSITE (nur nutzen wenn es passt):\n";
+                if (transits.moonSign) ctx += "Mond heute: " + transits.moonSign + "\n";
+              } else {
+                ctx += "\nTODAY'S TRANSITS (use only when relevant):\n";
+                if (transits.moonSign) ctx += "Moon today: " + transits.moonSign + "\n";
+              }
+
+              transits.aspects.slice(0, 3).forEach(function(aspect) {
+                var transitPlanet = aspect.transit || aspect.transitPlanet || "";
+                var natalPlanet = aspect.natal || aspect.natalPlanet || "";
+                var aspectType = aspect.type || aspect.aspectType || "";
+                var orb = aspect.orb == null ? "?" : aspect.orb;
+                if (!transitPlanet || !natalPlanet || !aspectType) return;
+                ctx += "Transit-" + titleCase(transitPlanet) + " " + aspectType + " Natal-" + titleCase(natalPlanet) + " (Orb: " + orb + "°)\n";
+              });
             }
           }
         } catch (e) {
@@ -5628,6 +6286,129 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
         return aspects.slice(0, 5);
       }
 
+      function calculateTransitAspectsForPositions(transitPositions, natalChart) {
+        if (!transitPositions || !natalChart) return [];
+
+        var aspectTypes = [
+          { name: "conjunction", angle: 0, orb: 8, meaning: "Verstärkung" },
+          { name: "opposition", angle: 180, orb: 8, meaning: "Spannung/Bewusstsein" },
+          { name: "trine", angle: 120, orb: 8, meaning: "Harmonie/Flow" },
+          { name: "square", angle: 90, orb: 7, meaning: "Herausforderung/Wachstum" },
+          { name: "sextile", angle: 60, orb: 6, meaning: "Gelegenheit" }
+        ];
+
+        var aspects = [];
+        var natalPlanets = collectNatalPlanets(natalChart);
+        var transitEntries = Object.keys(transitPositions).map(function(key) {
+          return transitPositions[key];
+        }).filter(Boolean);
+
+        for (var i = 0; i < transitEntries.length; i++) {
+          var transitData = transitEntries[i];
+          for (var j = 0; j < natalPlanets.length; j++) {
+            var natalPlanet = natalPlanets[j];
+            var diff = Math.abs(Number(transitData.longitude) - Number(natalPlanet.longitude));
+            var normalizedDiff = diff > 180 ? 360 - diff : diff;
+
+            for (var k = 0; k < aspectTypes.length; k++) {
+              var aspectType = aspectTypes[k];
+              var orbDiff = Math.abs(normalizedDiff - aspectType.angle);
+              if (orbDiff <= aspectType.orb) {
+                aspects.push({
+                  transitPlanet: String(transitData.name || "").toLowerCase(),
+                  natalPlanet: String(natalPlanet.name || "").toLowerCase(),
+                  aspectType: aspectType.name,
+                  meaning: aspectType.meaning,
+                  orb: Number(orbDiff.toFixed(1)),
+                  transitSign: transitData.sign || "?"
+                });
+              }
+            }
+          }
+        }
+
+        aspects.sort(function(a, b) { return a.orb - b.orb; });
+        return aspects.slice(0, 8);
+      }
+
+      function calculateTransitsForDate(targetDate, natalChart) {
+        if (!targetDate || !natalChart) return null;
+        if (typeof Astronomy === "undefined") return null;
+
+        var time = Astronomy.MakeTime(targetDate);
+        var planetNames = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"];
+        var positions = {};
+
+        for (var i = 0; i < planetNames.length; i++) {
+          var name = planetNames[i];
+          try {
+            var longitude;
+            if (name === "Sun") {
+              var sun = Astronomy.SunPosition(time);
+              longitude = sun.elon;
+            } else if (name === "Moon") {
+              var moon = Astronomy.EclipticGeoMoon(time);
+              longitude = moon.lon;
+            } else {
+              var geo = Astronomy.GeoVector(Astronomy.Body[name], time, true);
+              var ecl = Astronomy.Ecliptic(geo);
+              longitude = ecl.elon;
+            }
+
+            if (longitude < 0) longitude += 360;
+            var lc = name.toLowerCase();
+            positions[lc] = {
+              name: lc,
+              longitude: Number(longitude),
+              sign: zodiacSignFromLon(Number(longitude)),
+              degree: Number(longitude % 30).toFixed(1)
+            };
+          } catch (e) {
+            console.log("[MaiTribe] Transit skipped for " + name + ":", e && e.message ? e.message : e);
+          }
+        }
+
+        var aspects = calculateTransitAspectsForPositions(positions, natalChart);
+        return {
+          date: targetDate.toISOString().split("T")[0],
+          moonSign: positions.moon && positions.moon.sign ? positions.moon.sign : "?",
+          positions: positions,
+          aspects: aspects
+        };
+      }
+
+      function calculateWeeklyTransitForecast(natalChart) {
+        if (!natalChart) return [];
+        var forecast = [];
+        var now = new Date();
+        var base = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
+        var lang = getCurrentLanguage() || "en";
+        var locale = lang === "de" ? "de-DE" : "en-US";
+
+        for (var i = 0; i < 10; i++) {
+          var targetDate = new Date(base);
+          targetDate.setDate(base.getDate() + i);
+          var dayTransits = calculateTransitsForDate(targetDate, natalChart);
+          if (!dayTransits) continue;
+
+          var score = 0;
+          (dayTransits.aspects || []).forEach(function(aspect) {
+            var weight = Math.max(0, 8 - Number(aspect.orb || 0));
+            if (aspect.aspectType === "trine" || aspect.aspectType === "sextile") score += weight;
+            if (aspect.aspectType === "square" || aspect.aspectType === "opposition") score -= weight;
+            if (aspect.aspectType === "conjunction") score += weight * 0.5;
+          });
+
+          dayTransits.score = Math.round(score * 10) / 10;
+          dayTransits.dayName = targetDate.toLocaleDateString(locale, { weekday: "long" });
+          dayTransits.dateFormatted = targetDate.toLocaleDateString(locale, { day: "numeric", month: "long" });
+          forecast.push(dayTransits);
+        }
+
+        forecast.sort(function(a, b) { return b.score - a.score; });
+        return forecast;
+      }
+
       async function generateTransitInterpretation(aspects, positions, checkinData, userData) {
         var astro = userData && userData.astro_profile;
         var hd = userData && userData.human_design;
@@ -5825,6 +6606,9 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
         });
 
         getEl("btn-chat-new").addEventListener("click", async () => {
+          await onChatEnd().catch(function(err) {
+            console.warn("[MaiTribe] onChatEnd before new chat failed:", err && err.message ? err.message : err);
+          });
           // Extract memories from current conversation before starting new one
           var convId = appState.currentConversationId;
           var uid = appState.currentUser && appState.currentUser.id;
@@ -5843,9 +6627,14 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
         });
 
         document.addEventListener("visibilitychange", function() {
+          if (document.visibilityState === "hidden" && appState.currentScreen === "screen-chat") {
+            onChatEnd().catch(function(err) {
+              console.warn("[MaiTribe] onChatEnd on visibility hidden failed:", err && err.message ? err.message : err);
+            });
+          }
           if (document.visibilityState === "hidden" && !_memoryExtractionPending) {
             var convId = appState.currentConversationId;
-            var uid = appState.user && appState.user.id;
+            var uid = appState.currentUser && appState.currentUser.id;
             if (convId && uid && !_memoryExtractionDone[convId]) {
               _memoryExtractionPending = true;
               var lang = (appState.profile && appState.profile.language) || getCurrentLanguage() || "en";
@@ -5991,11 +6780,18 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
 
         getEl("btn-logout").addEventListener("click", async () => {
           if (!appState.supabase) return;
+          await onChatEnd().catch(function(err) {
+            console.warn("[MaiTribe] onChatEnd before logout failed:", err && err.message ? err.message : err);
+          });
           await appState.supabase.auth.signOut();
           appState.session = null;
           appState.currentUser = null;
           appState.currentConversationId = null;
           appState.profile = null;
+          appState.currentChatSessionStart = null;
+          appState.chatSessionConversationId = null;
+          appState.summaryAlreadySaved = false;
+          clearChatInactivityTimer();
           showScreen("screen-auth");
         });
 
