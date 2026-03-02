@@ -5332,18 +5332,24 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
       // ── Transit Engine: astronomy-engine for planetary transit calculations ──
 
       var _astronomyEnginePromise = null;
+      var _astronomyEngineModule = null;
       function loadAstronomyEngine() {
         if (!_astronomyEnginePromise) {
           console.log("[MaiTribe] Loading astronomy-engine from CDN...");
           _astronomyEnginePromise = import("https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/esm/astronomy.js").then(function(mod) {
             console.log("[MaiTribe] astronomy-engine loaded");
+            _astronomyEngineModule = mod;
             return mod;
           }).catch(function(err) {
             console.warn("[MaiTribe] jsdelivr astronomy-engine failed, trying esm.sh:", err);
-            return import("https://esm.sh/astronomy-engine@2.1.19");
+            return import("https://esm.sh/astronomy-engine@2.1.19").then(function(mod) {
+              _astronomyEngineModule = mod;
+              return mod;
+            });
           }).catch(function(err) {
             console.error("[MaiTribe] All CDN sources for astronomy-engine failed:", err);
             _astronomyEnginePromise = null;
+            _astronomyEngineModule = null;
             throw err;
           });
         }
@@ -5351,9 +5357,147 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
       }
 
       var ZODIAC_SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+      var ZODIAC_SIGNS_DE = ["Widder","Stier","Zwillinge","Krebs","Löwe","Jungfrau","Waage","Skorpion","Schütze","Steinbock","Wassermann","Fische"];
+      var FULL_TRANSIT_PLANETS = ["Moon", "Sun", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto"];
+      var ECLIPSE_DATA = [
+        { date: "2026-02-17", type: "Sonnenfinsternis", typeEn: "Solar Eclipse", sign: "Wassermann", signEn: "Aquarius", degree: "28°49" },
+        { date: "2026-03-03", type: "Mondfinsternis", typeEn: "Lunar Eclipse", sign: "Jungfrau", signEn: "Virgo", degree: "12°54" },
+        { date: "2026-08-12", type: "Sonnenfinsternis", typeEn: "Solar Eclipse", sign: "Löwe", signEn: "Leo", degree: "19°30" },
+        { date: "2026-08-28", type: "Mondfinsternis", typeEn: "Lunar Eclipse", sign: "Fische", signEn: "Pisces", degree: "4°59" }
+      ];
+      var ASPECT_DEFS_EXTENDED = [
+        { key: "conjunction", angle: 0, orb: 8, nameDe: "Konjunktion", nameEn: "Conjunction", meaningDe: "verstärkt / verschmilzt mit", meaningEn: "amplifies / merges with" },
+        { key: "opposition", angle: 180, orb: 8, nameDe: "Opposition", nameEn: "Opposition", meaningDe: "steht in Spannung zu", meaningEn: "stands in tension with" },
+        { key: "trine", angle: 120, orb: 8, nameDe: "Trigon", nameEn: "Trine", meaningDe: "unterstützt harmonisch", meaningEn: "supports harmoniously" },
+        { key: "square", angle: 90, orb: 7, nameDe: "Quadrat", nameEn: "Square", meaningDe: "reibt an / fordert heraus", meaningEn: "creates friction / challenges" },
+        { key: "sextile", angle: 60, orb: 6, nameDe: "Sextil", nameEn: "Sextile", meaningDe: "öffnet Möglichkeiten für", meaningEn: "opens possibilities for" }
+      ];
 
       function zodiacSignFromLon(lon) {
         return ZODIAC_SIGNS[Math.floor(((lon % 360) + 360) % 360 / 30)];
+      }
+
+      function getAstronomyEngineSync() {
+        if (_astronomyEngineModule) return _astronomyEngineModule;
+        if (typeof Astronomy !== "undefined") return Astronomy;
+        return null;
+      }
+
+      function normalizeLongitude(longitude) {
+        return ((Number(longitude) % 360) + 360) % 360;
+      }
+
+      function signDegreeToLongitude(sign, degree) {
+        var signOffsets = {
+          Aries: 0, Widder: 0,
+          Taurus: 30, Stier: 30,
+          Gemini: 60, Zwillinge: 60,
+          Cancer: 90, Krebs: 90,
+          Leo: 120, Löwe: 120,
+          Virgo: 150, Jungfrau: 150,
+          Libra: 180, Waage: 180,
+          Scorpio: 210, Skorpion: 210,
+          Sagittarius: 240, Schütze: 240,
+          Capricorn: 270, Steinbock: 270,
+          Aquarius: 300, Wassermann: 300,
+          Pisces: 330, Fische: 330
+        };
+        var offset = signOffsets[sign];
+        var numericDegree = Number(degree);
+        if (offset == null || Number.isNaN(numericDegree)) return null;
+        return normalizeLongitude(offset + numericDegree);
+      }
+
+      function longitudeToSignInfo(longitude) {
+        var normalizedLon = normalizeLongitude(longitude);
+        var signIndex = Math.floor(normalizedLon / 30);
+        return {
+          sign: ZODIAC_SIGNS_DE[signIndex],
+          signEn: ZODIAC_SIGNS[signIndex],
+          degree: Number((normalizedLon % 30).toFixed(1)),
+          longitude: Number(normalizedLon.toFixed(2))
+        };
+      }
+
+      function getPlanetLabel(name, langCode) {
+        var mapDe = {
+          Moon: "Mond",
+          Sun: "Sonne",
+          Mercury: "Merkur",
+          Venus: "Venus",
+          Mars: "Mars",
+          Jupiter: "Jupiter",
+          Saturn: "Saturn",
+          Uranus: "Uranus",
+          Neptune: "Neptun",
+          Pluto: "Pluto",
+          Rising: "Aszendent"
+        };
+        if (langCode === "de") return mapDe[name] || name;
+        return name;
+      }
+
+      function getAspectMeaningLines(langCode) {
+        if (langCode === "de") {
+          return [
+            "- Konjunktion = verstärkt, verschmilzt. Die Energie des Transit-Planeten aktiviert den Natal-Planeten direkt.",
+            "- Opposition = Spannung, Bewusstmachung. Zwei Kräfte ziehen in verschiedene Richtungen.",
+            "- Trigon = Harmonie, Fluss. Dinge gehen leichter als sonst in diesem Bereich.",
+            "- Quadrat = Herausforderung, Reibung. Wachstum durch Unbehagen.",
+            "- Sextil = Gelegenheit. Die Tür steht offen, du musst aber durchgehen."
+          ];
+        }
+        return [
+          "- Conjunction = amplifies and merges. The transit planet activates the natal planet directly.",
+          "- Opposition = tension and awareness. Two forces pull in different directions.",
+          "- Trine = harmony and flow. Things move more easily in this area.",
+          "- Square = challenge and friction. Growth through discomfort.",
+          "- Sextile = opportunity. The door is open, but you still have to walk through it."
+        ];
+      }
+
+      function getPlanetMeaningLines(langCode) {
+        if (langCode === "de") {
+          return [
+            "- Sonne = Identität, Vitalität, Selbstausdruck",
+            "- Mond = Emotionen, Bedürfnisse, innere Welt",
+            "- Merkur = Kommunikation, Denken, Lernen",
+            "- Venus = Liebe, Werte, Ästhetik, Geld",
+            "- Mars = Energie, Antrieb, Durchsetzung, Wut",
+            "- Jupiter = Wachstum, Glück, Expansion, Optimismus",
+            "- Saturn = Struktur, Verantwortung, Grenzen, Reife",
+            "- Uranus = Veränderung, Freiheit, Überraschung, Innovation",
+            "- Neptun = Intuition, Träume, Spiritualität, Verwirrung",
+            "- Pluto = Transformation, Macht, Tiefe, Loslassen"
+          ];
+        }
+        return [
+          "- Sun = identity, vitality, self-expression",
+          "- Moon = emotions, needs, inner world",
+          "- Mercury = communication, thinking, learning",
+          "- Venus = love, values, aesthetics, money",
+          "- Mars = energy, drive, assertion, anger",
+          "- Jupiter = growth, luck, expansion, optimism",
+          "- Saturn = structure, responsibility, boundaries, maturity",
+          "- Uranus = change, freedom, surprise, innovation",
+          "- Neptune = intuition, dreams, spirituality, confusion",
+          "- Pluto = transformation, power, depth, release"
+        ];
+      }
+
+      function getEclipseTimingLabel(daysUntil, langCode) {
+        if (langCode === "de") {
+          if (daysUntil === 0) return "HEUTE";
+          if (daysUntil === 1) return "MORGEN";
+          if (daysUntil === -1) return "GESTERN";
+          if (daysUntil > 0) return "in " + daysUntil + " Tagen";
+          return "vor " + Math.abs(daysUntil) + " Tagen";
+        }
+        if (daysUntil === 0) return "TODAY";
+        if (daysUntil === 1) return "TOMORROW";
+        if (daysUntil === -1) return "YESTERDAY";
+        if (daysUntil > 0) return "in " + daysUntil + " days";
+        return Math.abs(daysUntil) + " days ago";
       }
 
       function getGeoLongitude(Astro, bodyName, time) {
@@ -5365,9 +5509,14 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
 
       function checkRetrograde(Astro, bodyName, time) {
         if (bodyName === "Sun" || bodyName === "Moon") return false;
-        var t2 = time.AddDays(1 / 1440);
-        var lon1 = getGeoLongitude(Astro, bodyName, time);
-        var lon2 = getGeoLongitude(Astro, bodyName, t2);
+        var baseDate = new Date();
+        if (time && typeof time.date === "object") {
+          baseDate = new Date(time.date.getTime());
+        }
+        var yesterday = Astro.MakeTime(new Date(baseDate.getTime() - 24 * 60 * 60 * 1000));
+        var tomorrow = Astro.MakeTime(new Date(baseDate.getTime() + 24 * 60 * 60 * 1000));
+        var lon1 = getGeoLongitude(Astro, bodyName, yesterday);
+        var lon2 = getGeoLongitude(Astro, bodyName, tomorrow);
         var diff = lon2 - lon1;
         if (diff > 180) diff -= 360;
         if (diff < -180) diff += 360;
@@ -5393,103 +5542,207 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
         return null;
       }
 
-      async function calculateCurrentTransits() {
-        // Preferred path: ephemeris globals (as requested for transit feature groundwork)
-        var ephemPositions = getTodayPlanetPositions();
-        if (ephemPositions) {
-          var mappedPositions = {};
-          Object.keys(ephemPositions).forEach(function(k) {
-            var src = ephemPositions[k];
-            var cap = k.charAt(0).toUpperCase() + k.slice(1);
-            mappedPositions[cap] = {
-              longitude: Number(src.longitude),
-              sign: src.sign,
-              retrograde: false
-            };
+      function buildTransitSummary(transits, langCode) {
+        if (!transits) return "";
+        langCode = langCode || getCurrentLanguage() || "en";
+
+        var lines = [];
+        lines.push(langCode === "de"
+          ? "=== HEUTIGE TRANSITE (NUR DIESE DATEN NUTZEN, NICHTS ERFINDEN) ==="
+          : "=== TODAY'S TRANSITS (USE ONLY THESE DATA, DO NOT INVENT ANYTHING) ===");
+        lines.push(langCode === "de"
+          ? "TRANSIT-PLANETEN HEUTE (ändern sich täglich):"
+          : "TRANSIT PLANETS TODAY (these change daily):");
+
+        Object.keys(transits.planets || {}).forEach(function(name) {
+          var pos = transits.planets[name];
+          if (!pos) return;
+          var signLabel = langCode === "de" ? (pos.sign || "?") : (pos.signEn || pos.sign || "?");
+          var retroLabel = pos.retrograde ? (langCode === "de" ? " ⟲ RÜCKLÄUFIG" : " ⟲ RETROGRADE") : "";
+          lines.push("- " + getPlanetLabel(name, langCode) + ": " + signLabel + " " + Number(pos.degree).toFixed(1) + "°" + retroLabel);
+        });
+
+        if (transits.retrogrades && transits.retrogrades.length) {
+          lines.push("");
+          lines.push((langCode === "de" ? "RÜCKLÄUFIGE PLANETEN: " : "RETROGRADE PLANETS: ") + transits.retrogrades.map(function(name) {
+            return getPlanetLabel(name, langCode);
+          }).join(", "));
+          lines.push(langCode === "de"
+            ? "Rückläufige Planeten bedeuten: Themen dieses Planeten werden verlangsamt, nach innen gerichtet oder wiederholt."
+            : "Retrograde planets mean: that planet's themes slow down, turn inward, or repeat.");
+        }
+
+        if (transits.eclipses && transits.eclipses.length) {
+          lines.push("");
+          lines.push(langCode === "de" ? "FINSTERNISSE IN DER NÄHE:" : "ECLIPSES NEARBY:");
+          transits.eclipses.forEach(function(eclipse) {
+            var typeLabel = langCode === "de" ? eclipse.type : (eclipse.typeEn || eclipse.type);
+            var signLabel = langCode === "de" ? eclipse.sign : (eclipse.signEn || eclipse.sign);
+            lines.push("- " + typeLabel + " in " + signLabel + " (" + eclipse.degree + ") — " + eclipse.timing);
+          });
+          lines.push(langCode === "de"
+            ? "Finsternisse sind energetisch intensive Wendepunkte. Mondfinsternis = Abschluss, Sonnenfinsternis = Neuanfang."
+            : "Eclipses are intense turning points. Lunar eclipse = closure, solar eclipse = beginning.");
+        }
+
+        if (transits.aspects && transits.aspects.length) {
+          lines.push("");
+          lines.push(langCode === "de"
+            ? "AKTIVE ASPEKTE GEGEN DEIN NATAL-CHART (stärkste zuerst):"
+            : "ACTIVE ASPECTS TO YOUR NATAL CHART (strongest first):");
+          transits.aspects.slice(0, 8).forEach(function(aspect) {
+            lines.push("- " + aspect.description + " (" + aspect.aspect + ", " +
+              (langCode === "de" ? "Stärke " : "strength ") + aspect.strength + "/10, Orb " + Number(aspect.orb).toFixed(1) + "°)");
           });
 
-          var aspectsFromNatal = [];
-          if (appState.profile && appState.profile.astro_profile) {
-            aspectsFromNatal = calculateTransitAspects(ephemPositions, appState.profile.astro_profile).map(function(a) {
-              return {
-                transit: String(a.transitPlanet || "").charAt(0).toUpperCase() + String(a.transitPlanet || "").slice(1),
-                transitSign: a.transitSign,
-                natal: String(a.natalPlanet || "").charAt(0).toUpperCase() + String(a.natalPlanet || "").slice(1),
-                natalSign: "",
-                type: a.aspectType,
-                orb: a.orb
-              };
-            });
-          }
+          lines.push("");
+          lines.push(langCode === "de"
+            ? "BEDEUTUNG DER ASPEKTE (nutze das in Alltagssprache):"
+            : "ASPECT MEANINGS (translate into everyday language):");
+          getAspectMeaningLines(langCode).forEach(function(line) { lines.push(line); });
 
-          return {
-            positions: mappedPositions,
-            aspects: aspectsFromNatal,
-            moonSign: mappedPositions.Moon ? mappedPositions.Moon.sign : null,
-            retrogrades: []
-          };
+          lines.push("");
+          lines.push(langCode === "de"
+            ? "WAS DIE PLANETEN REPRÄSENTIEREN:"
+            : "WHAT THE PLANETS REPRESENT:");
+          getPlanetMeaningLines(langCode).forEach(function(line) { lines.push(line); });
         }
 
-        // Fallback: astronomy-engine CDN
-        var Astro = await loadAstronomyEngine();
-        var now = Astro.MakeTime(new Date());
-        var planetNames = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"];
-        var positions = {};
+        lines.push("");
+        lines.push(langCode === "de"
+          ? "--- TRANSIT-DATEN VORHANDEN. Nutze NUR diese Daten. ERFINDE KEINE. ---"
+          : "--- TRANSIT DATA AVAILABLE. Use ONLY these data. INVENT NOTHING. ---");
+        lines.push(langCode === "de"
+          ? "WICHTIG: Übersetze die Aspekte in Alltagssprache. Kein Astro-Jargon. Sage was es bedeutet und wie es sich anfühlen kann."
+          : "IMPORTANT: Translate the aspects into everyday language. No astro jargon. Say what they mean and how they can feel.");
+        lines.push(langCode === "de"
+          ? "=== ENDE TRANSIT-DATEN ==="
+          : "=== END TRANSIT DATA ===");
+        return lines.join("\n");
+      }
 
-        for (var i = 0; i < planetNames.length; i++) {
-          var name = planetNames[i];
-          var lon = getGeoLongitude(Astro, name, now);
-          positions[name] = {
-            longitude: Math.round(lon * 100) / 100,
-            sign: zodiacSignFromLon(lon),
-            retrograde: checkRetrograde(Astro, name, now)
-          };
-        }
+      function calculateFullTransits(natalData, langCode) {
+        var Astro = getAstronomyEngineSync();
+        if (!Astro || !natalData || !natalData.planets) return null;
+        langCode = langCode || getCurrentLanguage() || "en";
 
-        var aspects = [];
-        var profile = appState.profile;
-        if (profile && profile.birth_date) {
-          try {
-            var dateParts = profile.birth_date.split("-").map(Number);
-            var timeParts = (profile.birth_time || "12:00").split(":").map(Number);
-            var tz = parseFloat(profile.birth_tz || 0);
-            var utcH = timeParts[0] - tz;
-            var natalDate = new Date(Date.UTC(dateParts[0], dateParts[1] - 1, dateParts[2], utcH, timeParts[1] || 0, 0));
-            var natalTime = Astro.MakeTime(natalDate);
-
-            for (var ti = 0; ti < planetNames.length; ti++) {
-              var tLon = positions[planetNames[ti]].longitude;
-              for (var ni = 0; ni < planetNames.length; ni++) {
-                var nLon = getGeoLongitude(Astro, planetNames[ni], natalTime);
-                var asp = findAspect(tLon, nLon);
-                if (asp) {
-                  aspects.push({
-                    transit: planetNames[ti],
-                    transitSign: positions[planetNames[ti]].sign,
-                    natal: planetNames[ni],
-                    natalSign: zodiacSignFromLon(nLon),
-                    type: asp.type,
-                    orb: asp.orb
-                  });
-                }
-              }
-            }
-            aspects.sort(function(a, b) { return a.orb - b.orb; });
-            aspects = aspects.slice(0, 5);
-          } catch (err) {
-            console.error("[MaiTribe] Transit aspect calculation error:", err);
-          }
-        }
-
-        var retros = planetNames.filter(function(n) { return positions[n].retrograde; });
-        console.log("[MaiTribe] Transit calc done. Moon:", positions.Moon.sign, "Aspects:", aspects.length, "Retrogrades:", retros.join(",") || "none");
-
-        return {
-          positions: positions,
-          aspects: aspects,
-          moonSign: positions.Moon.sign,
-          retrogrades: retros
+        var nowDate = new Date();
+        var now = Astro.MakeTime(nowDate);
+        var transits = {
+          timestamp: nowDate.toISOString(),
+          dateKey: getTodayDateString(),
+          langCode: langCode,
+          moonSign: null,
+          planets: {},
+          positions: {},
+          retrogrades: [],
+          aspects: [],
+          eclipses: [],
+          summary: ""
         };
+
+        for (var i = 0; i < FULL_TRANSIT_PLANETS.length; i++) {
+          var planetName = FULL_TRANSIT_PLANETS[i];
+          try {
+            var longitude = getGeoLongitude(Astro, planetName, now);
+            var signInfo = longitudeToSignInfo(longitude);
+            var retrograde = checkRetrograde(Astro, planetName, now);
+            transits.planets[planetName] = {
+              sign: signInfo.sign,
+              signEn: signInfo.signEn,
+              degree: signInfo.degree,
+              longitude: signInfo.longitude,
+              retrograde: retrograde
+            };
+            transits.positions[planetName.toLowerCase()] = {
+              name: planetName.toLowerCase(),
+              sign: langCode === "de" ? signInfo.sign : signInfo.signEn,
+              signEn: signInfo.signEn,
+              degree: signInfo.degree,
+              longitude: signInfo.longitude,
+              retrograde: retrograde
+            };
+            if (planetName === "Moon") transits.moonSign = langCode === "de" ? signInfo.sign : signInfo.signEn;
+            if (retrograde) transits.retrogrades.push(planetName);
+          } catch (err) {
+            console.log("[MaiTribe] Could not calculate " + planetName + ":", err && err.message ? err.message : err);
+          }
+        }
+
+        Object.keys(transits.planets).forEach(function(transitName) {
+          var transitPos = transits.planets[transitName];
+          if (!transitPos || transitPos.longitude == null) return;
+          Object.keys(natalData.planets).forEach(function(natalName) {
+            var natalPos = natalData.planets[natalName];
+            if (!natalPos || natalPos.longitude == null) return;
+            var angleDiff = Math.abs(Number(transitPos.longitude) - Number(natalPos.longitude));
+            if (angleDiff > 180) angleDiff = 360 - angleDiff;
+
+            ASPECT_DEFS_EXTENDED.forEach(function(aspectDef) {
+              var orbActual = Math.abs(angleDiff - aspectDef.angle);
+              if (orbActual > aspectDef.orb) return;
+              var strength = Math.max(1, Math.round((1 - orbActual / aspectDef.orb) * 10));
+              var meaning = langCode === "de" ? aspectDef.meaningDe : aspectDef.meaningEn;
+              var aspectName = langCode === "de" ? aspectDef.nameDe : aspectDef.nameEn;
+              transits.aspects.push({
+                transit: transitName,
+                transitPlanet: transitName,
+                transitSign: langCode === "de" ? transitPos.sign : transitPos.signEn,
+                natal: natalName,
+                natalPlanet: natalName,
+                natalSign: natalPos.signEn || natalPos.sign || "?",
+                type: aspectDef.key,
+                aspectType: aspectDef.key,
+                aspect: aspectName,
+                meaning: meaning,
+                orb: Number(orbActual.toFixed(1)),
+                strength: strength,
+                description: langCode === "de"
+                  ? "Transit-" + getPlanetLabel(transitName, "de") + " " + meaning + " dein Natal-" + getPlanetLabel(natalName, "de")
+                  : "Transit " + getPlanetLabel(transitName, "en") + " " + meaning + " your natal " + getPlanetLabel(natalName, "en")
+              });
+            });
+          });
+        });
+
+        transits.aspects.sort(function(a, b) {
+          if (b.strength !== a.strength) return b.strength - a.strength;
+          return a.orb - b.orb;
+        });
+
+        var threeDaysAgo = new Date(nowDate.getTime() - 3 * 24 * 60 * 60 * 1000);
+        var inSevenDays = new Date(nowDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+        ECLIPSE_DATA.forEach(function(eclipse) {
+          var eclipseDate = new Date(eclipse.date + "T12:00:00Z");
+          if (eclipseDate < threeDaysAgo || eclipseDate > inSevenDays) return;
+          var daysUntil = Math.round((eclipseDate.getTime() - nowDate.getTime()) / (1000 * 60 * 60 * 24));
+          transits.eclipses.push({
+            date: eclipse.date,
+            type: eclipse.type,
+            typeEn: eclipse.typeEn,
+            sign: eclipse.sign,
+            signEn: eclipse.signEn,
+            degree: eclipse.degree,
+            timing: getEclipseTimingLabel(daysUntil, langCode),
+            daysUntil: daysUntil
+          });
+        });
+
+        transits.summary = buildTransitSummary(transits, langCode);
+        return transits;
+      }
+
+      async function calculateCurrentTransits() {
+        if (!appState.profile || !appState.profile.astro_profile) return null;
+        await loadAstronomyEngine();
+        var langCode = (appState.profile && appState.profile.language) || getCurrentLanguage() || "en";
+        var natalData = normalizeNatalTransitData(appState.profile.astro_profile);
+        var fullTransits = calculateFullTransits(natalData, langCode);
+        if (!fullTransits) return null;
+        fullTransits.userId = appState.currentUser ? String(appState.currentUser.id) : "";
+        appState.latestTransits = fullTransits;
+        console.log("[MaiTribe] Full transit calc done. Moon:", fullTransits.moonSign, "Aspects:", fullTransits.aspects.length, "Retrogrades:", fullTransits.retrogrades.join(",") || "none");
+        return fullTransits;
       }
 
       var _geocodeTimer = null;
@@ -5534,6 +5787,7 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           } else {
             astro = engine.calculateAstrology(birthDate);
           }
+          astro = enrichAstroProfileLongitudes(astro);
           console.log("[MaiTribe] Astrology done. Sun:", astro && astro.sun && signName(astro.sun.sign));
         } catch (e) {
           console.error("[MaiTribe] Astrology calculation failed:", e);
@@ -5561,7 +5815,7 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           birth_lat: lat,
           birth_lng: lng,
           birth_tz: tz,
-          astro_profile: astroResult,
+          astro_profile: enrichAstroProfileLongitudes(astroResult),
           human_design: hdResult,
           wisdom_preferences: { mode: "passive" }
         };
@@ -5891,117 +6145,38 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           }
         }
 
-        // Weekly transit forecast and today's transits for timing questions.
         try {
-          function titleCase(raw) {
-            var s = String(raw || "");
-            return s ? s.charAt(0).toUpperCase() + s.slice(1) : "?";
-          }
-
-          var todayKey = getTodayDateString();
-          var userId = userData && userData.id ? String(userData.id) : "";
-          var forecast = [];
           if (astro) {
-            var canUseCache = appState.weeklyTransitForecast &&
-              appState.weeklyTransitForecastDate === todayKey &&
-              appState.weeklyTransitForecastUserId === userId;
-            if (canUseCache) {
-              forecast = appState.weeklyTransitForecast;
-            } else {
-              forecast = calculateWeeklyTransitForecast(astro);
-              if (forecast && forecast.length) {
-                appState.weeklyTransitForecast = forecast;
-                appState.weeklyTransitForecastDate = todayKey;
-                appState.weeklyTransitForecastUserId = userId;
+            var todayKey = getTodayDateString();
+            var userId = userData && userData.id ? String(userData.id) : "";
+            var fullTransits = null;
+            if (appState.latestTransits &&
+                appState.latestTransits.dateKey === todayKey &&
+                appState.latestTransits.userId === userId &&
+                appState.latestTransits.langCode === langCode) {
+              fullTransits = appState.latestTransits;
+            } else if (typeof calculateFullTransits === "function") {
+              var natalData = normalizeNatalTransitData(astro);
+              fullTransits = calculateFullTransits(natalData, langCode);
+              if (fullTransits) {
+                fullTransits.userId = userId;
+                appState.latestTransits = fullTransits;
               }
             }
-          }
-          if (forecast && forecast.length > 0) {
-            if (langCode === "de") {
-              ctx += "\n=== HEUTIGE TRANSITE (NUR DIESE DATEN NUTZEN, NICHTS ERFINDEN) ===\n";
-              ctx += "HEUTIGE UND KOMMENDE TRANSITE (nutze nur bei Timing-Fragen):\n";
-            } else {
-              ctx += "\n=== CURRENT TRANSITS (USE ONLY THESE DATA, DO NOT INVENT ANYTHING) ===\n";
-              ctx += "CURRENT AND UPCOMING TRANSITS (use only for timing questions):\n";
-            }
 
-            var top3 = forecast.slice(0, 3);
-            top3.forEach(function(day) {
-              var scoreLabel = (day.score > 0 ? "+" : "") + day.score;
-              var line = day.dayName + ", " + day.dateFormatted + ": Score " + scoreLabel + " | " +
-                (langCode === "de" ? "Mond in " : "Moon in ") + (day.moonSign || "?");
-              if (day.aspects && day.aspects.length) {
-                var aspectPreview = day.aspects.slice(0, 2).map(function(a) {
-                  return titleCase(a.transitPlanet) + " " + a.aspectType + " " + titleCase(a.natalPlanet);
-                }).join(", ");
-                line += " | " + aspectPreview;
-              }
-              ctx += line + "\n";
-            });
-
-            var today = forecast.find(function(day) { return day.date === todayKey; });
-            if (today && today.aspects && today.aspects.length) {
-              if (langCode === "de") {
-                ctx += "\nHeutige Aspekte im Detail:\n";
-              } else {
-                ctx += "\nToday's aspect details:\n";
-              }
-              today.aspects.slice(0, 4).forEach(function(a) {
-                var meaning = a.meaning || (langCode === "de" ? "Einfluss" : "influence");
-                ctx += "- Transit " + titleCase(a.transitPlanet) + " " + a.aspectType + " Natal-" + titleCase(a.natalPlanet) +
-                  " (" + meaning + ", Orb " + a.orb + "°)\n";
-              });
-            }
-
-            if (langCode === "de") {
-              ctx += "\nTRANSIT-REGELN:\n";
-              ctx += "- Erwähne Transite nur wenn die Person danach fragt oder klar nach Timing sucht.\n";
-              ctx += "- Bei Fragen nach dem besten Tag: nutze den höchsten Score und erkläre es in einfacher Sprache.\n";
-              ctx += "- Kein unnötiger Astro-Jargon. Trine=harmonischer Einfluss, Square=mehr Reibung.\n";
-              ctx += "- Sage NIEMALS, dass du keinen Zugriff auf Transite hast. Die Daten stehen im Kontext.\n";
-            } else {
-              ctx += "\nTRANSIT RULES:\n";
-              ctx += "- Mention transits only when the person asks or is clearly asking for timing.\n";
-              ctx += "- For \"best day\" questions, use the highest score and explain it in plain language.\n";
-              ctx += "- Avoid raw jargon. Translate trine to harmonious influence, square to more friction.\n";
-              ctx += "- NEVER claim you have no access to transit data when context is provided.\n";
-            }
-            ctx += langCode === "de"
-              ? "=== ENDE TRANSIT-DATEN ===\nWICHTIG: Nutze NUR die Daten zwischen den === Markierungen. Erfinde keine anderen Planetenpositionen.\n--- TRANSIT-DATEN VORHANDEN. Nutze NUR diese Daten für Tages-Einschätzungen. ERFINDE KEINE. ---\n"
-              : "=== END TRANSIT DATA ===\nIMPORTANT: Use ONLY the data between the === markers. Do not invent any other planet positions.\n--- TRANSIT DATA AVAILABLE. Use ONLY these data for daily readings. INVENT NOTHING. ---\n";
-          } else {
-            // Fallback to latest calculated same-day transits if weekly forecast is unavailable.
-            var transits = appState.latestTransits || null;
-            if (transits && Array.isArray(transits.aspects) && transits.aspects.length) {
-              if (langCode === "de") {
-                ctx += "\n=== HEUTIGE TRANSITE (NUR DIESE DATEN NUTZEN, NICHTS ERFINDEN) ===\n";
-                ctx += "HEUTIGE TRANSITE (nur nutzen wenn es passt):\n";
-                ctx += "MOND HEUTE: " + (transits.moonSign || "NICHT VERFÜGBAR") + "\n";
-              } else {
-                ctx += "\n=== TODAY'S TRANSITS (USE ONLY THESE DATA, DO NOT INVENT ANYTHING) ===\n";
-                ctx += "TODAY'S TRANSITS (use only when relevant):\n";
-                ctx += "MOON TODAY: " + (transits.moonSign || "NOT AVAILABLE") + "\n";
-              }
-
-              transits.aspects.slice(0, 3).forEach(function(aspect) {
-                var transitPlanet = aspect.transit || aspect.transitPlanet || "";
-                var natalPlanet = aspect.natal || aspect.natalPlanet || "";
-                var aspectType = aspect.type || aspect.aspectType || "";
-                var orb = aspect.orb == null ? "?" : aspect.orb;
-                if (!transitPlanet || !natalPlanet || !aspectType) return;
-                ctx += "Transit-" + titleCase(transitPlanet) + " " + aspectType + " Natal-" + titleCase(natalPlanet) + " (Orb: " + orb + "°)\n";
-              });
-              ctx += langCode === "de"
-                ? "=== ENDE TRANSIT-DATEN ===\nWICHTIG: Nutze NUR die Daten zwischen den === Markierungen. Erfinde keine anderen Planetenpositionen.\n--- TRANSIT-DATEN VORHANDEN. Nutze NUR diese Daten für Tages-Einschätzungen. ERFINDE KEINE. ---\n"
-                : "=== END TRANSIT DATA ===\nIMPORTANT: Use ONLY the data between the === markers. Do not invent any other planet positions.\n--- TRANSIT DATA AVAILABLE. Use ONLY these data for daily readings. INVENT NOTHING. ---\n";
+            if (fullTransits && fullTransits.summary) {
+              ctx += "\n\n" + fullTransits.summary + "\n";
             } else {
               ctx += langCode === "de"
-                ? "\n=== KEINE TRANSIT-DATEN VERFÜGBAR. ERFINDE KEINE. ===\nIch hab gerade keinen Zugriff auf Tages-Transite.\n--- KEINE TRANSIT-DATEN VERFÜGBAR. Erfinde keine Planetenpositionen. Sage ehrlich dass du gerade keinen Zugriff hast. ---\n"
-                : "\n=== NO TRANSIT DATA AVAILABLE. DO NOT INVENT ANYTHING. ===\nI do not currently have access to daily transit data.\n--- NO TRANSIT DATA AVAILABLE. Do not invent planet positions. Say honestly that you currently have no access. ---\n";
+                ? "\n=== KEINE TRANSIT-DATEN VERFÜGBAR. ERFINDE KEINE. ===\n--- KEINE TRANSIT-DATEN VERFÜGBAR. Erfinde keine Planetenpositionen. Sage ehrlich dass du gerade keinen Zugriff hast. ---\n"
+                : "\n=== NO TRANSIT DATA AVAILABLE. DO NOT INVENT ANYTHING. ===\n--- NO TRANSIT DATA AVAILABLE. Do not invent planet positions. Say honestly that you currently have no access. ---\n";
             }
           }
         } catch (e) {
-          console.log("[MaiTribe] Transit context skipped:", e && e.message ? e.message : e);
+          console.log("[MaiTribe] Full transit calculation failed:", e && e.message ? e.message : e);
+          ctx += langCode === "de"
+            ? "\n=== KEINE TRANSIT-DATEN VERFÜGBAR. ERFINDE KEINE. ===\n--- KEINE TRANSIT-DATEN VERFÜGBAR. Erfinde keine Planetenpositionen. ---\n"
+            : "\n=== NO TRANSIT DATA AVAILABLE. DO NOT INVENT ANYTHING. ===\n--- NO TRANSIT DATA AVAILABLE. Do not invent planet positions. ---\n";
         }
 
         if (langCode === "de") {
@@ -6131,6 +6306,89 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           console.error("[MaiTribe] getTodayPlanetPositions failed:", err);
           return null;
         }
+      }
+
+      function enrichAstroProfileLongitudes(astro) {
+        if (!astro || typeof astro !== "object") return astro;
+
+        function ensureLongitude(obj, fallbackName) {
+          if (!obj || typeof obj !== "object") return obj;
+          var degreeValue = obj.degree;
+          if ((degreeValue == null || Number.isNaN(Number(degreeValue))) && obj.longitude != null && !Number.isNaN(Number(obj.longitude))) {
+            degreeValue = Number((normalizeLongitude(obj.longitude) % 30).toFixed(1));
+          }
+          if (obj.longitude == null || Number.isNaN(Number(obj.longitude))) {
+            var derivedLongitude = signDegreeToLongitude(obj.sign ? signName(obj.sign) : "", degreeValue);
+            if (derivedLongitude != null) obj.longitude = Number(derivedLongitude.toFixed(2));
+          } else {
+            obj.longitude = Number(normalizeLongitude(obj.longitude).toFixed(2));
+          }
+          if (degreeValue != null && !Number.isNaN(Number(degreeValue))) {
+            obj.degree = Number(Number(degreeValue).toFixed(1));
+          } else if (obj.longitude != null && !Number.isNaN(Number(obj.longitude))) {
+            obj.degree = Number((normalizeLongitude(obj.longitude) % 30).toFixed(1));
+          }
+          if (fallbackName && !obj.name) obj.name = fallbackName;
+          return obj;
+        }
+
+        ensureLongitude(astro.sun, "sun");
+        ensureLongitude(astro.moon, "moon");
+        ensureLongitude(astro.rising, "rising");
+
+        if (Array.isArray(astro.planets)) {
+          astro.planets.forEach(function(planet) {
+            if (planet) ensureLongitude(planet, planet.name);
+          });
+        } else if (astro.planets && typeof astro.planets === "object") {
+          Object.keys(astro.planets).forEach(function(name) {
+            ensureLongitude(astro.planets[name], name);
+          });
+        }
+
+        return astro;
+      }
+
+      function normalizeNatalTransitData(astro) {
+        if (!astro) return null;
+        var enriched = enrichAstroProfileLongitudes(astro);
+        var natalData = { planets: {} };
+
+        function addPlanet(targetName, source) {
+          if (!source) return;
+          var longitude = source.longitude != null && !Number.isNaN(Number(source.longitude))
+            ? Number(source.longitude)
+            : signDegreeToLongitude(source.sign ? signName(source.sign) : "", source.degree);
+          if (longitude == null || Number.isNaN(Number(longitude))) return;
+          var normalized = longitudeToSignInfo(longitude);
+          natalData.planets[targetName] = {
+            sign: source.sign ? signName(source.sign) : normalized.sign,
+            signEn: normalized.signEn,
+            degree: source.degree != null && !Number.isNaN(Number(source.degree))
+              ? Number(Number(source.degree).toFixed(1))
+              : normalized.degree,
+            longitude: normalized.longitude
+          };
+        }
+
+        addPlanet("Sun", enriched.sun);
+        addPlanet("Moon", enriched.moon);
+        addPlanet("Rising", enriched.rising);
+
+        if (Array.isArray(enriched.planets)) {
+          enriched.planets.forEach(function(planet) {
+            if (!planet || !planet.name) return;
+            var normalizedKey = String(planet.name).charAt(0).toUpperCase() + String(planet.name).slice(1);
+            addPlanet(normalizedKey, planet);
+          });
+        } else if (enriched.planets && typeof enriched.planets === "object") {
+          Object.keys(enriched.planets).forEach(function(name) {
+            var normalizedKey = String(name).charAt(0).toUpperCase() + String(name).slice(1);
+            addPlanet(normalizedKey, enriched.planets[name]);
+          });
+        }
+
+        return natalData;
       }
 
       function collectNatalPlanets(natalChart) {
