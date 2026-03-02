@@ -4219,6 +4219,13 @@ Max 2 Fragen, dann gibst du etwas zurück — einen Tipp, ein Neuroscience-Nugge
 
 Wenn du einen Tipp geben willst aber unsicher bist: "Darf ich dir was dazu sagen?" oder "Ich hätte eine Idee — magst du die hören?"
 
+WENN DIE PERSON NACH IHREM TAG FRAGT:
+Wenn die Person fragt "wie steht's heute?", "was sagen die Planeten?", "wie sieht mein Tag aus?", "was erwartet mich heute?", "wie hole ich das beste raus?" oder ähnlich:
+- Nutze die Transit-Daten die im Kontext stehen
+- Gib direkt ein kurzes Gesamtbild statt Rückfragen
+- Übersetze es in Alltagssprache, nicht in Astro-Jargon
+- Wenn danach kommt "Was kann ich da tun?" oder "Was heißt das für mich?" dann gib einen konkreten Tipp. Nicht nochmal nachfragen.
+
 NEUROSCIENCE — nur wenn es zum Gespräch passt, nie als Vorlesung, max 2-3 Sätze:
 - Schlaf: Glymphatisches System räumt Abfallstoffe auf
 - Gewohnheiten: 66 Tage Durchschnitt, aber Pfade ab Tag 1
@@ -4239,7 +4246,10 @@ VERBOTEN:
 - Ungefragt Astrologie oder HD erwähnen
 - Widersprechen wenn jemand sagt was ihnen hilft
 - Generische Produktivitäts-Tipps wenn nach Sternen/Transiten gefragt wird
-- Rückfragen stellen wenn die Daten im Kontext stehen`;
+- Rückfragen stellen wenn die Daten im Kontext stehen
+- PLANETENPOSITIONEN ERFINDEN. Nutze NUR die Daten aus dem Kontext. Wenn keine Transit-Daten vorhanden: "Ich hab gerade keinen Zugriff auf deine Tages-Transite — magst du mir erzählen was du gerade spürst?"
+- Natal-Daten (Geburtschart) und Transit-Daten (wo Planeten HEUTE stehen) vermischen oder verwechseln
+- Dir selbst widersprechen (nicht erst "Mond in Löwe" sagen und dann "Mond in Krebs")`;
         } else {
           prompt = `You are Mai.
 
@@ -5801,6 +5811,9 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           : "\n\n[COSMIC PROFILE — use this knowledge invisibly to better understand the person]\n";
 
         if (astro) {
+          ctx += langCode === "de"
+            ? "=== NATAL-CHART DIESER PERSON (FESTE DATEN) ===\n"
+            : "=== THIS PERSON'S NATAL CHART (FIXED DATA) ===\n";
           var sun = astro.sun && astro.sun.sign ? signName(astro.sun.sign) : "?";
           var sunElement = astro.sun && astro.sun.sign ? (signElement(astro.sun.sign) || "?") : "?";
           var moon = astro.moon && astro.moon.sign ? signName(astro.moon.sign) : "?";
@@ -5825,6 +5838,9 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           if (mars && mars.sign) {
             ctx += (langCode === "de" ? "Mars: " : "Mars: ") + signName(mars.sign) + (langCode === "de" ? " — Antrieb & Energie\n" : " — Drive & energy\n");
           }
+          ctx += langCode === "de"
+            ? "=== ENDE NATAL-CHART ===\n"
+            : "=== END NATAL CHART ===\n";
         }
 
         if (hd) {
@@ -5902,9 +5918,11 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           }
           if (forecast && forecast.length > 0) {
             if (langCode === "de") {
-              ctx += "\nHEUTIGE UND KOMMENDE TRANSITE (nutze nur bei Timing-Fragen):\n";
+              ctx += "\n=== HEUTIGE TRANSITE (NUR DIESE DATEN NUTZEN, NICHTS ERFINDEN) ===\n";
+              ctx += "HEUTIGE UND KOMMENDE TRANSITE (nutze nur bei Timing-Fragen):\n";
             } else {
-              ctx += "\nCURRENT AND UPCOMING TRANSITS (use only for timing questions):\n";
+              ctx += "\n=== CURRENT TRANSITS (USE ONLY THESE DATA, DO NOT INVENT ANYTHING) ===\n";
+              ctx += "CURRENT AND UPCOMING TRANSITS (use only for timing questions):\n";
             }
 
             var top3 = forecast.slice(0, 3);
@@ -5948,16 +5966,21 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
               ctx += "- Avoid raw jargon. Translate trine to harmonious influence, square to more friction.\n";
               ctx += "- NEVER claim you have no access to transit data when context is provided.\n";
             }
+            ctx += langCode === "de"
+              ? "=== ENDE TRANSIT-DATEN ===\nWICHTIG: Nutze NUR die Daten zwischen den === Markierungen. Erfinde keine anderen Planetenpositionen.\n--- TRANSIT-DATEN VORHANDEN. Nutze NUR diese Daten für Tages-Einschätzungen. ERFINDE KEINE. ---\n"
+              : "=== END TRANSIT DATA ===\nIMPORTANT: Use ONLY the data between the === markers. Do not invent any other planet positions.\n--- TRANSIT DATA AVAILABLE. Use ONLY these data for daily readings. INVENT NOTHING. ---\n";
           } else {
             // Fallback to latest calculated same-day transits if weekly forecast is unavailable.
             var transits = appState.latestTransits || null;
             if (transits && Array.isArray(transits.aspects) && transits.aspects.length) {
               if (langCode === "de") {
-                ctx += "\nHEUTIGE TRANSITE (nur nutzen wenn es passt):\n";
-                if (transits.moonSign) ctx += "Mond heute: " + transits.moonSign + "\n";
+                ctx += "\n=== HEUTIGE TRANSITE (NUR DIESE DATEN NUTZEN, NICHTS ERFINDEN) ===\n";
+                ctx += "HEUTIGE TRANSITE (nur nutzen wenn es passt):\n";
+                ctx += "MOND HEUTE: " + (transits.moonSign || "NICHT VERFÜGBAR") + "\n";
               } else {
-                ctx += "\nTODAY'S TRANSITS (use only when relevant):\n";
-                if (transits.moonSign) ctx += "Moon today: " + transits.moonSign + "\n";
+                ctx += "\n=== TODAY'S TRANSITS (USE ONLY THESE DATA, DO NOT INVENT ANYTHING) ===\n";
+                ctx += "TODAY'S TRANSITS (use only when relevant):\n";
+                ctx += "MOON TODAY: " + (transits.moonSign || "NOT AVAILABLE") + "\n";
               }
 
               transits.aspects.slice(0, 3).forEach(function(aspect) {
@@ -5968,6 +5991,13 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
                 if (!transitPlanet || !natalPlanet || !aspectType) return;
                 ctx += "Transit-" + titleCase(transitPlanet) + " " + aspectType + " Natal-" + titleCase(natalPlanet) + " (Orb: " + orb + "°)\n";
               });
+              ctx += langCode === "de"
+                ? "=== ENDE TRANSIT-DATEN ===\nWICHTIG: Nutze NUR die Daten zwischen den === Markierungen. Erfinde keine anderen Planetenpositionen.\n--- TRANSIT-DATEN VORHANDEN. Nutze NUR diese Daten für Tages-Einschätzungen. ERFINDE KEINE. ---\n"
+                : "=== END TRANSIT DATA ===\nIMPORTANT: Use ONLY the data between the === markers. Do not invent any other planet positions.\n--- TRANSIT DATA AVAILABLE. Use ONLY these data for daily readings. INVENT NOTHING. ---\n";
+            } else {
+              ctx += langCode === "de"
+                ? "\n=== KEINE TRANSIT-DATEN VERFÜGBAR. ERFINDE KEINE. ===\nIch hab gerade keinen Zugriff auf Tages-Transite.\n--- KEINE TRANSIT-DATEN VERFÜGBAR. Erfinde keine Planetenpositionen. Sage ehrlich dass du gerade keinen Zugriff hast. ---\n"
+                : "\n=== NO TRANSIT DATA AVAILABLE. DO NOT INVENT ANYTHING. ===\nI do not currently have access to daily transit data.\n--- NO TRANSIT DATA AVAILABLE. Do not invent planet positions. Say honestly that you currently have no access. ---\n";
             }
           }
         } catch (e) {
