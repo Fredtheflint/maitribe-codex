@@ -1,4 +1,5 @@
 import webpush from "npm:web-push@3.6.7";
+import { createClient } from "npm:@supabase/supabase-js@2.49.8";
 
 type PushRequestBody = {
   userId: string;
@@ -44,6 +45,57 @@ function isSubscriptionExpired(err: unknown): boolean {
   return false;
 }
 
+function getBearerToken(req: Request): string {
+  const auth = req.headers.get("Authorization") || "";
+  if (!auth.toLowerCase().startsWith("bearer ")) return "";
+  return auth.slice(7).trim();
+}
+
+function isServiceRoleRequest(req: Request, serviceRoleKey: string | null): boolean {
+  if (!serviceRoleKey) return false;
+  const authToken = getBearerToken(req);
+  const apiKey = req.headers.get("apikey") || "";
+  return authToken === serviceRoleKey || apiKey === serviceRoleKey;
+}
+
+async function authenticateRequest(req: Request, userId: string) {
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (isServiceRoleRequest(req, serviceRoleKey)) {
+    return { ok: true as const, mode: "service_role" as const };
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const accessToken = getBearerToken(req);
+
+  if (!supabaseUrl || !supabaseAnonKey || !accessToken) {
+    return { ok: false as const, status: 401, error: "Unauthorized" };
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) {
+    return { ok: false as const, status: 401, error: "Invalid auth token" };
+  }
+
+  if (data.user.id !== userId) {
+    return { ok: false as const, status: 403, error: "Forbidden" };
+  }
+
+  return { ok: true as const, mode: "user" as const };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -86,6 +138,14 @@ Deno.serve(async (req) => {
       ok: false,
       error: "Invalid subscription keys",
       required: ["subscription.keys.p256dh", "subscription.keys.auth"]
+    });
+  }
+
+  const authResult = await authenticateRequest(req, body.userId);
+  if (!authResult.ok) {
+    return json(authResult.status, {
+      ok: false,
+      error: authResult.error,
     });
   }
 
