@@ -673,7 +673,12 @@
           <label id="auth-email-label" for="auth-email">Email</label>
           <input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" />
         </div>
-        <button id="btn-magic-link" class="btn-primary" type="button">Continue with Email</button>
+        <button id="btn-magic-link" class="btn-primary" type="button">Send Login Code</button>
+        <div id="auth-code-wrap" style="display:none;">
+          <label id="auth-code-label" for="auth-code">Login code</label>
+          <input id="auth-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" maxlength="6" />
+        </div>
+        <button id="btn-verify-code" class="btn" type="button" style="display:none;">Verify code</button>
         <button id="btn-google" class="btn" type="button">Continue with Google</button>
         <p id="auth-status" class="status"></p>
       </div>
@@ -1317,7 +1322,9 @@ Let us start by getting to know each other.</p>
       const i18n = {
         en: {
           auth_subtitle: "Your space. Your truth. Always private.",
-          auth_continue_email: "Continue with Email",
+          auth_continue_email: "Send login code",
+          auth_code_label: "Login code",
+          auth_verify_code: "Verify code",
           auth_continue_google: "Continue with Google",
           onboard_welcome_title: "Welcome.",
           onboard_welcome_text: "I am Mai \u2014 your companion for body, mind, and soul.\n\nI am not a chatbot. I am not a coach. I am not an app that tells you what to do.\n\nI am a quiet presence. I listen. I remember. I walk next to you.\n\nLet's start by getting to know each other.",
@@ -1456,7 +1463,12 @@ Let us start by getting to know each other.</p>
           home_identity_placeholder: "Your truth will appear here once onboarding is complete.",
           settings_gemini_label: "Gemini API key",
           settings_vapid_label: "VAPID public key (optional)",
-          status_sending_magic: "Sending magic link...",
+          status_sending_magic: "Sending login code...",
+          status_code_sent: "Check your inbox and enter the 6-digit code here.",
+          status_enter_code: "Enter the 6-digit code from your email.",
+          status_verifying_code: "Verifying code...",
+          status_invalid_code: "That code did not work. Request a new one and try again.",
+          status_ios_pwa_hint: "If you're on iPhone, open Mai from your home screen and enter the code there.",
           status_check_inbox: "Check your inbox for the login link.",
           status_enter_email: "Enter your email.",
           status_configure_supabase: "Configure Supabase first.",
@@ -1664,7 +1676,9 @@ Let us start by getting to know each other.</p>
           status_api_key_invalid: "Dieser API Key ist ung\u00FCltig. Pr\u00FCfe ihn auf aistudio.google.com/apikey",
           status_api_key_rate_limited: "Key gespeichert, aber gerade rate-limited. Versuch es in einer Minute.",
           auth_subtitle: "Dein Raum. Deine Wahrheit. Immer privat.",
-          auth_continue_email: "Weiter mit E-Mail",
+          auth_continue_email: "Login-Code senden",
+          auth_code_label: "Login-Code",
+          auth_verify_code: "Code bestätigen",
           auth_continue_google: "Weiter mit Google",
           splash_subtitle: "ganzheitlich \u00B7 K\u00F6rper \u00B7 Geist \u00B7 Seele",
           auth_email_label: "E-Mail",
@@ -1676,7 +1690,12 @@ Let us start by getting to know each other.</p>
           home_identity_placeholder: "Deine Wahrheit erscheint hier, sobald das Onboarding abgeschlossen ist.",
           settings_gemini_label: "Gemini API-Schl\u00FCssel",
           settings_vapid_label: "VAPID Public Key (optional)",
-          status_sending_magic: "Magic Link wird gesendet...",
+          status_sending_magic: "Login-Code wird gesendet...",
+          status_code_sent: "Pr\u00FCfe dein Postfach und gib hier den 6-stelligen Code ein.",
+          status_enter_code: "Bitte gib den 6-stelligen Code aus der E-Mail ein.",
+          status_verifying_code: "Code wird gepr\u00FCft...",
+          status_invalid_code: "Dieser Code hat nicht funktioniert. Fordere einen neuen an und versuche es nochmal.",
+          status_ios_pwa_hint: "Wenn du auf dem iPhone bist, \u00F6ffne Mai \u00FCber das Homescreen-App-Icon und gib den Code dort ein.",
           status_check_inbox: "Pr\u00FCfe dein Postfach f\u00FCr den Login-Link.",
           status_enter_email: "Bitte gib deine E-Mail ein.",
           status_configure_supabase: "Bitte zuerst Supabase konfigurieren.",
@@ -1781,6 +1800,7 @@ Let us start by getting to know each other.</p>
         weeklyTransitForecast: null,
         weeklyTransitForecastDate: null,
         weeklyTransitForecastUserId: null,
+        pendingAuthEmail: localStorage.getItem("maitribe.auth.pending_email") || "",
         config: loadConfig()
       };
 
@@ -1803,6 +1823,31 @@ Let us start by getting to know each other.</p>
 
       function getEl(id) {
         return document.getElementById(id);
+      }
+
+      function isStandalonePWA() {
+        return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      }
+
+      function setPendingAuthEmail(email) {
+        appState.pendingAuthEmail = email || "";
+        if (appState.pendingAuthEmail) {
+          localStorage.setItem("maitribe.auth.pending_email", appState.pendingAuthEmail);
+        } else {
+          localStorage.removeItem("maitribe.auth.pending_email");
+        }
+      }
+
+      function updateAuthCodeUI() {
+        var hasPendingEmail = Boolean(appState.pendingAuthEmail);
+        var codeWrap = getEl("auth-code-wrap");
+        var verifyBtn = getEl("btn-verify-code");
+        var emailInput = getEl("auth-email");
+        if (codeWrap) codeWrap.style.display = hasPendingEmail ? "block" : "none";
+        if (verifyBtn) verifyBtn.style.display = hasPendingEmail ? "block" : "none";
+        if (emailInput && appState.pendingAuthEmail && !emailInput.value.trim()) {
+          emailInput.value = appState.pendingAuthEmail;
+        }
       }
 
       function escapeHtml(value) {
@@ -1947,10 +1992,13 @@ Let us start by getting to know each other.</p>
         setText("auth-subtitle", t("auth_subtitle"));
         setText("auth-email-label", t("auth_email_label"));
         setText("btn-magic-link", t("auth_continue_email"));
+        setText("auth-code-label", t("auth_code_label"));
+        setText("btn-verify-code", t("auth_verify_code"));
         setText("btn-google", t("auth_continue_google"));
         setText("auth-project-keys-summary", t("auth_project_keys"));
         setText("btn-save-config", t("auth_save_keys"));
         setText("auth-keys-helper", t("auth_keys_helper"));
+        updateAuthCodeUI();
 
         setText("onboard-welcome-title", t("onboard_welcome_title"));
         setText("onboard-welcome-text", t("onboard_welcome_text"));
@@ -2455,6 +2503,9 @@ Let us start by getting to know each other.</p>
             await handleSession(session);
           } else {
             showScreen("screen-auth");
+            if (appState.pendingAuthEmail) {
+              setStatus("auth-status", t("status_enter_code"));
+            }
           }
         } catch (error) {
           console.error("[MaiTribe] routeAfterSplash error:", error);
@@ -2468,6 +2519,9 @@ Let us start by getting to know each other.</p>
         console.log("[MaiTribe] handleSession for:", session.user.email);
         appState.session = session;
         appState.currentUser = session.user;
+        setPendingAuthEmail("");
+        var authCodeInput = getEl("auth-code");
+        if (authCodeInput) authCodeInput.value = "";
         appState.currentChatSessionStart = null;
         appState.chatSessionConversationId = null;
         appState.summaryAlreadySaved = false;
@@ -6777,7 +6831,7 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           setStatus("auth-status", t("status_sending_magic"));
           const { error } = await appState.supabase.auth.signInWithOtp({
             email: email,
-            options: { emailRedirectTo: window.location.origin + window.location.pathname }
+            options: { emailRedirectTo: getAuthRedirectUrl() }
           });
 
           if (error) {
@@ -6790,7 +6844,52 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
             return;
           }
 
-          setStatus("auth-status", t("status_check_inbox"));
+          setPendingAuthEmail(email);
+          updateAuthCodeUI();
+          var statusMessage = t("status_code_sent");
+          if (isStandalonePWA()) statusMessage += " " + t("status_ios_pwa_hint");
+          setStatus("auth-status", statusMessage);
+        });
+
+        getEl("btn-verify-code").addEventListener("click", async () => {
+          if (!appState.supabase) {
+            setStatus("auth-status", t("status_configure_supabase"), true);
+            return;
+          }
+
+          const email = getEl("auth-email").value.trim() || appState.pendingAuthEmail;
+          const code = (getEl("auth-code").value || "").trim().replace(/\s+/g, "");
+          if (!email) {
+            setStatus("auth-status", t("status_enter_email"), true);
+            return;
+          }
+          if (!code || code.length < 6) {
+            setStatus("auth-status", t("status_enter_code"), true);
+            return;
+          }
+
+          setStatus("auth-status", t("status_verifying_code"));
+          const { data, error } = await appState.supabase.auth.verifyOtp({
+            email: email,
+            token: code,
+            type: "email"
+          });
+
+          if (error) {
+            setStatus("auth-status", error.message || t("status_invalid_code"), true);
+            return;
+          }
+
+          setPendingAuthEmail("");
+          updateAuthCodeUI();
+          if (data && data.session && (!_authListenerRegistered || !_bootRouteComplete)) {
+            await handleSession(data.session);
+          } else if (!_authListenerRegistered || !_bootRouteComplete) {
+            const sessionResult = await appState.supabase.auth.getSession();
+            if (sessionResult && sessionResult.data && sessionResult.data.session) {
+              await handleSession(sessionResult.data.session);
+            }
+          }
         });
 
         getEl("btn-google").addEventListener("click", async () => {
@@ -7121,6 +7220,7 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
             appState.session = null;
             appState.currentUser = null;
             appState.profile = null;
+            updateAuthCodeUI();
             showScreen("screen-auth");
           }
         });
