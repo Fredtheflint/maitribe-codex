@@ -6867,7 +6867,7 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           setStatus("auth-status", t("status_sending_magic"));
           const { error } = await appState.supabase.auth.signInWithOtp({
             email: email,
-            options: { emailRedirectTo: getAuthRedirectUrl() }
+            options: { shouldCreateUser: false }
           });
 
           if (error) {
@@ -6894,12 +6894,15 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           }
 
           const email = getEl("auth-email").value.trim() || appState.pendingAuthEmail;
-          const code = (getEl("auth-code").value || "").trim().replace(/\D/g, "");
+          const rawCode = (getEl("auth-code").value || "").trim();
+          const compactCode = rawCode.replace(/\s+/g, "");
+          const tokenMatch = compactCode.match(/[A-Za-z0-9]{6,}/);
+          const code = tokenMatch ? tokenMatch[0] : compactCode;
           if (!email) {
             setStatus("auth-status", t("status_enter_email"), true);
             return;
           }
-          if (!code || code.length < 6) {
+          if (!code || code.length < 4) {
             setStatus("auth-status", t("status_enter_code"), true);
             return;
           }
