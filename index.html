@@ -1464,7 +1464,7 @@ Let us start by getting to know each other.</p>
           settings_gemini_label: "Gemini API key",
           settings_vapid_label: "VAPID public key (optional)",
           status_sending_magic: "Sending login code...",
-          status_code_sent: "Check your inbox and enter the 6-digit code here.",
+          status_code_sent: "Check your inbox and enter the code here. You can also paste the full login link.",
           status_enter_code: "Enter the 6-digit code from your email.",
           status_verifying_code: "Verifying code...",
           status_invalid_code: "That code did not work. Request a new one and try again.",
@@ -1691,7 +1691,7 @@ Let us start by getting to know each other.</p>
           settings_gemini_label: "Gemini API-Schl\u00FCssel",
           settings_vapid_label: "VAPID Public Key (optional)",
           status_sending_magic: "Login-Code wird gesendet...",
-          status_code_sent: "Pr\u00FCfe dein Postfach und gib hier den 6-stelligen Code ein.",
+          status_code_sent: "Pr\u00FCfe dein Postfach und gib den Code hier ein. Du kannst auch den kompletten Login-Link einf\u00FCgen.",
           status_enter_code: "Bitte gib den 6-stelligen Code aus der E-Mail ein.",
           status_verifying_code: "Code wird gepr\u00FCft...",
           status_invalid_code: "Dieser Code hat nicht funktioniert. Fordere einen neuen an und versuche es nochmal.",
@@ -1886,25 +1886,52 @@ Let us start by getting to know each other.</p>
         return { data: null, error: lastError || { message: "Token has expired or is invalid" } };
       }
 
-      function extractTokenHashPayload(rawInput) {
+      function extractAuthInputPayload(rawInput) {
         if (!rawInput) return null;
         var text = String(rawInput).trim();
         if (!text) return null;
 
         var candidate = text;
-        if (!/^https?:\/\//i.test(candidate) && (candidate.indexOf("token_hash=") !== -1 || candidate.indexOf("type=") !== -1)) {
-          candidate = "https://dummy.local/?" + candidate.replace(/^[?#]/, "");
+        var isLikelyUrl = /^https?:\/\//i.test(candidate);
+        if (!isLikelyUrl && (candidate.indexOf("token_hash=") !== -1 || candidate.indexOf("type=") !== -1 || candidate.indexOf("code=") !== -1 || candidate.indexOf("access_token=") !== -1)) {
+          var normalized = candidate.replace(/^[?#]/, "");
+          if (normalized.indexOf("access_token=") !== -1 && normalized.indexOf("#") !== 0) {
+            candidate = "https://dummy.local/#" + normalized;
+          } else {
+            candidate = "https://dummy.local/?" + normalized;
+          }
+          isLikelyUrl = true;
         }
 
         try {
+          if (!isLikelyUrl) return null;
           var url = new URL(candidate);
+
+          var code = url.searchParams.get("code");
+          if (code) {
+            return { kind: "code", code: code };
+          }
+
           var tokenHash = url.searchParams.get("token_hash");
           var type = url.searchParams.get("type") || "magiclink";
-          if (!tokenHash) return null;
-          if (["signup", "magiclink", "recovery", "invite", "email_change", "email"].indexOf(type) === -1) {
-            type = "magiclink";
+          if (tokenHash) {
+            if (["signup", "magiclink", "recovery", "invite", "email_change", "email"].indexOf(type) === -1) {
+              type = "magiclink";
+            }
+            return { kind: "token_hash", token_hash: tokenHash, type: type };
           }
-          return { token_hash: tokenHash, type: type };
+
+          var hash = (url.hash || "").replace(/^#/, "");
+          if (hash) {
+            var hashParams = new URLSearchParams(hash);
+            var accessToken = hashParams.get("access_token");
+            var refreshToken = hashParams.get("refresh_token");
+            if (accessToken && refreshToken) {
+              return { kind: "session_tokens", access_token: accessToken, refresh_token: refreshToken };
+            }
+          }
+
+          return null;
         } catch (_) {
           return null;
         }
@@ -6920,14 +6947,14 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           const email = getEl("auth-email").value.trim() || appState.pendingAuthEmail;
           const rawCode = (getEl("auth-code").value || "").trim();
           const compactCode = rawCode.replace(/\s+/g, "");
-          const tokenMatch = compactCode.match(/[A-Za-z0-9]{6,}/);
+          const tokenMatch = compactCode.match(/[A-Za-z0-9]{4,}/);
           const code = tokenMatch ? tokenMatch[0] : compactCode;
-          const tokenPayload = extractTokenHashPayload(rawCode);
+          const authPayload = extractAuthInputPayload(rawCode);
           if (!email) {
             setStatus("auth-status", t("status_enter_email"), true);
             return;
           }
-          if (!tokenPayload && (!code || code.length < 4)) {
+          if (!authPayload && (!code || code.length < 4)) {
             setStatus("auth-status", t("status_enter_code"), true);
             return;
           }
@@ -6936,10 +6963,21 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           var data = null;
           var error = null;
 
-          if (tokenPayload) {
+          if (authPayload && authPayload.kind === "session_tokens") {
+            var sessionTokenResult = await appState.supabase.auth.setSession({
+              access_token: authPayload.access_token,
+              refresh_token: authPayload.refresh_token
+            });
+            data = sessionTokenResult.data;
+            error = sessionTokenResult.error;
+          } else if (authPayload && authPayload.kind === "code") {
+            var exchangeResult = await appState.supabase.auth.exchangeCodeForSession(authPayload.code);
+            data = exchangeResult.data;
+            error = exchangeResult.error;
+          } else if (authPayload && authPayload.kind === "token_hash") {
             var tokenResult = await appState.supabase.auth.verifyOtp({
-              token_hash: tokenPayload.token_hash,
-              type: tokenPayload.type
+              token_hash: authPayload.token_hash,
+              type: authPayload.type
             });
             data = tokenResult.data;
             error = tokenResult.error;
