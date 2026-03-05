@@ -1886,6 +1886,30 @@ Let us start by getting to know each other.</p>
         return { data: null, error: lastError || { message: "Token has expired or is invalid" } };
       }
 
+      function extractTokenHashPayload(rawInput) {
+        if (!rawInput) return null;
+        var text = String(rawInput).trim();
+        if (!text) return null;
+
+        var candidate = text;
+        if (!/^https?:\/\//i.test(candidate) && (candidate.indexOf("token_hash=") !== -1 || candidate.indexOf("type=") !== -1)) {
+          candidate = "https://dummy.local/?" + candidate.replace(/^[?#]/, "");
+        }
+
+        try {
+          var url = new URL(candidate);
+          var tokenHash = url.searchParams.get("token_hash");
+          var type = url.searchParams.get("type") || "magiclink";
+          if (!tokenHash) return null;
+          if (["signup", "magiclink", "recovery", "invite", "email_change", "email"].indexOf(type) === -1) {
+            type = "magiclink";
+          }
+          return { token_hash: tokenHash, type: type };
+        } catch (_) {
+          return null;
+        }
+      }
+
       function escapeHtml(value) {
         return String(value == null ? "" : value)
           .replace(/&/g, "&amp;")
@@ -6898,17 +6922,32 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           const compactCode = rawCode.replace(/\s+/g, "");
           const tokenMatch = compactCode.match(/[A-Za-z0-9]{6,}/);
           const code = tokenMatch ? tokenMatch[0] : compactCode;
+          const tokenPayload = extractTokenHashPayload(rawCode);
           if (!email) {
             setStatus("auth-status", t("status_enter_email"), true);
             return;
           }
-          if (!code || code.length < 4) {
+          if (!tokenPayload && (!code || code.length < 4)) {
             setStatus("auth-status", t("status_enter_code"), true);
             return;
           }
 
           setStatus("auth-status", t("status_verifying_code"));
-          const { data, error } = await verifyEmailOtpFlexible(email, code);
+          var data = null;
+          var error = null;
+
+          if (tokenPayload) {
+            var tokenResult = await appState.supabase.auth.verifyOtp({
+              token_hash: tokenPayload.token_hash,
+              type: tokenPayload.type
+            });
+            data = tokenResult.data;
+            error = tokenResult.error;
+          } else {
+            var codeResult = await verifyEmailOtpFlexible(email, code);
+            data = codeResult.data;
+            error = codeResult.error;
+          }
 
           if (error) {
             setStatus("auth-status", error.message || t("status_invalid_code"), true);
