@@ -1850,6 +1850,42 @@ Let us start by getting to know each other.</p>
         }
       }
 
+      async function verifyEmailOtpFlexible(email, token) {
+        if (!appState.supabase) {
+          return { data: null, error: { message: "Supabase not initialized" } };
+        }
+
+        var types = ["email", "magiclink", "signup"];
+        var lastError = null;
+
+        for (var i = 0; i < types.length; i++) {
+          var type = types[i];
+          try {
+            var result = await appState.supabase.auth.verifyOtp({
+              email: email,
+              token: token,
+              type: type
+            });
+            if (!result.error) return result;
+            lastError = result.error;
+
+            var msg = ((result.error && result.error.message) || "").toLowerCase();
+            var maybeWrongType =
+              msg.includes("invalid") ||
+              msg.includes("expired") ||
+              msg.includes("token") ||
+              msg.includes("otp");
+            if (!maybeWrongType) {
+              return result;
+            }
+          } catch (err) {
+            lastError = err;
+          }
+        }
+
+        return { data: null, error: lastError || { message: "Token has expired or is invalid" } };
+      }
+
       function escapeHtml(value) {
         return String(value == null ? "" : value)
           .replace(/&/g, "&amp;")
@@ -6858,7 +6894,7 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           }
 
           const email = getEl("auth-email").value.trim() || appState.pendingAuthEmail;
-          const code = (getEl("auth-code").value || "").trim().replace(/\s+/g, "");
+          const code = (getEl("auth-code").value || "").trim().replace(/\D/g, "");
           if (!email) {
             setStatus("auth-status", t("status_enter_email"), true);
             return;
@@ -6869,11 +6905,7 @@ Set categories to null if no fitting tip. Pure JSON only, no markdown.`;
           }
 
           setStatus("auth-status", t("status_verifying_code"));
-          const { data, error } = await appState.supabase.auth.verifyOtp({
-            email: email,
-            token: code,
-            type: "email"
-          });
+          const { data, error } = await verifyEmailOtpFlexible(email, code);
 
           if (error) {
             setStatus("auth-status", error.message || t("status_invalid_code"), true);
