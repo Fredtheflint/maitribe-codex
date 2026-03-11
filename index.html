@@ -3840,6 +3840,185 @@ Write in ${lang}.`;
         }
       }
 
+      async function extractIdentityInsights(messages, userId) {
+        if (!appState.supabase || !userId) return null;
+        if (!Array.isArray(messages) || messages.length < 4) return null;
+
+        var transcript = messages.map(function(m) {
+          var role = (m && (m.role === "assistant" || m.role === "model")) ? "Mai" : "User";
+          var text = (m && (m.content || m.text || (m.parts && m.parts[0] && m.parts[0].text))) || "";
+          return role + ": " + text;
+        }).join("\n");
+
+        var extractPrompt =
+          "Du analysierst ein Gespräch zwischen Mai (AI-Companion) und einem User.\n" +
+          "Extrahiere NUR das, was du mit hoher Sicherheit über die Identität des Users erkennen kannst.\n" +
+          "Antworte AUSSCHLIESSLICH in diesem JSON-Format (keine Markdown-Backticks):\n\n" +
+          "{\n" +
+          "  \"new_values\": [],\n" +
+          "  \"new_triggers\": [],\n" +
+          "  \"new_people\": [],\n" +
+          "  \"dimension_signals\": {},\n" +
+          "  \"identity_evolution_note\": null\n" +
+          "}\n\n" +
+          "REGELN:\n" +
+          "- new_values: Nur Werte die der User explizit oder stark implizit gezeigt hat. Keine Vermutungen.\n" +
+          "- new_triggers: Nur konkrete Situationen mit ungewolltem Muster. Format {\"trigger\":\"...\",\"pattern\":\"...\"}\n" +
+          "- new_people: Nur namentlich erwähnte Personen mit emotionalem Kontext. Format {\"name\":\"...\",\"relation\":\"...\",\"context\":\"...\"}\n" +
+          "- dimension_signals: Nur klare Hinweise zu body, mind, relationships, creativity, career.\n" +
+          "- identity_evolution_note: Nur bei echter Veränderung/Erkenntnis, sonst null.\n" +
+          "- Wenn nichts sicher ist: leere Arrays/Objekte zurückgeben.";
+
+        try {
+          var aiJson = await callAI({
+            systemPrompt: "Du bist ein präziser Extraktions-Assistent. Antworte nur mit gültigem JSON.",
+            contents: [{ role: "user", parts: [{ text: extractPrompt + "\n\nGESPRÄCH:\n" + transcript }] }],
+            maxOutputTokens: 1024,
+            temperature: 0.2,
+            topP: 0.9,
+            timeout: 25000
+          });
+
+          var rawText = extractGeminiText(aiJson);
+          var cleaned = extractJsonObjectText(rawText);
+          if (!cleaned) return null;
+          var insights = JSON.parse(cleaned);
+          if (!insights || typeof insights !== "object") return null;
+
+          var identityResult = await appState.supabase
+            .from("identities")
+            .select("id, values_hierarchy, trigger_map, important_people, dimensions, evolution_notes")
+            .eq("user_id", userId)
+            .eq("is_active", true)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (identityResult.error || !identityResult.data) return null;
+
+          var identity = identityResult.data;
+          var updates = {};
+
+          var currentValues = Array.isArray(identity.values_hierarchy) ? identity.values_hierarchy : [];
+          var newValues = Array.isArray(insights.new_values) ? insights.new_values : [];
+          var valueMap = new Map();
+          currentValues.forEach(function(v) {
+            if (!v || typeof v !== "string") return;
+            valueMap.set(v.trim().toLowerCase(), v.trim());
+          });
+          newValues.forEach(function(v) {
+            if (!v || typeof v !== "string") return;
+            var normalized = v.trim().toLowerCase();
+            if (!normalized) return;
+            valueMap.set(normalized, v.trim());
+          });
+          var mergedValues = Array.from(valueMap.values());
+          if (JSON.stringify(mergedValues) !== JSON.stringify(currentValues)) {
+            updates.values_hierarchy = mergedValues;
+          }
+
+          var currentTriggers = Array.isArray(identity.trigger_map) ? identity.trigger_map : [];
+          var newTriggers = Array.isArray(insights.new_triggers) ? insights.new_triggers : [];
+          var triggerMap = new Map();
+          currentTriggers.forEach(function(t) {
+            if (!t || typeof t !== "object") return;
+            var trigger = String(t.trigger || "").trim();
+            var pattern = String(t.pattern || "").trim();
+            if (!trigger || !pattern) return;
+            triggerMap.set((trigger + "::" + pattern).toLowerCase(), t);
+          });
+          newTriggers.forEach(function(t) {
+            if (!t || typeof t !== "object") return;
+            var trigger = String(t.trigger || "").trim();
+            var pattern = String(t.pattern || "").trim();
+            if (!trigger || !pattern) return;
+            triggerMap.set((trigger + "::" + pattern).toLowerCase(), {
+              trigger: trigger,
+              pattern: pattern,
+              noted_at: new Date().toISOString()
+            });
+          });
+          var mergedTriggers = Array.from(triggerMap.values());
+          if (JSON.stringify(mergedTriggers) !== JSON.stringify(currentTriggers)) {
+            updates.trigger_map = mergedTriggers;
+          }
+
+          var currentPeople = Array.isArray(identity.important_people) ? identity.important_people : [];
+          var newPeople = Array.isArray(insights.new_people) ? insights.new_people : [];
+          var peopleMap = new Map();
+          currentPeople.forEach(function(p) {
+            if (!p || typeof p !== "object") return;
+            var name = String(p.name || "").trim();
+            if (!name) return;
+            peopleMap.set(name.toLowerCase(), {
+              name: name,
+              relation: p.relation || null,
+              context: p.context || null
+            });
+          });
+          newPeople.forEach(function(p) {
+            if (!p || typeof p !== "object") return;
+            var name = String(p.name || "").trim();
+            if (!name) return;
+            var existing = peopleMap.get(name.toLowerCase()) || {};
+            peopleMap.set(name.toLowerCase(), {
+              name: name,
+              relation: p.relation || existing.relation || null,
+              context: p.context || existing.context || null
+            });
+          });
+          var mergedPeople = Array.from(peopleMap.values());
+          if (JSON.stringify(mergedPeople) !== JSON.stringify(currentPeople)) {
+            updates.important_people = mergedPeople;
+          }
+
+          var allowedDimensions = ["body", "mind", "relationships", "creativity", "career"];
+          var dimensionSignals = insights.dimension_signals && typeof insights.dimension_signals === "object"
+            ? insights.dimension_signals
+            : {};
+          var filteredSignals = {};
+          allowedDimensions.forEach(function(dim) {
+            var signal = dimensionSignals[dim];
+            if (!signal) return;
+            var text = String(signal).trim();
+            if (!text) return;
+            filteredSignals[dim] = { note: text, noted_at: new Date().toISOString() };
+          });
+          if (Object.keys(filteredSignals).length) {
+            var currentDimensions = identity.dimensions && typeof identity.dimensions === "object" ? identity.dimensions : {};
+            var currentSignalMap = currentDimensions.signals && typeof currentDimensions.signals === "object" ? currentDimensions.signals : {};
+            updates.dimensions = Object.assign({}, currentDimensions, {
+              signals: Object.assign({}, currentSignalMap, filteredSignals)
+            });
+          }
+
+          var evolutionNote = insights.identity_evolution_note;
+          if (evolutionNote && String(evolutionNote).trim()) {
+            var currentNotes = Array.isArray(identity.evolution_notes) ? identity.evolution_notes : [];
+            updates.evolution_notes = currentNotes.concat([
+              new Date().toISOString().split("T")[0] + ": " + String(evolutionNote).trim()
+            ]);
+          }
+
+          if (Object.keys(updates).length === 0) return insights;
+
+          var updateResult = await appState.supabase
+            .from("identities")
+            .update(updates)
+            .eq("id", identity.id);
+
+          if (updateResult.error) {
+            console.error("[MaiTribe] Identity insights update failed:", updateResult.error);
+            return null;
+          }
+
+          return insights;
+        } catch (error) {
+          console.error("[MaiTribe] Identity extraction failed:", error);
+          return null;
+        }
+      }
+
       async function generateAndSaveSummary(messages) {
         if (!appState.supabase || !appState.currentUser) return;
         if (appState.summaryAlreadySaved) return;
@@ -3934,6 +4113,9 @@ Write in ${lang}.`;
           console.log("[MaiTribe] Chat summary saved");
           evaluateConversation(messages, saveResult.data && saveResult.data.id ? saveResult.data.id : null).catch(function(err) {
             console.error("[MaiTribe] Eval failed (non-blocking):", err);
+          });
+          extractIdentityInsights(messages, appState.currentUser.id).catch(function(err) {
+            console.error("[MaiTribe] Identity extraction failed (non-blocking):", err);
           });
         } catch (error) {
           console.error("[MaiTribe] Summary generation failed:", error);
@@ -4244,7 +4426,14 @@ Write in ${lang}.`;
 
         var settled = await Promise.allSettled([
           appState.supabase.from("users").select("*").eq("id", userId).single(),
-          appState.supabase.from("identities").select("*").eq("user_id", userId).eq("is_active", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          appState.supabase
+            .from("identities")
+            .select("id, user_id, is_active, full_text, one_liner, sentences, dimensions, values_hierarchy, trigger_map, important_people, evolution_notes")
+            .eq("user_id", userId)
+            .eq("is_active", true)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
           appState.supabase.from("checkins").select("body,mind,soul,energy,note,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(3),
           appState.supabase.from("events").select("title,description,event_time").eq("user_id", userId).eq("status", "upcoming").gt("event_time", new Date().toISOString()).order("event_time", { ascending: true }).limit(5),
           appState.supabase.from("conversations").select("topics,summary").eq("user_id", userId).order("created_at", { ascending: false }).limit(5),
@@ -4525,13 +4714,31 @@ CRISIS:
 ALWAYS respond in English.`;
         }
         // --- Identity context ---
-        if (identity && identity.full_text) {
-          prompt += `\n\nIDENTIT\u00C4T / IDENTITY: "${identity.full_text}"`;
-          if (identity.sentences && identity.sentences.length) {
-            prompt += `\nCore sentences: ${JSON.stringify(identity.sentences)}`;
+        var identityBlock = "";
+        if (identity && (identity.full_text || identity.one_liner)) {
+          identityBlock = "\n[IDENTITY PROFILE]\nStatement: " + (identity.full_text || identity.one_liner || "Noch in Entwicklung");
+          if (Array.isArray(identity.values_hierarchy) && identity.values_hierarchy.length) {
+            identityBlock += "\nWerte: " + identity.values_hierarchy.slice(0, 5).join(", ");
           }
-        } else if (identity && identity.one_liner) {
-          prompt += `\nIdentity: ${identity.one_liner}`;
+          if (Array.isArray(identity.trigger_map) && identity.trigger_map.length) {
+            var triggerText = identity.trigger_map
+              .map(function(t) { return t && t.trigger ? String(t.trigger).trim() : ""; })
+              .filter(Boolean)
+              .join("; ");
+            if (triggerText) identityBlock += "\nBekannte Trigger: " + triggerText;
+          }
+          if (Array.isArray(identity.important_people) && identity.important_people.length) {
+            var peopleText = identity.important_people
+              .map(function(p) {
+                if (!p || !p.name) return "";
+                return p.relation ? (p.name + " (" + p.relation + ")") : p.name;
+              })
+              .filter(Boolean)
+              .join(", ");
+            if (peopleText) identityBlock += "\nWichtige Menschen: " + peopleText;
+          }
+          identityBlock += "\n[/IDENTITY PROFILE]";
+          prompt += "\n" + identityBlock;
         }
 
         // --- Astro/HD context ---
